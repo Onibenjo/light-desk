@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #f26b3a; /* CLC orange from the Mixlr avatar */
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.kbd {
+  @apply inline-block rounded border border-zinc-600 bg-zinc-800 px-1.5 py-0.5 text-[11px] font-mono text-zinc-300;
+}
