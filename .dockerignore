@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+local.db*
+*.zip
+.env*
+!.env.example
+README.md
+tests
