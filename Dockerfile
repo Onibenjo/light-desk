@@ -9,7 +9,7 @@
 # Set TURSO_DATABASE_URL/TURSO_AUTH_TOKEN instead if you'd rather use Turso.
 
 # ---- build stage ----
-FROM node:22-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
@@ -18,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # ---- runtime stage ----
-FROM node:22-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

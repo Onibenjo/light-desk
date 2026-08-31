@@ -9,7 +9,7 @@ Milestone 1 (this repo): verses. Milestone 2: canned-message runsheet. Milestone
 - **Reference parsing** is local and instant. Sloppy input is fine; single-chapter books (`jude 24`) and glued forms (`1cor13v4`) work. Anything that isn't a reference goes to the description search.
 - **Description search** sends the phrase to an LLM through OpenRouter (Claude Haiku by default; any model via `LLM_MODEL`) and gets back up to 3 candidate references. Press `1`, `2` or `3` to pick. The model never supplies verse text — only the reference.
 - **Verse text** comes from, in order: bundled KJV (public domain, offline) → the Turso cache → YouVersion Platform API → API.Bible → BibleGateway page scrape (last resort; see below) → AI-quoted from the model's memory (last-last resort: shown with a red warning, never auto-copied, never cached — the operator must read it and click Copy; `DISABLE_LLM_FALLBACK=1` turns it off). Everything fetched from a real source is cached, so a verse is only ever fetched once.
-- **Formatting**: line 1 reference, line 2 full translation name, then `28. text` one verse per line. Plain text. Passages longer than `NEXT_PUBLIC_MAX_MESSAGE_CHARS` (default 1000) are split into parts with the header repeated.
+- **Formatting**: line 1 reference, line 2 full translation name, then `28. text` one verse per line. Plain text. Passages longer than `MAX_MESSAGE_CHARS` (default 1000) are split into parts with the header repeated.
 - **Keys**: `+` copies the next verse as its own message. **Whole passage** re-copies everything looked up in that range. **Chapter** opens the full chapter so you can click any verse. **Esc** clears.
 - **Log**: everything copied is stored with a timestamp (handover, re-send, and pilot metrics).
 - **Access**: one church PIN unlocks the laptop for a year (cookie). API routes refuse without it. Search endpoints are rate-limited.
@@ -66,7 +66,7 @@ tests/                    vitest
 
 ## Still to do
 
-- Calibrate the Mixlr message limit (paste one long block and see) and set `NEXT_PUBLIC_MAX_MESSAGE_CHARS`.
+- Calibrate the Mixlr message limit (paste one long block and see) and set `MAX_MESSAGE_CHARS`.
 - Confirm YouVersion / API.Bible translation ids once keys are approved.
 - M2: import the Google Doc into `messages`, build the runsheet screen.
 - M3: songbook, WhatsApp set import, quick-add.
