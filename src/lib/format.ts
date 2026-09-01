@@ -9,9 +9,10 @@ export interface Passage {
   translationName: string; // "New King James Version"
   verses: Verse[];
   source: "local" | "cache" | "youversion" | "apibible" | "gateway" | "llm";
+  attempts?: string[]; // why earlier sources in the chain failed, for the operator/dev
 }
 
-export const MAX_MESSAGE_CHARS = Number(process.env.MAX_MESSAGE_CHARS ?? 1000);
+export const MAX_MESSAGE_CHARS = Number(process.env.NEXT_PUBLIC_MAX_MESSAGE_CHARS ?? 1000);
 
 /** Plain text, one line per verse, exactly the style already used in the CLC chat. */
 export function formatPassage(p: Passage): string {

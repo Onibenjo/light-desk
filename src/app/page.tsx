@@ -11,6 +11,7 @@ type Passage = {
   translationName: string;
   verses: { verse: number; text: string }[];
   source: "local" | "cache" | "youversion" | "apibible" | "gateway" | "llm";
+  attempts?: string[];
 };
 type PassageResult = { passage: Passage; text: string; chunks: string[]; ms: number; ref: Ref };
 type Candidate = { label: string; why: string; ref: Ref };
@@ -334,6 +335,11 @@ export default function Desk() {
               </button>
             </div>
           </div>
+          {result.passage.attempts && result.passage.attempts.length > 0 && (result.passage.source === "llm" || result.passage.source === "gateway") && (
+            <p className="text-xs text-zinc-500">
+              Skipped: {result.passage.attempts.join(" · ")}
+            </p>
+          )}
           {result.chunks.length > 1 && (
             <div className="flex flex-wrap gap-2">
               {result.chunks.map((_, i) => (

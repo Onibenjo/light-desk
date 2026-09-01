@@ -59,7 +59,8 @@ export async function getPassage(ref: Reference, translationCode?: string): Prom
           .values(got.verses.map((v) => ({ translation: t.code, book: ref.book.id, chapter: ref.chapter, verse: v.verse, text: v.text, source: got.source, fetchedAt: now })))
           .onConflictDoNothing();
       }
-      return { reference, translationCode: t.code, translationName: t.name, verses: got.verses, source: got.source };
+      if (errors.length) console.warn(`[lightdesk] ${reference} ${t.code} served by ${got.source} after: ${errors.join(" | ")}`);
+      return { reference, translationCode: t.code, translationName: t.name, verses: got.verses, source: got.source, attempts: errors };
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e));
     }
@@ -110,21 +111,38 @@ async function fromApiBible(ref: Reference, t: Translation): Promise<Fetched> {
 async function fromBibleGateway(ref: Reference, t: Translation): Promise<Fetched> {
   if (process.env.DISABLE_GATEWAY_FALLBACK === "1") throw new SourceError("gateway: disabled");
   const { start, end } = expandRange(ref);
-  const search = encodeURIComponent(`${ref.book.usfm.toLowerCase()} ${ref.chapter}.${start}-${end}`);
-  const url = `https://www.biblegateway.com/passage/?search=${search}&version=${t.gatewayCode}`;
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Lightdesk/1.0" }, cache: "no-store" });
+  // Full book name: BibleGateway does not understand USFM codes like "jhn" or "php".
+  const search = encodeURIComponent(`${ref.book.name} ${ref.chapter}:${start}${end > start ? `-${end}` : ""}`);
+  const url = `https://www.biblegateway.com/passage/?search=${search}&version=${t.gatewayCode}&interface=print`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+    cache: "no-store",
+    redirect: "follow",
+  });
   if (!res.ok) throw new SourceError(`gateway: HTTP ${res.status}`);
   const html = await res.text();
+  return { source: "gateway", verses: parseGatewayHtml(html, start, end) };
+}
+
+/** Exported for tests. Pulls verse text out of a BibleGateway passage page. */
+export function parseGatewayHtml(html: string, start: number, end: number): Verse[] {
   const $ = cheerio.load(html);
   const passage = $(".passage-text").first();
-  if (!passage.length) throw new SourceError("gateway: passage block not found");
-  passage.find("sup.footnote, sup.crossreference, .footnotes, .crossrefs, h3, .chapternum, .full-chap-link, .passage-other-trans").remove();
+  if (!passage.length) {
+    const title = $("title").text().trim().slice(0, 60);
+    throw new SourceError(`gateway: passage block not found (page title: "${title}")`);
+  }
+  passage.find("sup.footnote, sup.crossreference, .footnotes, .crossrefs, h1, h3, h4, .chapternum, .full-chap-link, .passage-other-trans, .publisher-info-bottom").remove();
 
   // Each verse's words are in spans with class "text Book-Ch-V"; the verse number sits in sup.versenum.
   const byVerse = new Map<number, string[]>();
   passage.find("span.text").each((_, el) => {
     const cls = $(el).attr("class") ?? "";
-    const m = cls.match(/\b[A-Za-z0-9]+-(\d+)-(\d+)\b/);
+    const m = cls.match(/(?:^|\s)[A-Za-z0-9]+-(\d+)-(\d+)(?:\s|$)/);
     if (!m) return;
     const v = parseInt(m[2], 10);
     const clone = $(el).clone();
@@ -139,7 +157,7 @@ async function fromBibleGateway(ref: Reference, t: Translation): Promise<Fetched
     if (parts) verses.push({ verse: v, text: cleanVerseText(parts.join(" ")) });
   }
   if (!verses.length) throw new SourceError("gateway: no verses parsed");
-  return { source: "gateway", verses };
+  return verses;
 }
 
 // ---------- LLM quote (last-last resort) ----------

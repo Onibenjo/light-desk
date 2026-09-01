@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseInput, parseReference, formatReference } from "../src/lib/reference";
 import { splitForChat, formatPassage, cleanVerseText } from "../src/lib/format";
-import { splitNumberedBlob } from "../src/lib/sources";
+import { splitNumberedBlob, parseGatewayHtml } from "../src/lib/sources";
 
 const fmt = (s: string) => {
   const r = parseReference(s);
@@ -93,5 +93,29 @@ describe("numbered blob splitter", () => {
     expect(splitNumberedBlob("[16] For God so loved the world", 16, 16)[0].text).toBe("For God so loved the world");
     const v = splitNumberedBlob("[1] a b c [2] d e f", 1, 2);
     expect(v[1].text).toBe("d e f");
+  });
+});
+
+describe("BibleGateway page parser", () => {
+  const page = `<html><head><title>John 1:3 AMPC - All things were made - Bible Gateway</title></head><body>
+  <div class="passage-text"><div class="passage-content"><div class="version-AMPC result-text-style-normal text-html">
+  <h1 class="passage-display"><span class="passage-display-bcv">John 1:3</span><span class="passage-display-version">Amplified Bible, Classic Edition</span></h1>
+  <p><span id="en-AMPC-26047" class="text John-1-3"><sup class="versenum">3 </sup>All things were made and came into existence through Him; and without Him was not even one thing made that has come into being.<sup data-fn="#fen-AMPC-26047a" class="footnote">[<a href="#fen-AMPC-26047a">a</a>]</sup></span>
+  <span id="en-AMPC-26048" class="text John-1-4"><sup class="versenum">4 </sup>In Him was Life, and the Life was the Light of men.</span></p>
+  <div class="footnotes"><h4>Footnotes</h4><ol><li id="fen-AMPC-26047a">John 1:3 Note</li></ol></div>
+  </div></div></div></body></html>`;
+  it("extracts verses and drops footnotes", () => {
+    const v = parseGatewayHtml(page, 3, 4);
+    expect(v).toEqual([
+      { verse: 3, text: "All things were made and came into existence through Him; and without Him was not even one thing made that has come into being." },
+      { verse: 4, text: "In Him was Life, and the Life was the Light of men." },
+    ]);
+  });
+  it("handles numbered books like 1 John", () => {
+    const p2 = page.replace(/John-1-/g, "1John-1-");
+    expect(parseGatewayHtml(p2, 3, 3)[0].verse).toBe(3);
+  });
+  it("reports a missing passage block with the page title", () => {
+    expect(() => parseGatewayHtml("<html><head><title>Just a moment...</title></head><body></body></html>", 1, 1)).toThrow(/Just a moment/);
   });
 });
