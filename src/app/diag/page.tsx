@@ -24,13 +24,13 @@ export default function DiagPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-3xl space-y-5 p-6">
-      <header className="flex items-center justify-between">
-        <div>
+    <main className="mx-auto max-w-3xl space-y-5 p-4 sm:p-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-lg font-semibold">Lightdesk · source check</h1>
           <p className="text-xs text-zinc-500">Which verse sources are working for this deployment.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={() => run(false)} disabled={busy} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm disabled:opacity-50">
             Quick check
           </button>
@@ -44,11 +44,11 @@ export default function DiagPage() {
         <>
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
             <h2 className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Config</h2>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2 md:grid-cols-3">
               {Object.entries(data.env).map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-2 border-b border-zinc-800/60 py-1">
-                  <dt className="text-zinc-400">{k}</dt>
-                  <dd className={typeof v === "boolean" ? (v ? "text-emerald-300" : "text-zinc-500") : "text-zinc-200"}>{typeof v === "boolean" ? (v ? "set" : "—") : v}</dd>
+                <div key={k} className="flex min-w-0 justify-between gap-2 border-b border-zinc-800/60 py-1">
+                  <dt className="min-w-0 truncate text-zinc-400">{k}</dt>
+                  <dd className={`min-w-0 break-all text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-zinc-500") : "text-zinc-200"}`}>{typeof v === "boolean" ? (v ? "set" : "—") : v}</dd>
                 </div>
               ))}
             </dl>
@@ -57,10 +57,10 @@ export default function DiagPage() {
             <h2 className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Checks</h2>
             <ul className="divide-y divide-zinc-800 text-sm">
               {data.checks.map((c) => (
-                <li key={c.name} className="flex gap-3 py-2">
-                  <span className={c.ok ? "text-emerald-400" : "text-red-400"}>{c.ok ? "✓" : "✗"}</span>
-                  <span className="w-56 shrink-0 text-zinc-200">{c.name}</span>
-                  <span className="text-zinc-400 break-all">
+                <li key={c.name} className="flex flex-wrap gap-x-3 gap-y-1 py-2">
+                  <span className={`shrink-0 ${c.ok ? "text-emerald-400" : "text-red-400"}`}>{c.ok ? "✓" : "✗"}</span>
+                  <span className="min-w-0 flex-1 break-words text-zinc-200 sm:w-56 sm:flex-none">{c.name}</span>
+                  <span className="min-w-0 basis-full break-all text-zinc-400 sm:basis-0 sm:flex-1">
                     {c.detail}
                     {c.ms !== undefined && <span className="ml-2 text-zinc-600">{c.ms} ms</span>}
                   </span>

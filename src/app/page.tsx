@@ -265,23 +265,27 @@ export default function Desk() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-4 sm:p-6">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
-          <div>
-            <h1 className="text-lg font-semibold leading-tight">Lightdesk</h1>
-            <p className="text-xs text-zinc-500">CLC · Mixlr chat desk</p>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="order-1 flex min-w-0 flex-1 items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold leading-tight">Lightdesk</h1>
+            <p className="truncate text-xs text-zinc-500">CLC · Mixlr chat desk</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-zinc-500">Translation</label>
+        <div className="order-3 flex w-full items-center gap-2 sm:order-2 sm:w-auto">
+          <label htmlFor="ld-translation" className="hidden text-xs text-zinc-500 md:inline">
+            Translation
+          </label>
           <select
+            id="ld-translation"
+            aria-label="Translation"
             value={translation}
             onChange={(e) => {
               setTranslation(e.target.value);
               refocus();
             }}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+            className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm sm:flex-none"
           >
             {TRANSLATIONS.map((t) => (
               <option key={t.code} value={t.code}>
@@ -289,15 +293,19 @@ export default function Desk() {
               </option>
             ))}
           </select>
-          <label className="ml-2 text-xs text-zinc-500">Source</label>
+          <label htmlFor="ld-source" className="hidden text-xs text-zinc-500 md:ml-2 md:inline">
+            Source
+          </label>
           <select
+            id="ld-source"
+            aria-label="Source"
             value={sourceChoice}
             onChange={(e) => {
               setSourceChoice(e.target.value);
               refocus();
             }}
             title="Auto tries YouVersion, then API.Bible, then BibleGateway, then AI. Pick one to force it."
-            className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
+            className={`min-w-0 flex-1 rounded-md border bg-zinc-900 px-2 py-1.5 text-sm sm:flex-none ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
           >
             {SOURCE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -305,6 +313,8 @@ export default function Desk() {
               </option>
             ))}
           </select>
+        </div>
+        <div className="order-2 flex shrink-0 items-center gap-2 sm:order-3">
           <button onClick={toggleLog} className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800">
             {showLog ? "Hide log" : "Log"}
           </button>
@@ -323,7 +333,7 @@ export default function Desk() {
           onKeyDown={onKeyDown}
           disabled={!!busy}
           placeholder="rom 8 28  ·  1 cor 13 4-7  ·  or describe it: walk on snakes"
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-zinc-600 focus:border-[var(--accent)] disabled:opacity-60"
+          className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-lg outline-none sm:text-xl placeholder:text-zinc-600 focus:border-[var(--accent)] disabled:opacity-60"
         />
         <p className="text-xs text-zinc-500">
           <span className="kbd">Enter</span> copies to clipboard · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · <span className="kbd">+</span> next verse ·{" "}
@@ -341,11 +351,11 @@ export default function Desk() {
             <button
               key={c.label}
               onClick={() => lookup(refToQuery(c.ref))}
-              className="flex w-full items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
             >
-              <span className="kbd">{i + 1}</span>
+              <span className="kbd shrink-0">{i + 1}</span>
               <span className="font-medium">{c.label}</span>
-              <span className="text-sm text-zinc-400">{c.why}</span>
+              <span className="min-w-0 break-words text-sm text-zinc-400">{c.why}</span>
             </button>
           ))}
         </section>
@@ -394,17 +404,17 @@ export default function Desk() {
               ))}
             </div>
           )}
-          <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
         </section>
       )}
 
       {chapter && (
         <section className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="min-w-0 truncate font-medium">
               {chapter.reference} · {chapter.translationCode}
             </h2>
-            <button onClick={() => setChapter(null)} className="text-sm text-zinc-400 hover:text-zinc-200">
+            <button onClick={() => setChapter(null)} className="shrink-0 text-sm text-zinc-400 hover:text-zinc-200">
               Close
             </button>
           </div>
@@ -431,11 +441,11 @@ export default function Desk() {
           <ul className="divide-y divide-zinc-800">
             {log.map((row) => (
               <li key={row.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span>
+                <span className="min-w-0 truncate">
                   <span className="mr-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[11px] uppercase text-zinc-400">{row.kind}</span>
                   {row.label}
                 </span>
-                <span className="flex items-center gap-2">
+                <span className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-zinc-500">{new Date(row.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                   {row.body && (
                     <button onClick={() => copyText(row.body!).then(() => showToast(`Copied ${row.label} again`))} className="rounded border border-zinc-700 px-2 py-0.5 text-xs hover:bg-zinc-800">
