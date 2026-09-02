@@ -35,7 +35,7 @@ export function parseInput(rawInput: string): ParseResult {
 
   // Trailing translation token: "john 3 16 amp" / "john 3:16 (NLT)" / "john 3:16 in tpt"
   let translation: Translation | undefined;
-  const tm = text.match(/^(.*?)(?:\s+in)?\s*[\s(]([a-z]{2,5})\)?$/i);
+  const tm = text.match(/^(.*?)(?:\s+in)?\s*[\s(]([a-z][a-z0-9]{1,7})\)?$/i);
   if (tm) {
     const t = findTranslation(tm[2]);
     if (t) {

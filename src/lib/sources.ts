@@ -16,18 +16,30 @@ type Fetched = { verses: Verse[]; source: Passage["source"] };
  * API.Bible → BibleGateway (last resort, see README). Whatever is fetched is
  * cached so the same verse never leaves the building twice.
  */
-export async function getPassage(ref: Reference, translationCode?: string): Promise<Passage> {
+export type SourceChoice = "auto" | "youversion" | "apibible" | "gateway" | "llm";
+export const SOURCE_CHOICES: SourceChoice[] = ["auto", "youversion", "apibible", "gateway", "llm"];
+
+export function parseSourceChoice(v: string | null | undefined): SourceChoice {
+  return (SOURCE_CHOICES as string[]).includes(v ?? "") ? (v as SourceChoice) : "auto";
+}
+
+/**
+ * @param choice "auto" runs the normal chain; any other value forces that one
+ * source (bypassing the cache read and the bundled KJV) so the operator can
+ * compare or work around a source that is misbehaving today.
+ */
+export async function getPassage(ref: Reference, translationCode?: string, choice: SourceChoice = "auto"): Promise<Passage> {
   applyEnvOverrides();
   const t = ref.translation ?? findTranslation(translationCode) ?? findTranslation(DEFAULT_TRANSLATION)!;
   const reference = formatReference(ref);
 
-  if (t.local) {
+  if (t.local && choice === "auto") {
     return { reference, translationCode: t.code, translationName: t.name, verses: kjvVerses(ref), source: "local" };
   }
 
   await ensureSchema();
   const { start, end } = expandRange(ref);
-  const cached = await db
+  const cached = choice !== "auto" ? [] : await db
     .select()
     .from(verseCache)
     .where(and(eq(verseCache.translation, t.code), eq(verseCache.book, ref.book.id), eq(verseCache.chapter, ref.chapter), gte(verseCache.verse, start), lte(verseCache.verse, end)));
@@ -42,12 +54,13 @@ export async function getPassage(ref: Reference, translationCode?: string): Prom
   }
 
   const errors: string[] = [];
-  const attempts: (() => Promise<Fetched>)[] = [
-    () => fromYouVersion(ref, t),
-    () => fromApiBible(ref, t),
-    () => fromBibleGateway(ref, t),
-    () => fromLLM(ref, t), // last-last resort: AI-quoted, flagged in the UI, never cached
-  ];
+  const chain: Record<Exclude<SourceChoice, "auto">, () => Promise<Fetched>> = {
+    youversion: () => fromYouVersion(ref, t),
+    apibible: () => fromApiBible(ref, t),
+    gateway: () => fromBibleGateway(ref, t),
+    llm: () => fromLLM(ref, t), // last-last resort: AI-quoted, flagged in the UI, never cached
+  };
+  const attempts = choice === "auto" ? [chain.youversion, chain.apibible, chain.gateway, chain.llm] : [chain[choice]];
   for (const attempt of attempts) {
     try {
       const got = await attempt();
@@ -65,29 +78,46 @@ export async function getPassage(ref: Reference, translationCode?: string): Prom
       errors.push(e instanceof Error ? e.message : String(e));
     }
   }
-  throw new SourceError(`No source could supply ${reference} (${t.code}): ${errors.join(" | ")}`);
+  throw new SourceError(`${choice === "auto" ? "No source could supply" : `Source "${choice}" could not supply`} ${reference} (${t.code}): ${errors.join(" | ")}`);
 }
 
 // ---------- YouVersion Platform ----------
-// Docs: https://developers.youversion.com — header X-YVP-App-Key, plain text via format=text.
+// Docs: https://developers.youversion.com/api/bibles — header X-YVP-App-Key.
+// GET /v1/bibles/{id}/passages/{USFM}?format=text → { id, reference, content }
+async function yvFetch(path: string, key: string): Promise<{ status: number; body: string }> {
+  const res = await fetch(`https://api.youversion.com/v1${path}`, {
+    headers: { "X-YVP-App-Key": key, Accept: "application/json" },
+    cache: "no-store",
+  });
+  return { status: res.status, body: await res.text() };
+}
+
 async function fromYouVersion(ref: Reference, t: Translation): Promise<Fetched> {
   const key = process.env.YOUVERSION_APP_KEY;
   if (!key) throw new SourceError("youversion: no key");
   if (!t.youversionId) throw new SourceError(`youversion: no version id for ${t.code}`);
   const { start, end } = expandRange(ref);
   const usfm = `${ref.book.usfm}.${ref.chapter}.${start}${end > start ? `-${end}` : ""}`;
-  const url = `https://api.youversion.com/v1/bibles/${t.youversionId}/passages/${usfm}?format=text`;
-  const res = await fetch(url, { headers: { "X-YVP-App-Key": key, Accept: "application/json" }, cache: "no-store" });
-  if (!res.ok) throw new SourceError(`youversion: HTTP ${res.status}`);
-  const data = (await res.json()) as { content?: string; text?: string; verses?: { verse?: number; number?: number; content?: string; text?: string }[] };
+  const r = await yvFetch(`/bibles/${t.youversionId}/passages/${usfm}?format=text&include_headings=false&include_notes=false`, key);
+  if (r.status !== 200) throw new SourceError(`youversion: HTTP ${r.status} ${r.body.replace(/\s+/g, " ").slice(0, 120)}`);
+  const data = JSON.parse(r.body) as { content?: string; verses?: { verse?: number; number?: number; content?: string; text?: string }[] };
   if (Array.isArray(data.verses) && data.verses.length) {
-    return {
-      source: "youversion",
-      verses: data.verses.map((v, i) => ({ verse: v.verse ?? v.number ?? start + i, text: cleanVerseText(v.content ?? v.text ?? "") })),
-    };
+    return { source: "youversion", verses: data.verses.map((v, i) => ({ verse: v.verse ?? v.number ?? start + i, text: cleanVerseText(v.content ?? v.text ?? "") })) };
   }
-  const blob = data.content ?? data.text ?? "";
-  return { source: "youversion", verses: splitNumberedBlob(blob, start, end) };
+  const blob = (data.content ?? "").trim();
+  if (!blob) throw new SourceError("youversion: empty content");
+  const split = splitNumberedBlob(blob, start, end);
+  if (split.length === end - start + 1) return { source: "youversion", verses: split };
+  // The text format doesn't always carry verse numbers; fetch each verse on its own instead.
+  const singles = await Promise.all(
+    Array.from({ length: end - start + 1 }, (_, i) => start + i).map(async (v) => {
+      const one = await yvFetch(`/bibles/${t.youversionId}/passages/${ref.book.usfm}.${ref.chapter}.${v}?format=text&include_headings=false&include_notes=false`, key);
+      if (one.status !== 200) throw new SourceError(`youversion: HTTP ${one.status} on verse ${v}`);
+      const c = (JSON.parse(one.body) as { content?: string }).content ?? "";
+      return { verse: v, text: cleanVerseText(c.replace(new RegExp(`^\\[?${v}\\]?\\.?\\s*`), "")) };
+    }),
+  );
+  return { source: "youversion", verses: singles };
 }
 
 // ---------- API.Bible ----------
@@ -100,7 +130,7 @@ async function fromApiBible(ref: Reference, t: Translation): Promise<Fetched> {
   const id = `${ref.book.usfm}.${ref.chapter}.${start}${end > start ? `-${ref.book.usfm}.${ref.chapter}.${end}` : ""}`;
   const url = `https://api.scripture.api.bible/v1/bibles/${t.apiBibleId}/passages/${id}?content-type=text&include-verse-numbers=true&include-notes=false&include-titles=false&include-chapter-numbers=false`;
   const res = await fetch(url, { headers: { "api-key": key }, cache: "no-store" });
-  if (!res.ok) throw new SourceError(`apibible: HTTP ${res.status}`);
+  if (!res.ok) throw new SourceError(`apibible: HTTP ${res.status} ${(await res.text()).replace(/\s+/g, " ").slice(0, 120)}`);
   const data = (await res.json()) as { data?: { content?: string } };
   return { source: "apibible", verses: splitNumberedBlob(data.data?.content ?? "", start, end) };
 }
@@ -110,6 +140,7 @@ async function fromApiBible(ref: Reference, t: Translation): Promise<Fetched> {
 // Not an API; markup can change without notice. Everything it returns is cached.
 async function fromBibleGateway(ref: Reference, t: Translation): Promise<Fetched> {
   if (process.env.DISABLE_GATEWAY_FALLBACK === "1") throw new SourceError("gateway: disabled");
+  if (!t.gatewayCode) throw new SourceError(`gateway: ${t.code} is not on BibleGateway`);
   const { start, end } = expandRange(ref);
   // Full book name: BibleGateway does not understand USFM codes like "jhn" or "php".
   const search = encodeURIComponent(`${ref.book.name} ${ref.chapter}:${start}${end > start ? `-${end}` : ""}`);

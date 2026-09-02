@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseInput } from "@/lib/reference";
-import { getPassage, SourceError } from "@/lib/sources";
+import { getPassage, parseSourceChoice, SourceError } from "@/lib/sources";
 import { splitForChat, formatPassage } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -10,13 +10,14 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const q = url.searchParams.get("q") ?? "";
   const t = url.searchParams.get("t") ?? undefined;
+  const src = parseSourceChoice(url.searchParams.get("src"));
   const parsed = parseInput(q);
   if (parsed.kind !== "reference" || !parsed.reference) {
     return NextResponse.json({ error: "not a reference", kind: parsed.kind }, { status: 400 });
   }
   const started = Date.now();
   try {
-    const passage = await getPassage(parsed.reference, parsed.translation?.code ?? t);
+    const passage = await getPassage(parsed.reference, parsed.translation?.code ?? t, src);
     return NextResponse.json({
       passage,
       text: formatPassage(passage),

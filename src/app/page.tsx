@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { TRANSLATIONS, DEFAULT_TRANSLATION } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
 
@@ -16,6 +17,14 @@ type Passage = {
 type PassageResult = { passage: Passage; text: string; chunks: string[]; ms: number; ref: Ref };
 type Candidate = { label: string; why: string; ref: Ref };
 type LogRow = { id: number; kind: string; label: string; body: string | null; createdAt: string };
+
+const SOURCE_OPTIONS: { value: string; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "youversion", label: "YouVersion" },
+  { value: "apibible", label: "API.Bible" },
+  { value: "gateway", label: "BibleGateway" },
+  { value: "llm", label: "AI (unverified)" },
+];
 
 const SOURCE_LABEL: Record<Passage["source"], string> = {
   local: "bundled KJV",
@@ -53,6 +62,7 @@ async function copyText(text: string): Promise<boolean> {
 export default function Desk() {
   const [input, setInput] = useState("");
   const [translation, setTranslation] = useState(DEFAULT_TRANSLATION);
+  const [sourceChoice, setSourceChoice] = useState("auto");
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<PassageResult | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
@@ -77,6 +87,18 @@ export default function Desk() {
       localStorage.setItem("ld_translation", translation);
     } catch {}
   }, [translation]);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ld_source");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved && SOURCE_OPTIONS.some((o) => o.value === saved)) setSourceChoice(saved);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("ld_source", sourceChoice);
+    } catch {}
+  }, [sourceChoice]);
 
   const showToast = useCallback((text: string, tone: "ok" | "warn" | "err" = "ok") => {
     setToast({ text, tone });
@@ -98,7 +120,7 @@ export default function Desk() {
       setBusy(q);
       setCandidates(null);
       try {
-        const res = await fetch(`/api/passage?q=${encodeURIComponent(q)}&t=${encodeURIComponent(translation)}`);
+        const res = await fetch(`/api/passage?q=${encodeURIComponent(q)}&t=${encodeURIComponent(translation)}&src=${sourceChoice}`);
         const data = await res.json();
         if (!res.ok) {
           if (data.kind === "description") return await describe(q);
@@ -136,7 +158,7 @@ export default function Desk() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [translation, showToast, logSend, refocus],
+    [translation, sourceChoice, showToast, logSend, refocus],
   );
 
   const describe = useCallback(
@@ -221,7 +243,7 @@ export default function Desk() {
     if (!result) return;
     setBusy("chapter");
     try {
-      const res = await fetch(`/api/chapter?book=${result.ref.book}&chapter=${result.ref.chapter}&t=${encodeURIComponent(result.passage.translationCode)}`);
+      const res = await fetch(`/api/chapter?book=${result.ref.book}&chapter=${result.ref.chapter}&t=${encodeURIComponent(result.passage.translationCode)}&src=${sourceChoice}`);
       const data = await res.json();
       if (!res.ok) return showToast(data.error ?? "Couldn't load chapter", "err");
       setChapter(data.passage as Passage);
@@ -267,9 +289,28 @@ export default function Desk() {
               </option>
             ))}
           </select>
+          <label className="ml-2 text-xs text-zinc-500">Source</label>
+          <select
+            value={sourceChoice}
+            onChange={(e) => {
+              setSourceChoice(e.target.value);
+              refocus();
+            }}
+            title="Auto tries YouVersion, then API.Bible, then BibleGateway, then AI. Pick one to force it."
+            className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
+          >
+            {SOURCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
           <button onClick={toggleLog} className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800">
             {showLog ? "Hide log" : "Log"}
           </button>
+          <Link href="/diag" className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800" title="Check which verse sources are working">
+            Sources
+          </Link>
         </div>
       </header>
 
