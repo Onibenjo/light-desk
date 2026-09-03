@@ -224,6 +224,9 @@ export default function Desk() {
   // field, so the input handler above still owns them while you're typing.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // Songs has its own section keys; without this, "+" and 1-3 would fire the
+      // verse actions underneath whenever a verse happened to be loaded.
+      if (tab !== "verses") return;
       if (isTypingTarget(e.target as HTMLElement) || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Escape") {
         setCandidates(null);
@@ -314,6 +317,17 @@ export default function Desk() {
         { keys: "Esc", label: "Clear the box and close panels" },
       ],
     },
+    {
+      group: "Sending a song",
+      items: [
+        { keys: "↑ ↓", label: "Pick a song in the search results" },
+        { keys: "↵", label: "Open the song · then send a section and move on" },
+        { keys: "1–9", label: "Jump straight to that section and send it" },
+        { keys: "P", label: "Pin the section you're on (the chorus)" },
+        { keys: "C", label: "Re-send the pinned section" },
+        { keys: "Esc", label: "Back to the song list" },
+      ],
+    },
   ];
 
   const tone = { ok: "bg-emerald-600/20 border-emerald-500/40 text-emerald-200", warn: "bg-amber-600/20 border-amber-500/40 text-amber-200", err: "bg-red-600/20 border-red-500/40 text-red-200" };
@@ -387,6 +401,17 @@ export default function Desk() {
         ))}
       </nav>
 
+      {toast && (
+        <div role="status" aria-live="polite" className={`rounded-lg border px-4 py-3 text-sm ${tone[toast.tone]}`}>
+          {toast.text}
+        </div>
+      )}
+      {busy && (
+        <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
+          Looking up “{busy}”…
+        </p>
+      )}
+
       {tab === "songs" && <SongsTab copyText={copyText} showToast={showToast} logSend={logSend} />}
 
       <div className={tab === "verses" ? "contents" : "hidden"}>
@@ -409,16 +434,6 @@ export default function Desk() {
         </p>
       </form>
 
-      {toast && (
-        <div role="status" aria-live="polite" className={`rounded-lg border px-4 py-3 text-sm ${tone[toast.tone]}`}>
-          {toast.text}
-        </div>
-      )}
-      {busy && (
-        <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
-          Looking up “{busy}”…
-        </p>
-      )}
 
       {candidates && (
         <section className="space-y-2">
