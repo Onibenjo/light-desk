@@ -28,7 +28,7 @@ export default function DiagPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg font-semibold">Lightdesk · source check</h1>
-          <p className="text-xs text-zinc-500">Which verse sources are working for this deployment.</p>
+          <p className="text-xs text-[var(--muted)]">Which verse sources are working for this deployment.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => run(false)} disabled={busy} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm disabled:opacity-50">
@@ -43,18 +43,18 @@ export default function DiagPage() {
       {data && (
         <>
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-            <h2 className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Config</h2>
+            <h2 className="mb-2 text-xs uppercase tracking-wide text-[var(--muted)]">Config</h2>
             <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2 md:grid-cols-3">
               {Object.entries(data.env).map(([k, v]) => (
                 <div key={k} className="flex min-w-0 justify-between gap-2 border-b border-zinc-800/60 py-1">
                   <dt className="min-w-0 truncate text-zinc-400">{k}</dt>
-                  <dd className={`min-w-0 break-all text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-zinc-500") : "text-zinc-200"}`}>{typeof v === "boolean" ? (v ? "set" : "—") : v}</dd>
+                  <dd className={`min-w-0 break-all text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-[var(--muted)]") : "text-zinc-200"}`}>{typeof v === "boolean" ? (v ? "set" : "—") : v}</dd>
                 </div>
               ))}
             </dl>
           </section>
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-            <h2 className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Checks</h2>
+            <h2 className="mb-2 text-xs uppercase tracking-wide text-[var(--muted)]">Checks</h2>
             <ul className="divide-y divide-zinc-800 text-sm">
               {data.checks.map((c) => (
                 <li key={c.name} className="flex flex-wrap gap-x-3 gap-y-1 py-2">
@@ -62,12 +62,12 @@ export default function DiagPage() {
                   <span className="min-w-0 flex-1 break-words text-zinc-200 sm:w-56 sm:flex-none">{c.name}</span>
                   <span className="min-w-0 basis-full break-all text-zinc-400 sm:basis-0 sm:flex-1">
                     {c.detail}
-                    {c.ms !== undefined && <span className="ml-2 text-zinc-600">{c.ms} ms</span>}
+                    {c.ms !== undefined && <span className="ml-2 text-[var(--muted)]">{c.ms} ms</span>}
                   </span>
                 </li>
               ))}
             </ul>
-            {data.hint && <p className="mt-3 text-xs text-zinc-500">{data.hint}</p>}
+            {data.hint && <p className="mt-3 text-xs text-[var(--muted)]">{data.hint}</p>}
           </section>
           {data.youversionBibles.length > 0 && (
             <details className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm">
@@ -77,7 +77,7 @@ export default function DiagPage() {
           )}
         </>
       )}
-      <p className="text-xs text-zinc-600">
+      <p className="text-xs text-[var(--muted)]">
         <Link href="/" className="underline">← back to the desk</Link>
       </p>
     </main>

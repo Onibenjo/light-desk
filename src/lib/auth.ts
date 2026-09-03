@@ -23,7 +23,9 @@ export async function checkPin(pin: string): Promise<"church" | "admin" | null> 
   const admin = process.env.ADMIN_PIN;
   if (!church && !admin) return "admin"; // no PINs configured → open (local dev)
   if (admin && pin === admin) return "admin";
-  if (church && pin === church) return "church";
+  // Single-PIN mode: with no ADMIN_PIN configured, the church PIN carries
+  // admin rights too (otherwise importing/editing would be impossible).
+  if (church && pin === church) return admin ? "church" : "admin";
   return null;
 }
 

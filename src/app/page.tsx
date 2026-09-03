@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import CommandPalette, { type ShortcutGuide } from "./CommandPalette";
+import { isTypingTarget, type Action } from "@/lib/shortcuts";
 import { TRANSLATIONS, DEFAULT_TRANSLATION } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
+import SongsTab from "./SongsTab";
 
 type Ref = { book: number; chapter: number; verseStart: number; verseEnd: number };
 type Passage = {
@@ -16,7 +20,6 @@ type Passage = {
 };
 type PassageResult = { passage: Passage; text: string; chunks: string[]; ms: number; ref: Ref };
 type Candidate = { label: string; why: string; ref: Ref };
-type LogRow = { id: number; kind: string; label: string; body: string | null; createdAt: string };
 
 const SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "auto", label: "Auto" },
@@ -60,6 +63,8 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export default function Desk() {
+  const router = useRouter();
+  const [tab, setTab] = useState<"verses" | "songs">("verses");
   const [input, setInput] = useState("");
   const [translation, setTranslation] = useState(DEFAULT_TRANSLATION);
   const [sourceChoice, setSourceChoice] = useState("auto");
@@ -69,8 +74,6 @@ export default function Desk() {
   const [toast, setToast] = useState<{ text: string; tone: "ok" | "warn" | "err" } | null>(null);
   const [copiedChunk, setCopiedChunk] = useState(0);
   const [chapter, setChapter] = useState<Passage | null>(null);
-  const [showLog, setShowLog] = useState(false);
-  const [log, setLog] = useState<LogRow[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -216,6 +219,33 @@ export default function Desk() {
     }
   }
 
+  // The verse keys used to live on the input's onKeyDown, so they died as soon as
+  // focus moved to a button. Bound to the document instead, skipping any text
+  // field, so the input handler above still owns them while you're typing.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (isTypingTarget(e.target as HTMLElement) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "Escape") {
+        setCandidates(null);
+        setChapter(null);
+        return;
+      }
+      if (e.key === "+" && result) {
+        e.preventDefault();
+        nextVerse();
+      }
+      if (candidates && ["1", "2", "3"].includes(e.key)) {
+        const c = candidates[Number(e.key) - 1];
+        if (c) {
+          e.preventDefault();
+          lookup(refToQuery(c.ref));
+        }
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
   function nextVerse() {
     if (!result) return;
     const r = result.ref;
@@ -252,40 +282,63 @@ export default function Desk() {
     }
   }
 
-  async function toggleLog() {
-    if (!showLog) {
-      const res = await fetch("/api/log");
-      const data = await res.json().catch(() => ({ rows: [] }));
-      setLog(data.rows ?? []);
+  const actions: Action[] = (() => {
+    const list: Action[] = [];
+    if (result) {
+      list.push({ id: "next-verse", title: "Next verse", group: "Verse", keywords: ["following"], chord: { key: "+" }, run: nextVerse });
+      list.push({ id: "copy-again", title: `Copy “${result.passage.reference}” again`, group: "Verse", keywords: ["clipboard"], run: () => copyChunk(copiedChunk) });
+      list.push({ id: "copy-whole", title: "Copy the whole passage", group: "Verse", keywords: ["clipboard", "all"], run: copyWhole });
+      list.push({ id: "chapter", title: "Open the whole chapter", group: "Verse", keywords: ["context"], run: openChapter });
     }
-    setShowLog((s) => !s);
-  }
+    list.push({ id: "tab-verses", title: "Go to Verses", group: "Go to", keywords: ["bible", "scripture"], run: () => { setTab("verses"); refocus(); } });
+    list.push({ id: "tab-songs", title: "Go to Songs", group: "Go to", keywords: ["lyrics", "songbook", "worship"], run: () => setTab("songs") });
+    list.push({ id: "log", title: "Open the log", group: "Go to", keywords: ["history", "sunday", "sent"], run: () => router.push("/log") });
+    list.push({ id: "sources", title: "Check verse sources", group: "Go to", keywords: ["diagnostics", "health"], run: () => router.push("/diag") });
+    list.push({ id: "import", title: "Import a songbook", group: "Go to", keywords: ["videopsalm", "upload"], run: () => router.push("/songs/import") });
+    for (const t of TRANSLATIONS) {
+      list.push({ id: `t-${t.code}`, title: `Translation: ${t.code}`, group: "Switch", keywords: [t.name, "version"], run: () => { setTranslation(t.code); refocus(); } });
+    }
+    for (const o of SOURCE_OPTIONS) {
+      list.push({ id: `s-${o.value}`, title: `Source: ${o.label}`, group: "Switch", keywords: ["provider", "fetch"], run: () => { setSourceChoice(o.value); refocus(); } });
+    }
+    return list;
+  })();
+
+  const guide: ShortcutGuide[] = [
+    {
+      group: "Looking up a verse",
+      items: [
+        { keys: "↵", label: "Copy the verse to the clipboard" },
+        { keys: "+", label: "Next verse" },
+        { keys: "1 2 3", label: "Pick a suggestion" },
+        { keys: "Esc", label: "Clear the box and close panels" },
+      ],
+    },
+  ];
 
   const tone = { ok: "bg-emerald-600/20 border-emerald-500/40 text-emerald-200", warn: "bg-amber-600/20 border-amber-500/40 text-amber-200", err: "bg-red-600/20 border-red-500/40 text-red-200" };
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-4 sm:p-6">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="order-1 flex min-w-0 flex-1 items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold leading-tight">Lightdesk</h1>
-            <p className="truncate text-xs text-zinc-500">CLC · Mixlr chat desk</p>
+      <CommandPalette actions={actions} guide={guide} />
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
+          <div>
+            <h1 className="text-lg font-semibold leading-tight">Lightdesk</h1>
+            <p className="text-xs text-[var(--muted)]">CLC · Mixlr chat desk</p>
           </div>
         </div>
-        <div className="order-3 flex w-full items-center gap-2 sm:order-2 sm:w-auto">
-          <label htmlFor="ld-translation" className="hidden text-xs text-zinc-500 md:inline">
-            Translation
-          </label>
+        <div className="flex items-center gap-2">
+          <label htmlFor="translation" className="text-xs text-[var(--muted)]">Translation</label>
           <select
-            id="ld-translation"
-            aria-label="Translation"
+            id="translation"
             value={translation}
             onChange={(e) => {
               setTranslation(e.target.value);
               refocus();
             }}
-            className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm sm:flex-none"
+            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
           >
             {TRANSLATIONS.map((t) => (
               <option key={t.code} value={t.code}>
@@ -293,19 +346,16 @@ export default function Desk() {
               </option>
             ))}
           </select>
-          <label htmlFor="ld-source" className="hidden text-xs text-zinc-500 md:ml-2 md:inline">
-            Source
-          </label>
+          <label htmlFor="source" className="ml-2 text-xs text-[var(--muted)]">Source</label>
           <select
-            id="ld-source"
-            aria-label="Source"
+            id="source"
             value={sourceChoice}
             onChange={(e) => {
               setSourceChoice(e.target.value);
               refocus();
             }}
             title="Auto tries YouVersion, then API.Bible, then BibleGateway, then AI. Pick one to force it."
-            className={`min-w-0 flex-1 rounded-md border bg-zinc-900 px-2 py-1.5 text-sm sm:flex-none ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
+            className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
           >
             {SOURCE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -313,17 +363,33 @@ export default function Desk() {
               </option>
             ))}
           </select>
-        </div>
-        <div className="order-2 flex shrink-0 items-center gap-2 sm:order-3">
-          <button onClick={toggleLog} className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800">
-            {showLog ? "Hide log" : "Log"}
-          </button>
+          <Link href="/log" className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800" title="Search everything copied, by day">
+            Log
+          </Link>
           <Link href="/diag" className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800" title="Check which verse sources are working">
             Sources
           </Link>
         </div>
       </header>
 
+      <nav className="flex gap-1 rounded-lg bg-zinc-900 p-1 text-sm">
+        {(["verses", "songs"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => {
+              setTab(t);
+              if (t === "verses") refocus();
+            }}
+            className={`flex-1 rounded-md px-3 py-2 font-medium capitalize ${tab === t ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+          >
+            {t === "verses" ? "📖 Verses" : "🎵 Songs"}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "songs" && <SongsTab copyText={copyText} showToast={showToast} logSend={logSend} />}
+
+      <div className={tab === "verses" ? "contents" : "hidden"}>
       <form onSubmit={onSubmit} className="space-y-2">
         <input
           ref={inputRef}
@@ -332,30 +398,40 @@ export default function Desk() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
           disabled={!!busy}
+          aria-label="Bible reference or description"
           placeholder="rom 8 28  ·  1 cor 13 4-7  ·  or describe it: walk on snakes"
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-lg outline-none sm:text-xl placeholder:text-zinc-600 focus:border-[var(--accent)] disabled:opacity-60"
+          className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60"
         />
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-[var(--muted)]">
           <span className="kbd">Enter</span> copies to clipboard · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · <span className="kbd">+</span> next verse ·{" "}
-          <span className="kbd">Esc</span> clear
+          <span className="kbd">Esc</span> clear ·{" "}
+          <span className="kbd">?</span> all shortcuts
         </p>
       </form>
 
-      {toast && <div className={`rounded-lg border px-4 py-3 text-sm ${tone[toast.tone]}`}>{toast.text}</div>}
-      {busy && <p className="text-sm text-zinc-400 animate-pulse">Looking up “{busy}”…</p>}
+      {toast && (
+        <div role="status" aria-live="polite" className={`rounded-lg border px-4 py-3 text-sm ${tone[toast.tone]}`}>
+          {toast.text}
+        </div>
+      )}
+      {busy && (
+        <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
+          Looking up “{busy}”…
+        </p>
+      )}
 
       {candidates && (
         <section className="space-y-2">
-          <h2 className="text-xs uppercase tracking-wide text-zinc-500">Did they mean…</h2>
+          <h2 className="text-xs uppercase tracking-wide text-[var(--muted)]">Did they mean…</h2>
           {candidates.map((c, i) => (
             <button
               key={c.label}
               onClick={() => lookup(refToQuery(c.ref))}
-              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
+              className="flex w-full items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
             >
-              <span className="kbd shrink-0">{i + 1}</span>
+              <span className="kbd">{i + 1}</span>
               <span className="font-medium">{c.label}</span>
-              <span className="min-w-0 break-words text-sm text-zinc-400">{c.why}</span>
+              <span className="text-sm text-zinc-400">{c.why}</span>
             </button>
           ))}
         </section>
@@ -387,7 +463,7 @@ export default function Desk() {
             </div>
           </div>
           {result.passage.attempts && result.passage.attempts.length > 0 && (result.passage.source === "llm" || result.passage.source === "gateway") && (
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-[var(--muted)]">
               Skipped: {result.passage.attempts.join(" · ")}
             </p>
           )}
@@ -404,21 +480,21 @@ export default function Desk() {
               ))}
             </div>
           )}
-          <pre className="whitespace-pre-wrap break-words font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
+          <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
         </section>
       )}
 
       {chapter && (
         <section className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="min-w-0 truncate font-medium">
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium">
               {chapter.reference} · {chapter.translationCode}
             </h2>
-            <button onClick={() => setChapter(null)} className="shrink-0 text-sm text-zinc-400 hover:text-zinc-200">
+            <button onClick={() => setChapter(null)} className="text-sm text-zinc-400 hover:text-zinc-200">
               Close
             </button>
           </div>
-          <p className="text-xs text-zinc-500">Click a verse to copy it on its own.</p>
+          <p className="text-xs text-[var(--muted)]">Click a verse to copy it on its own.</p>
           <div className="max-h-[50vh] space-y-1 overflow-y-auto pr-1">
             {chapter.verses.map((v) => (
               <button
@@ -426,7 +502,7 @@ export default function Desk() {
                 onClick={() => lookup(`${chapter.reference}:${v.verse}`)}
                 className="block w-full rounded-md px-2 py-1 text-left text-[15px] leading-relaxed hover:bg-zinc-800"
               >
-                <span className="mr-2 text-zinc-500">{v.verse}.</span>
+                <span className="mr-2 text-[var(--muted)]">{v.verse}.</span>
                 {v.text}
               </button>
             ))}
@@ -434,32 +510,9 @@ export default function Desk() {
         </section>
       )}
 
-      {showLog && (
-        <section className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <h2 className="text-xs uppercase tracking-wide text-zinc-500">Recently copied</h2>
-          {log.length === 0 && <p className="text-sm text-zinc-500">Nothing yet.</p>}
-          <ul className="divide-y divide-zinc-800">
-            {log.map((row) => (
-              <li key={row.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span className="min-w-0 truncate">
-                  <span className="mr-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[11px] uppercase text-zinc-400">{row.kind}</span>
-                  {row.label}
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs text-zinc-500">{new Date(row.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                  {row.body && (
-                    <button onClick={() => copyText(row.body!).then(() => showToast(`Copied ${row.label} again`))} className="rounded border border-zinc-700 px-2 py-0.5 text-xs hover:bg-zinc-800">
-                      Copy
-                    </button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      </div>
 
-      <footer className="mt-auto pt-6 text-center text-xs text-zinc-600">Lightdesk · verses come from licensed sources, never from the AI</footer>
+      <footer className="mt-auto pt-6 text-center text-xs text-[var(--muted)]">Lightdesk · verses come from licensed sources, never from the AI</footer>
     </main>
   );
 }

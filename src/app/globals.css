@@ -2,6 +2,18 @@
 
 :root {
   --accent: #f26b3a; /* CLC orange from the Mixlr avatar */
+  /* Secondary text. zinc-500 (4.06:1) and zinc-600 (2.54:1) both fail WCAG AA on
+     the #0b0b0f background; this is the dimmest tone that still clears 4.5:1
+     (7.66:1 on the body, 6.91:1 on a zinc-900 panel). Retune here, not per-class. */
+  --muted: #a1a1aa;
+}
+
+/* Keyboard users need to see where they are; the dark theme swallowed the
+   default ring. Applies to every control that isn't already handling focus. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 body {

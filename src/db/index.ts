@@ -38,6 +38,12 @@ export function ensureSchema(): Promise<void> {
           id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, label TEXT NOT NULL,
           body TEXT, meta TEXT, created_at INTEGER NOT NULL
         );
+        CREATE INDEX IF NOT EXISTS sent_log_created_at ON sent_log (created_at);
+        CREATE TABLE IF NOT EXISTS songs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, guid TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
+          author TEXT, sections TEXT NOT NULL, source TEXT NOT NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT, section TEXT NOT NULL, title TEXT NOT NULL,
           body TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0

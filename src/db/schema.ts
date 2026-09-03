@@ -33,3 +33,15 @@ export const messages = sqliteTable("messages", {
   body: text("body").notNull(),
   sort: integer("sort").notNull().default(0),
 });
+
+/** The songbook. sections is a JSON array of strings (one 🎵 chunk each). */
+export const songs = sqliteTable("songs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  guid: text("guid").notNull().unique(), // VideoPsalm Guid, or "manual:<ts>" for quick-adds
+  title: text("title").notNull(),
+  author: text("author"),
+  sections: text("sections").notNull(), // JSON string[]
+  source: text("source").notNull(), // videopsalm | manual
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});

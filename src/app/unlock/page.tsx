@@ -33,6 +33,7 @@ function UnlockForm() {
         autoFocus
         inputMode="numeric"
         type="password"
+        aria-label="Church PIN"
         value={pin}
         onChange={(e) => setPin(e.target.value)}
         placeholder="Church PIN"
@@ -42,7 +43,7 @@ function UnlockForm() {
       <button disabled={busy || !pin} className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 font-medium text-black disabled:opacity-50">
         {busy ? "Checking…" : "Unlock this laptop"}
       </button>
-      <p className="text-xs text-zinc-500">You only do this once per device. Ask the media lead for the PIN.</p>
+      <p className="text-xs text-[var(--muted)]">You only do this once per device. Ask the media lead for the PIN.</p>
     </form>
   );
 }
