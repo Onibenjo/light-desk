@@ -1,19 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatSection } from "@/lib/videopsalm";
 import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
-
-export interface SongHit {
-  id?: number;
-  guid?: string;
-  title: string;
-  author?: string | null;
-  sections: string[];
-  source?: string;
-}
+import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
+import { MatchedLine } from "./MatchedLine";
 
 interface Props {
   copyText: (t: string) => Promise<boolean>;
@@ -23,9 +16,16 @@ interface Props {
 
 export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<SongHit[]>([]);
+  // Searching the local copy is fast but not free; deferring it keeps the
+  // keystrokes themselves instant on a phone.
+  const deferredQ = useDeferredValue(q);
+  const [book, setBook] = useState<IndexedSong[] | null>(null);
+  // Results from the server, used only until the local book has arrived.
+  const [remote, setRemote] = useState<SongMatch[]>([]);
   const [total, setTotal] = useState<number | null>(null);
-  const [song, setSong] = useState<SongHit | null>(null);
+  const [song, setSong] = useState<SearchableSong | null>(null);
+  // The section the remembered line was found in, marked but not jumped to.
+  const [found, setFound] = useState<number | null>(null);
   const [sent, setSent] = useState<Set<number>>(new Set());
   // One pin at a time, so there is never a question which section C sends.
   const [pinned, setPinned] = useState<number | null>(null);
@@ -43,18 +43,48 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const sectionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const debounce = useRef<number | undefined>(undefined);
 
-  const search = useCallback(async (query: string) => {
-    const res = await fetch(`/api/songs?q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    setHits(data.songs ?? []);
-    setTotal(data.total ?? null);
+  // The whole songbook, once. From here on a search costs no network at all,
+  // which is what makes it usable on the venue's wifi.
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/songs/all");
+        // An expired PIN answers 401 with a body that parses cleanly. Taking it
+        // would leave an empty book shadowing the server path for the rest of
+        // the service, so anything but a real songbook stays on that path.
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!live || !Array.isArray(data.songs) || !data.songs.length) return;
+        setBook(buildIndex(data.songs));
+        setTotal(data.total ?? null);
+      } catch {
+        // Stay on the server path; it answers the same way, just slower.
+      }
+    })();
+    return () => {
+      live = false;
+    };
   }, []);
 
+  // Once the book is here the results are simply a function of what was typed;
+  // nothing to store, and no round-trip.
+  const local = useMemo(() => (book ? searchSongs(book, deferredQ) : null), [book, deferredQ]);
+  const hits = local ?? (q.trim() ? remote : []);
+
+  // Until the book has arrived, the server runs the same search for us.
   useEffect(() => {
+    if (book || !q.trim()) return;
     window.clearTimeout(debounce.current);
-    debounce.current = window.setTimeout(() => search(q), 200);
+    debounce.current = window.setTimeout(async () => {
+      const res = await fetch(`/api/songs?q=${encodeURIComponent(q)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRemote(data.songs ?? []);
+      setTotal((t) => data.total ?? t);
+    }, 200);
     return () => window.clearTimeout(debounce.current);
-  }, [q, search]);
+  }, [q, book]);
 
   const focusSection = useCallback((i: number) => {
     setCursor(i);
@@ -62,12 +92,14 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
   }, []);
 
   const openSong = useCallback(
-    (s: SongHit) => {
+    (s: SearchableSong, matchedSection: number | null = null) => {
       setSong(s);
+      setFound(matchedSection);
       setSent(new Set());
       setPinned(null);
       sectionRefs.current = [];
-      // Land on section 1 so the first Enter sends it, with no click needed.
+      // Land on section 1 so the first Enter sends it, with no click needed —
+      // a song is nearly always sent from the top, whichever line found it.
       focusSection(0);
     },
     [focusSection],
@@ -106,7 +138,11 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
       setAdding(false);
       setAddTitle("");
       setAddLyrics("");
-      openSong(data.song as SongHit);
+      const saved = data.song as SearchableSong;
+      // Into the local index too, or it would be unsearchable until a reload.
+      setBook((b) => (b ? [...b, ...buildIndex([saved])] : b));
+      setTotal((t) => (t === null ? t : t + 1));
+      openSong(saved);
     } finally {
       setBusy(false);
     }
@@ -179,7 +215,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
                 setHit((i) => Math.max(0, i - 1));
               } else if (e.key === "Enter") {
                 e.preventDefault();
-                openSong(hits[hit]);
+                openSong(hits[hit].song, hits[hit].section);
               }
             }}
             aria-label="Search the songbook"
@@ -199,20 +235,29 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
           </div>
           {hits.length > 0 && (
             <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/60">
-              {hits.map((s, hi) => (
-                <li key={s.guid ?? s.id}>
+              {hits.map((m, hi) => (
+                <li key={m.song.guid ?? m.song.id}>
                   <button
-                    onClick={() => openSong(s)}
+                    onClick={() => openSong(m.song, m.section)}
                     onMouseEnter={() => setHit(hi)}
                     aria-current={hi === hit ? "true" : undefined}
-                    className={`flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-800/60 ${hi === hit ? "bg-zinc-800/60" : ""}`}
+                    className={`w-full px-4 py-3 text-left hover:bg-zinc-800/60 ${hi === hit ? "bg-zinc-800/60" : ""}`}
                   >
-                    <span className="font-medium">{s.title}</span>
-                    <span className="shrink-0 text-xs text-[var(--muted)]">
-                      {s.author ? `${s.author} · ` : ""}
-                      {s.sections.length} section{s.sections.length === 1 ? "" : "s"}
-                      {s.source === "manual" ? " · added here" : ""}
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span className="font-medium">{m.song.title}</span>
+                      <span className="shrink-0 text-xs text-[var(--muted)]">
+                        {m.matched < m.words && <span className="text-amber-400/80">{m.matched} of {m.words} words · </span>}
+                        {m.fuzzy && <span className="text-amber-400/80">spelling · </span>}
+                        {m.song.author ? `${m.song.author} · ` : ""}
+                        {m.song.sections.length} section{m.song.sections.length === 1 ? "" : "s"}
+                        {m.song.source === "manual" ? " · added here" : ""}
+                      </span>
                     </span>
+                    {m.snippet && (
+                      <span className="mt-0.5 block truncate text-sm text-[var(--muted)]">
+                        <MatchedLine text={m.snippet.text} ranges={m.snippet.ranges} />
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -220,7 +265,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
           )}
           {q.trim() && hits.length === 0 && (
             <p className="text-sm text-[var(--muted)]">
-              Nothing matched — try fewer words, or{" "}
+              Nothing matched — even part of it. Check a word, or{" "}
               <button onClick={() => setAdding(true)} className="underline">
                 quick add it
               </button>
@@ -314,6 +359,11 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
                 >
                   <span className="mr-2 text-xs text-[var(--muted)]">{i + 1}</span>
                   {pinned === i && <span className="mr-2 rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-black">Pinned</span>}
+                  {found === i && (
+                    <span className="mr-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
+                      Your line
+                    </span>
+                  )}
                   <span className="whitespace-pre-wrap text-[15px] leading-relaxed">{sec}</span>
                 </button>
                 <button
