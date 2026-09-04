@@ -290,7 +290,7 @@ export default function LogPage() {
       </section>
 
       {toast && (
-        <div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-emerald-600/20 px-4 py-2 text-sm text-emerald-200 shadow-lg">
+        <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-emerald-950 px-4 py-2 text-sm text-emerald-200 shadow-lg">
           {toast}
         </div>
       )}

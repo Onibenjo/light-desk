@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CommandPalette, { type ShortcutGuide } from "./CommandPalette";
 import { isTypingTarget, type Action } from "@/lib/shortcuts";
+import { BUSY_DELAY_MS } from "@/lib/timing";
 import { TRANSLATIONS, DEFAULT_TRANSLATION } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
 import SongsTab from "./SongsTab";
@@ -69,6 +70,8 @@ export default function Desk() {
   const [translation, setTranslation] = useState(DEFAULT_TRANSLATION);
   const [sourceChoice, setSourceChoice] = useState("auto");
   const [busy, setBusy] = useState<string | null>(null);
+  // Deferred so instant lookups never flash it — see BUSY_DELAY_MS.
+  const [showBusy, setShowBusy] = useState(false);
   const [result, setResult] = useState<PassageResult | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: "ok" | "warn" | "err" } | null>(null);
@@ -102,6 +105,15 @@ export default function Desk() {
       localStorage.setItem("ld_source", sourceChoice);
     } catch {}
   }, [sourceChoice]);
+
+  useEffect(() => {
+    if (!busy) return;
+    const id = window.setTimeout(() => setShowBusy(true), BUSY_DELAY_MS);
+    return () => {
+      window.clearTimeout(id);
+      setShowBusy(false);
+    };
+  }, [busy]);
 
   const showToast = useCallback((text: string, tone: "ok" | "warn" | "err" = "ok") => {
     setToast({ text, tone });
@@ -330,7 +342,13 @@ export default function Desk() {
     },
   ];
 
-  const tone = { ok: "bg-emerald-600/20 border-emerald-500/40 text-emerald-200", warn: "bg-amber-600/20 border-amber-500/40 text-amber-200", err: "bg-red-600/20 border-red-500/40 text-red-200" };
+  // Solid, not translucent: the toast now floats over whatever is scrolled
+  // beneath it, so a see-through background would give unpredictable contrast.
+  const tone = {
+    ok: "bg-emerald-950 border-emerald-500/40 text-emerald-200",
+    warn: "bg-amber-950 border-amber-500/40 text-amber-200",
+    err: "bg-red-950 border-red-500/40 text-red-200",
+  };
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-4 sm:p-6">
@@ -401,12 +419,19 @@ export default function Desk() {
         ))}
       </nav>
 
+      {/* Floating, not in the flow: you're often scrolled to section 13 when this
+          fires, and an inline banner both sits off-screen and shoves the list down
+          under the cursor. pointer-events-none so it can never eat a click. */}
       {toast && (
-        <div role="status" aria-live="polite" className={`rounded-lg border px-4 py-3 text-sm ${tone[toast.tone]}`}>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`pointer-events-none fixed bottom-5 left-1/2 z-40 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border px-4 py-3 text-sm shadow-lg ${tone[toast.tone]}`}
+        >
           {toast.text}
         </div>
       )}
-      {busy && (
+      {showBusy && busy && (
         <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
           Looking up “{busy}”…
         </p>

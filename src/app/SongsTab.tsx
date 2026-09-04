@@ -7,6 +7,7 @@ import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
 import { MatchedLine } from "./MatchedLine";
+import SongList from "./SongList";
 
 interface Props {
   copyText: (t: string) => Promise<boolean>;
@@ -262,6 +263,14 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
                 </li>
               ))}
             </ul>
+          )}
+          {/* Hidden rather than unmounted: the browse list is ~9,000 nodes, and
+              rebuilding them every time the search box is cleared is the one
+              cost `content-visibility` cannot skip. */}
+          {book && book.length > 0 && (
+            <div hidden={!!q.trim()}>
+              <SongList book={book} onOpen={openSong} />
+            </div>
           )}
           {q.trim() && hits.length === 0 && (
             <p className="text-sm text-[var(--muted)]">
