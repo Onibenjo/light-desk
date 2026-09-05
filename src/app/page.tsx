@@ -7,7 +7,7 @@ import CommandPalette, { type ShortcutGuide } from "./CommandPalette";
 import { isTypingTarget, type Action } from "@/lib/shortcuts";
 import { BUSY_DELAY_MS } from "@/lib/timing";
 import { hasFinePointer } from "@/lib/pointer";
-import { TRANSLATIONS, DEFAULT_TRANSLATION } from "@/lib/translations";
+import { TRANSLATIONS, DEFAULT_TRANSLATION, translationFromInput } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
 import SongsTab from "./SongsTab";
 
@@ -148,11 +148,12 @@ export default function Desk() {
 
   /** Fetch a reference, copy chunk 0, show it. */
   const lookup = useCallback(
-    async (q: string, opts?: { silent?: boolean; select?: boolean }) => {
+    async (q: string, opts?: { silent?: boolean; select?: boolean; translation?: string }) => {
+      const useTranslation = opts?.translation ?? translation;
       setBusy(q);
       setCandidates(null);
       try {
-        const res = await fetch(`/api/passage?q=${encodeURIComponent(q)}&t=${encodeURIComponent(translation)}&src=${sourceChoice}`);
+        const res = await fetch(`/api/passage?q=${encodeURIComponent(q)}&t=${encodeURIComponent(useTranslation)}&src=${sourceChoice}`);
         const data = await res.json();
         if (!res.ok) {
           if (data.kind === "description") return await describe(q);
@@ -222,10 +223,27 @@ export default function Desk() {
     [showToast, logSend, refocus],
   );
 
+  /** Set the translation, and re-send whatever verse is already on screen in it. */
+  const switchTranslation = useCallback(
+    (code: string) => {
+      setTranslation(code);
+      if (result) lookup(refToQuery(result.ref), { translation: code });
+      else refocus();
+    },
+    [result, lookup, refocus],
+  );
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
     if (!q || busy) return;
+    // A box holding only "tpt" means the verse on screen, in that translation —
+    // checked before the reference parser, which would send it to the AI search.
+    const code = translationFromInput(q);
+    if (code && result) {
+      setInput("");
+      return switchTranslation(code);
+    }
     lookup(q);
   }
 
@@ -328,7 +346,7 @@ export default function Desk() {
     list.push({ id: "sources", title: "Check verse sources", group: "Go to", keywords: ["diagnostics", "health"], run: () => router.push("/diag") });
     list.push({ id: "import", title: "Import a songbook", group: "Go to", keywords: ["videopsalm", "upload"], run: () => router.push("/songs/import") });
     for (const t of TRANSLATIONS) {
-      list.push({ id: `t-${t.code}`, title: `Translation: ${t.code}`, group: "Switch", keywords: [t.name, "version"], run: () => { setTranslation(t.code); refocus(); } });
+      list.push({ id: `t-${t.code}`, title: `Translation: ${t.code}`, group: "Switch", keywords: [t.name, "version"], run: () => switchTranslation(t.code) });
     }
     for (const o of SOURCE_OPTIONS) {
       list.push({ id: `s-${o.value}`, title: `Source: ${o.label}`, group: "Switch", keywords: ["provider", "fetch"], run: () => { setSourceChoice(o.value); refocus(); } });
@@ -390,10 +408,7 @@ export default function Desk() {
             <select
               id="translation"
               value={translation}
-              onChange={(e) => {
-                setTranslation(e.target.value);
-                refocus();
-              }}
+              onChange={(e) => switchTranslation(e.target.value)}
               className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
             >
               {TRANSLATIONS.map((t) => (
@@ -513,10 +528,11 @@ export default function Desk() {
             the first screen — but "describe it" and the translation suffix are
             features, not shortcuts, so those survive the swap. */}
         <p className="text-xs text-[var(--muted)] pointer-fine:hidden">
-          Describe a verse instead (<span className="font-mono">walk on snakes</span>) · add a translation at the end (<span className="font-mono">john 3 16 amp</span>)
+          Describe a verse instead (<span className="font-mono">walk on snakes</span>) · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · type just{" "}
+          <span className="font-mono">tpt</span> to re-send in another
         </p>
         <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-          <span className="kbd">Enter</span> copies to clipboard · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · <span className="kbd">+</span> next verse ·{" "}
+          <span className="kbd">Enter</span> copies to clipboard · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · type just <span className="font-mono">tpt</span> to re-send in another · <span className="kbd">+</span> next verse ·{" "}
           <span className="kbd">Esc</span> clear ·{" "}
           <span className="kbd">?</span> all shortcuts
         </p>
@@ -564,6 +580,27 @@ export default function Desk() {
                 Chapter
               </button>
             </div>
+          </div>
+
+          {/* "Let's see it in TPT" — one click re-sends this same reference. */}
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Show ${result.passage.reference} in another translation`}>
+            {TRANSLATIONS.map((t) => {
+              const current = t.code === result.passage.translationCode;
+              return (
+                <button
+                  key={t.code}
+                  onClick={() => switchTranslation(t.code)}
+                  disabled={!!busy}
+                  aria-pressed={current}
+                  title={`${result.passage.reference} in ${t.name}`}
+                  className={`rounded-md border px-2.5 py-1.5 font-mono text-xs disabled:opacity-50 ${
+                    current ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-black" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  }`}
+                >
+                  {t.code}
+                </button>
+              );
+            })}
           </div>
           {result.passage.attempts && result.passage.attempts.length > 0 && (result.passage.source === "llm" || result.passage.source === "gateway") && (
             <p className="text-xs text-[var(--muted)]">

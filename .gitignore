@@ -46,3 +46,6 @@ local.db*
 SongBooks/
 # local database backups
 /backups
+
+# agent worktrees / local agent state
+.claude/
