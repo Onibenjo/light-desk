@@ -15,11 +15,14 @@ interface Props {
  *
  * Memoised, and that is load-bearing: at 2,222 songs this is ~8,900 elements,
  * and without it React reconciles all of them on every keystroke in the search
- * box. Measured at 830ms -> 20ms per keystroke on a throttled phone.
+ * box. Measured on a 4x-throttled phone profile, median of three runs:
+ * a keystroke 618ms -> 145ms, clearing the box 688ms -> 175ms.
  *
- * `content-visibility: auto` was tried here and measured worse, not better:
- * the rows are one line each, so laying them all out at once costs 32ms, while
- * deferring it cost 85 layout passes and 3.4s before the list first painted.
+ * `content-visibility: auto` was tried on these rows and measured worse. The
+ * rows are one line each, so laying all 2,222 out at once is cheap: 21ms to
+ * first paint against 46ms, 13 layout passes against 83, and a worst frame of
+ * 18ms against 71ms. It only won on re-showing the list after a search
+ * (75ms against 175ms), which is not where the scrolling is.
  */
 /** "#" is a fine thing to show and a useless thing to put in an id. */
 const groupId = (letter: string) => `letter-${/^[A-Z]$/.test(letter) ? letter.toLowerCase() : "other"}`;

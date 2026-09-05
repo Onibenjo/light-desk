@@ -27,8 +27,9 @@ describe("browsing the whole songbook", () => {
   });
 
   it("stays memoised, or every keystroke reconciles ~8,900 elements", () => {
-    // Measured on a throttled phone with the real 2,222-song book: 830ms per
-    // keystroke without this, 20ms with it. Losing it is silent, hence the test.
+    // Measured on a throttled phone with the real 2,222-song book: a keystroke
+    // costs 618ms without this and 145ms with it. Losing it is silent, hence
+    // the test.
     expect((SongList as unknown as { $$typeof: symbol }).$$typeof).toBe(Symbol.for("react.memo"));
   });
 

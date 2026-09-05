@@ -80,6 +80,13 @@ export default function Desk() {
   const inputRef = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
+  // Wake the database as soon as the desk opens. On Turso an idle database
+  // suspends, and this is used twice a week — without this the first lookup of
+  // the morning pays the cold start, with someone waiting on it.
+  useEffect(() => {
+    fetch("/api/warm").catch(() => {});
+  }, []);
+
   // Remember the dropdown choice on this laptop (read after hydration to avoid a mismatch).
   useEffect(() => {
     try {
