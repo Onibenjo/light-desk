@@ -32,6 +32,17 @@ export function findTranslation(code: string | undefined | null): Translation | 
   return TRANSLATIONS.find((t) => t.code === c || t.aliases?.includes(c));
 }
 
+/**
+ * A box containing nothing but a translation code — "tpt", "GNB" — meaning
+ * "the verse already on screen, in that translation". Anything else returns
+ * null, including "john 3 16 amp", which is already a lookup in its own right.
+ */
+export function translationFromInput(text: string): string | null {
+  const word = text.trim();
+  if (!word || /\s/.test(word)) return null;
+  return findTranslation(word)?.code ?? null;
+}
+
 /** Overrides from env, e.g. APIBIBLE_IDS="NKJV=abc123-01,NLT=def456-01" */
 export function applyEnvOverrides() {
   const raw = process.env.APIBIBLE_IDS;
