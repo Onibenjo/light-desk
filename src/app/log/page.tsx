@@ -136,7 +136,7 @@ export default function LogPage() {
           >
             ←
           </button>
-          <span className={`min-w-[10.5rem] text-center text-sm font-medium ${scope === "all" ? "text-[var(--muted)] line-through" : ""}`}>{formatDayLabel(date)}</span>
+          <span className={`min-w-0 flex-1 text-center text-sm font-medium sm:min-w-[10.5rem] sm:flex-none ${scope === "all" ? "text-[var(--muted)] line-through" : ""}`}>{formatDayLabel(date)}</span>
           <button
             onClick={() => {
               setScope("day");
@@ -186,7 +186,7 @@ export default function LogPage() {
                   setDate(d.iso);
                 }}
                 title={`${formatDayLabel(d.iso)} · ${d.count} ${d.count === 1 ? "entry" : "entries"}`}
-                className={`shrink-0 rounded-md border px-2 py-1 text-xs ${
+                className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs ${
                   scope === "day" && d.iso === date
                     ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
                     : isSunday(d.iso)
@@ -223,7 +223,7 @@ export default function LogPage() {
             <button
               key={k}
               onClick={() => setKind(k)}
-              className={`rounded-full border px-3 py-1 text-xs capitalize ${kind === k ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]" : "border-zinc-800 text-zinc-400 hover:bg-zinc-800"}`}
+              className={`rounded-full border px-3 py-1.5 text-xs capitalize ${kind === k ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]" : "border-zinc-800 text-zinc-400 hover:bg-zinc-800"}`}
             >
               {k}
             </button>
@@ -278,7 +278,7 @@ export default function LogPage() {
                 {row.body && (
                   <button
                     onClick={() => copyText(row.body!).then((ok) => flash(ok ? `Copied ${row.label}` : "Copy failed"))}
-                    className="rounded border border-zinc-700 px-2 py-0.5 text-xs hover:bg-zinc-800"
+                    className="shrink-0 rounded border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800"
                   >
                     Copy
                   </button>
@@ -289,11 +289,9 @@ export default function LogPage() {
         </ul>
       </section>
 
-      {toast && (
-        <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-emerald-950 px-4 py-2 text-sm text-emerald-200 shadow-lg">
-          {toast}
-        </div>
-      )}
+      <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
+        {toast && <div className="max-w-md rounded-lg border border-emerald-500/40 bg-emerald-950 px-4 py-2 text-sm text-emerald-200 shadow-lg">{toast}</div>}
+      </div>
     </main>
   );
 }

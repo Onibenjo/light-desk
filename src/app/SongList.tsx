@@ -42,7 +42,7 @@ function SongList({ book, onOpen }: Props) {
             {group.songs.map((song) => (
               <li key={song.guid ?? song.id}>
                 <button onClick={() => onOpen(song)} className="flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-800/60">
-                  <span className="font-medium">{song.title}</span>
+                  <span className="min-w-0 font-medium">{song.title}</span>
                   <span className="shrink-0 text-xs text-[var(--muted)]">
                     {song.author ? `${song.author} · ` : ""}
                     {song.sections.length} section{song.sections.length === 1 ? "" : "s"}

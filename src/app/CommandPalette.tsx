@@ -105,7 +105,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
   const titleId = `${listId}-title`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12vh]" onMouseDown={close}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12dvh]" onMouseDown={close}>
       <div
         role="dialog"
         aria-modal="true"
@@ -136,7 +136,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               placeholder="Type a command…"
               className="w-full border-b border-zinc-800 bg-transparent px-4 py-3 text-base outline-none placeholder:text-[var(--muted)]"
             />
-            <ul id={listId} role="listbox" aria-label="Commands" className="max-h-[45vh] overflow-y-auto py-1">
+            <ul id={listId} role="listbox" aria-label="Commands" className="max-h-[45dvh] overflow-y-auto py-1">
               {results.map((a, i) => (
                 <li
                   key={a.id}
@@ -174,7 +174,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
                 Close
               </button>
             </div>
-            <div className="max-h-[60vh] space-y-4 overflow-y-auto p-4">
+            <div className="max-h-[60dvh] space-y-4 overflow-y-auto p-4">
               <section className="space-y-1.5">
                 <h3 className="text-xs uppercase tracking-wide text-[var(--muted)]">Anywhere</h3>
                 <Row keys={chord(OPEN_PALETTE)} label="Open the command palette" />

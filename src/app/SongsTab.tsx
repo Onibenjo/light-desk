@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatSection } from "@/lib/videopsalm";
 import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
+import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
 import { MatchedLine } from "./MatchedLine";
 import SongList from "./SongList";
@@ -155,10 +156,27 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
     showToast(next === null ? `Unpinned section ${i + 1}` : `Pinned section ${i + 1} — press C to re-send it`);
   }
 
-  const closeSong = useCallback(() => {
-    setSong(null);
+  // Resolved after mount so the server and the first client render agree; the
+  // keys it advertises only exist on a device that has them.
+  const [keyboard, setKeyboard] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setKeyboard(hasFinePointer());
+  }, []);
+
+  const focusSearch = useCallback(() => {
+    if (!hasFinePointer()) return;
     requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
+
+  const closeSong = useCallback(() => {
+    setSong(null);
+    focusSearch();
+  }, [focusSearch]);
+
+  useEffect(() => {
+    focusSearch();
+  }, [focusSearch]);
 
   // Song-view keys. Safe on the document because this view renders no text field.
   useEffect(() => {
@@ -200,7 +218,6 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
         <>
           <input
             ref={inputRef}
-            autoFocus
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
@@ -220,16 +237,16 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
               }
             }}
             aria-label="Search the songbook"
-            placeholder="Search the songbook — ↑↓ to pick, ↵ to open"
+            placeholder={keyboard ? "Search the songbook — ↑↓ to pick, ↵ to open" : "Search the songbook"}
             className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
           />
           <div className="flex items-center justify-between text-xs text-[var(--muted)]">
             <span>{total !== null && `${total} songs in the book`}</span>
-            <span className="flex gap-3">
-              <button onClick={() => setAdding(true)} className="underline hover:text-zinc-300">
+            <span className="flex shrink-0 gap-3">
+              <button onClick={() => setAdding(true)} className="-my-1 py-1 underline hover:text-zinc-300">
                 + Quick add a song
               </button>
-              <Link href="/songs/import" className="underline hover:text-zinc-300">
+              <Link href="/songs/import" className="-my-1 py-1 underline hover:text-zinc-300">
                 Import songbook
               </Link>
             </span>
@@ -245,7 +262,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
                     className={`w-full px-4 py-3 text-left hover:bg-zinc-800/60 ${hi === hit ? "bg-zinc-800/60" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="font-medium">{m.song.title}</span>
+                      <span className="min-w-0 font-medium">{m.song.title}</span>
                       <span className="shrink-0 text-xs text-[var(--muted)]">
                         {m.matched < m.words && <span className="text-amber-400/80">{m.matched} of {m.words} words · </span>}
                         {m.fuzzy && <span className="text-amber-400/80">spelling · </span>}
@@ -288,7 +305,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
         <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">Quick add a song</h2>
-            <button onClick={() => setAdding(false)} className="text-sm text-zinc-400 hover:text-zinc-200">
+            <button onClick={() => setAdding(false)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
               Cancel
             </button>
           </div>
@@ -331,7 +348,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
               <span className="kbd">C</span>
             </div>
           )}
-          <p className="text-xs text-[var(--muted)]">
+          <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
             <span className="kbd">↵</span> send and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> jump ·{" "}
             <span className="kbd">P</span> pin this one · <span className="kbd">C</span> re-send the pinned one · <span className="kbd">Esc</span> back
           </p>
@@ -380,7 +397,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
                   aria-pressed={pinned === i}
                   aria-label={`${pinned === i ? "Unpin" : "Pin"} section ${i + 1} for quick re-send`}
                   title="Pin for quick re-send (the chorus)"
-                  className={`self-start rounded-md px-2 py-2 text-sm ${pinned === i ? "bg-[var(--accent)]" : "hover:bg-zinc-800"}`}
+                  className={`grid min-h-11 min-w-11 shrink-0 place-items-center self-start rounded-md text-sm ${pinned === i ? "bg-[var(--accent)]" : "hover:bg-zinc-800"}`}
                 >
                   📌
                 </button>

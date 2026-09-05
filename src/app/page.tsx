@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import CommandPalette, { type ShortcutGuide } from "./CommandPalette";
 import { isTypingTarget, type Action } from "@/lib/shortcuts";
 import { BUSY_DELAY_MS } from "@/lib/timing";
+import { hasFinePointer } from "@/lib/pointer";
 import { TRANSLATIONS, DEFAULT_TRANSLATION } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
 import SongsTab from "./SongsTab";
@@ -132,9 +133,18 @@ export default function Desk() {
     fetch("/api/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, label, body, meta }) }).catch(() => {});
   }, []);
 
+  // Puts the cursor back for the next reference. Skipped on a touchscreen, where
+  // it would answer every send by covering the verse with the on-screen keyboard.
   const refocus = useCallback(() => {
+    if (!hasFinePointer()) return;
     requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
+
+  // Same reason this isn't the `autoFocus` attribute: on a phone that opens the
+  // keyboard over the desk before the operator has looked at it.
+  useEffect(() => {
+    refocus();
+  }, [refocus]);
 
   /** Fetch a reference, copy chunk 0, show it. */
   const lookup = useCallback(
@@ -358,50 +368,62 @@ export default function Desk() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-4 sm:p-6">
+    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-5 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
       <CommandPalette actions={actions} guide={guide} />
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
-          <div>
+      {/* Two rows on a phone — brand and links, then the two pickers — collapsing
+          to the single toolbar row from `sm` up. Laid out with `order` rather
+          than duplicated markup so there is one set of controls, and so the
+          desktop reading order (pickers, then links) is the one it always was.
+          Before this wrapped it ran 470px wide inside a 390px screen, which
+          stretched the layout viewport and took the toast off-screen with it. */}
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="order-1 flex min-w-0 items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
+          <div className="min-w-0">
             <h1 className="text-lg font-semibold leading-tight">Lightdesk</h1>
-            <p className="text-xs text-[var(--muted)]">CLC · Mixlr chat desk</p>
+            <p className="truncate text-xs text-[var(--muted)]">CLC · Mixlr chat desk</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor="translation" className="text-xs text-[var(--muted)]">Translation</label>
-          <select
-            id="translation"
-            value={translation}
-            onChange={(e) => {
-              setTranslation(e.target.value);
-              refocus();
-            }}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
-          >
-            {TRANSLATIONS.map((t) => (
-              <option key={t.code} value={t.code}>
-                {t.code}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="source" className="ml-2 text-xs text-[var(--muted)]">Source</label>
-          <select
-            id="source"
-            value={sourceChoice}
-            onChange={(e) => {
-              setSourceChoice(e.target.value);
-              refocus();
-            }}
-            title="Auto tries YouVersion, then API.Bible, then BibleGateway, then AI. Pick one to force it."
-            className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
-          >
-            {SOURCE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+        <div className="order-3 flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:order-2 sm:w-auto sm:flex-nowrap sm:gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <label htmlFor="translation" className="shrink-0 text-xs text-[var(--muted)]">Translation</label>
+            <select
+              id="translation"
+              value={translation}
+              onChange={(e) => {
+                setTranslation(e.target.value);
+                refocus();
+              }}
+              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+            >
+              {TRANSLATIONS.map((t) => (
+                <option key={t.code} value={t.code}>
+                  {t.code}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:ml-2">
+            <label htmlFor="source" className="shrink-0 text-xs text-[var(--muted)]">Source</label>
+            <select
+              id="source"
+              value={sourceChoice}
+              onChange={(e) => {
+                setSourceChoice(e.target.value);
+                refocus();
+              }}
+              title="Auto tries YouVersion, then API.Bible, then BibleGateway, then AI. Pick one to force it."
+              className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
+            >
+              {SOURCE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="order-2 flex shrink-0 items-center gap-2 sm:order-3">
           <Link href="/log" className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800" title="Search everything copied, by day">
             Log
           </Link>
@@ -428,16 +450,24 @@ export default function Desk() {
 
       {/* Floating, not in the flow: you're often scrolled to section 13 when this
           fires, and an inline banner both sits off-screen and shoves the list down
-          under the cursor. pointer-events-none so it can never eat a click. */}
-      {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`pointer-events-none fixed bottom-5 left-1/2 z-40 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border px-4 py-3 text-sm shadow-lg ${tone[toast.tone]}`}
-        >
-          {toast.text}
-        </div>
-      )}
+          under the cursor. pointer-events-none so it can never eat a click.
+
+          Centred by a full-width flex row rather than `left-1/2` and a transform.
+          The old way measured 50% of the *content* width, so the moment anything
+          on the page overflowed, the confirmation the operator is waiting on slid
+          off the side of the screen with it. This cannot: the row is pinned to
+          both edges, so the box is bounded by the screen whatever else happens.
+
+          The live region itself stays mounted — a screen reader announces changes
+          inside one, and reliably misses a region that appears with its text
+          already in place. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4"
+      >
+        {toast && <div className={`max-w-md rounded-lg border px-4 py-3 text-sm shadow-lg ${tone[toast.tone]}`}>{toast.text}</div>}
+      </div>
       {showBusy && busy && (
         <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
           Looking up “{busy}”…
@@ -448,18 +478,44 @@ export default function Desk() {
 
       <div className={tab === "verses" ? "contents" : "hidden"}>
       <form onSubmit={onSubmit} className="space-y-2">
-        <input
-          ref={inputRef}
-          autoFocus
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          disabled={!!busy}
-          aria-label="Bible reference or description"
-          placeholder="rom 8 28  ·  1 cor 13 4-7  ·  or describe it: walk on snakes"
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60"
-        />
-        <p className="text-xs text-[var(--muted)]">
+        <div className="flex gap-2">
+          {/* The placeholder is short enough to read to its end on a 320px
+              screen; the examples the long one carried moved to the hint below,
+              where they wrap instead of being clipped mid-word. The three input
+              attributes stop a phone keyboard from "helpfully" capitalising and
+              autocorrecting terse references like "rom 8 28" into prose. */}
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={onKeyDown}
+            disabled={!!busy}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
+            aria-label="Bible reference or description"
+            placeholder="rom 8 28  ·  or describe it"
+            className="w-full min-w-0 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-lg outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60 sm:text-xl"
+          />
+          {/* On a laptop Enter has always done this and a button would be noise.
+              A touch device has no visible way to submit at all, so it gets one. */}
+          <button
+            type="submit"
+            disabled={!input.trim() || !!busy}
+            className="shrink-0 rounded-xl bg-[var(--accent)] px-5 font-medium text-black disabled:opacity-40 pointer-fine:hidden"
+          >
+            Go
+          </button>
+        </div>
+        {/* Two hints, one per kind of device. A phone has no Enter, Esc or "?"
+            to press, and printing four lines about them pushes the songbook off
+            the first screen — but "describe it" and the translation suffix are
+            features, not shortcuts, so those survive the swap. */}
+        <p className="text-xs text-[var(--muted)] pointer-fine:hidden">
+          Describe a verse instead (<span className="font-mono">walk on snakes</span>) · add a translation at the end (<span className="font-mono">john 3 16 amp</span>)
+        </p>
+        <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
           <span className="kbd">Enter</span> copies to clipboard · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · <span className="kbd">+</span> next verse ·{" "}
           <span className="kbd">Esc</span> clear ·{" "}
           <span className="kbd">?</span> all shortcuts
@@ -474,11 +530,11 @@ export default function Desk() {
             <button
               key={c.label}
               onClick={() => lookup(refToQuery(c.ref))}
-              className="flex w-full items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
             >
-              <span className="kbd">{i + 1}</span>
+              <span className="kbd shrink-0">{i + 1}</span>
               <span className="font-medium">{c.label}</span>
-              <span className="text-sm text-zinc-400">{c.why}</span>
+              <span className="min-w-0 text-sm text-zinc-400">{c.why}</span>
             </button>
           ))}
         </section>
@@ -527,7 +583,7 @@ export default function Desk() {
               ))}
             </div>
           )}
-          <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
+          <pre className="wrap-anywhere whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
         </section>
       )}
 
@@ -537,12 +593,12 @@ export default function Desk() {
             <h2 className="font-medium">
               {chapter.reference} · {chapter.translationCode}
             </h2>
-            <button onClick={() => setChapter(null)} className="text-sm text-zinc-400 hover:text-zinc-200">
+            <button onClick={() => setChapter(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
               Close
             </button>
           </div>
           <p className="text-xs text-[var(--muted)]">Click a verse to copy it on its own.</p>
-          <div className="max-h-[50vh] space-y-1 overflow-y-auto pr-1">
+          <div className="max-h-[50dvh] space-y-1 overflow-y-auto pr-1">
             {chapter.verses.map((v) => (
               <button
                 key={v.verse}

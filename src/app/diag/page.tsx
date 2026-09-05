@@ -78,7 +78,7 @@ export default function DiagPage() {
         </>
       )}
       <p className="text-xs text-[var(--muted)]">
-        <Link href="/" className="underline">← back to the desk</Link>
+        <Link href="/" className="inline-block py-1.5 underline">← back to the desk</Link>
       </p>
     </main>
   );

@@ -112,7 +112,7 @@ export default function ImportPage() {
   const changes = preview ? preview.added.length + preview.updated.length : 0;
 
   return (
-    <main className="mx-auto max-w-xl space-y-5 p-6">
+    <main className="mx-auto max-w-xl space-y-5 p-4 sm:p-6">
       <h1 className="text-lg font-semibold">Import a VideoPsalm songbook</h1>
 
       {!preview && !result && (
@@ -192,7 +192,7 @@ export default function ImportPage() {
       )}
 
       <p className="text-xs text-[var(--muted)]">
-        <Link href="/" className="underline">
+        <Link href="/" className="inline-block py-1.5 underline">
           ← back to the desk
         </Link>
       </p>
