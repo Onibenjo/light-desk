@@ -28,12 +28,30 @@
 # The restore prints a row count per table and exits non-zero if anything is
 # short, so check it rather than assuming.
 #
+# ---------------------------------------------------------------------------
+# First deploy starts EMPTY
+# ---------------------------------------------------------------------------
+# local.db is in both .gitignore and .dockerignore, and the container reads
+# /data/lightdesk.db on the volume — so a fresh deploy has no songbook at all,
+# no matter what is on your laptop. Seed it once from your local database:
+#
+#   npm run db:backup                                   # writes ./backups/…json
+#   docker cp backups/lightdesk-<stamp>.json <container>:/tmp/seed.json
+#   docker exec <container> node scripts/db-restore.mts --file /tmp/seed.json
+#
+# (Add --force only if the target already holds rows you mean to overwrite.)
+# Alternatively import the VideoPsalm files through /songs/import in the browser
+# — same result for songs, but it will not bring the log across.
+#
+# ---------------------------------------------------------------------------
+# Backups
+# ---------------------------------------------------------------------------
 # Back up either way. Replication saves you from a dead server, not from a bad
 # import. Copy the file OFF the box — a backup sitting in /data dies with the
-# volume it was meant to insure:
+# volume it was meant to insure. scripts/backup-cron.sh does exactly that and
+# is meant for the host crontab:
 #
-#   docker exec <container> node scripts/db-backup.mts --out /tmp
-#   docker cp <container>:/tmp/lightdesk-<stamp>.json ~/lightdesk-backups/
+#   0 22 * * 0 /path/to/lightdesk/scripts/backup-cron.sh >> /var/log/lightdesk-backup.log 2>&1
 # Of the four tables only sent_log is truly irreplaceable: songs re-import from
 # the VideoPsalm files and verse_cache rebuilds itself.
 
