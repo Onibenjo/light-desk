@@ -18,6 +18,7 @@ export const TRANSLATIONS: Translation[] = [
   { code: "TPT", name: "The Passion Translation", youversionId: 1849, gatewayCode: "TPT" },
   { code: "GNT", aliases: ["GNB", "TEV"], name: "Good News Translation", youversionId: 68, gatewayCode: "GNT" },
   { code: "CEV", name: "Contemporary English Version", youversionId: 392, gatewayCode: "CEV" },
+  { code: "EASY", aliases: ["EEB"], name: "EasyEnglish Bible 2018", youversionId: 2079, gatewayCode: "EASY" },
   { code: "NIV", aliases: ["NIV11", "NIV2011"], name: "New International Version", youversionId: 111, gatewayCode: "NIV" },
   { code: "FBV", name: "Free Bible Version", youversionId: 1932, apiBibleId: "65eec8e0b60e656b-01" }, // not on BibleGateway
   { code: "ESV", name: "English Standard Version", youversionId: 59, gatewayCode: "ESV" },
