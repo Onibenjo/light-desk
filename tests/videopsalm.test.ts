@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import { repairVideoPsalm, parseVideoPsalmSongbook, cleanSlideText, formatSection, regroupSlides, type Slide } from "../src/lib/videopsalm";
+import { splitOnBlankLines } from "../src/lib/songSections";
 
 describe("VideoPsalm repair", () => {
   it("quotes keys, escapes newlines and stray quotes", () => {
@@ -107,6 +108,72 @@ describe("real CLC songbook", () => {
     for (const s of r.songs) {
       expect(s.title.length).toBeGreaterThan(0);
       for (const sec of s.sections) expect(sec).not.toMatch(/<[a-z]+\d*>/i);
+    }
+  });
+
+  // The Task 8 migration re-imports through this exact file — a repo-relative
+  // path, not the sandbox upload path above — so this check runs against
+  // whatever songbook the operator's machine actually has.
+  const repoPath = "SongBooks/CLC.json";
+  it.skipIf(!fs.existsSync(repoPath))("round-trips every song through the editor's join and Save split", () => {
+    const r = parseVideoPsalmSongbook(fs.readFileSync(repoPath, "utf8"));
+    for (const s of r.songs) {
+      expect(splitOnBlankLines(s.sections.join("\n\n")), s.title).toEqual(s.sections);
+      for (const sec of s.sections) {
+        const lines = sec.split("\n");
+        expect(lines[0].trim(), `${s.title}: leading blank line`).not.toBe("");
+        expect(lines[lines.length - 1].trim(), `${s.title}: trailing blank line`).not.toBe("");
+      }
+    }
+  });
+});
+
+describe("no stored section ever contains a blank line", () => {
+  // The regression this catches: "Elu agogo" had a slide whose own Text held
+  // an internal blank line (media team formatting, not a section break VideoPsalm
+  // marked). cleanSlideText used to only collapse 3+ newlines to 2, so that one
+  // blank line survived into the stored section. The editor joins sections with
+  // "\n\n" and Save splits back on a blank line — so that surviving blank line
+  // was indistinguishable from a real section break the moment anyone opened the
+  // song and pressed Save without changing anything: splitOnBlankLines would cut
+  // the song into more sections than it started with, silently, on every open.
+  //
+  // The invariant this test holds the parser to, not one example of it: for
+  // every song this parser produces, joining its sections with "\n\n" and
+  // splitting that back on blank lines must reproduce those exact sections.
+  // Swept across a spread of where a blank line can hide inside one slide's
+  // raw Text — leading, trailing, doubled, tripled, whitespace-only, and more
+  // than one break in a single slide.
+  const blankShapes = [
+    "a\n\nb",
+    "a\n\n\nb",
+    "a\n\n\n\nb",
+    "\na\nb",
+    "a\nb\n",
+    "\n\na\nb\n\n",
+    "a\n \nb", // whitespace-only line, not literally empty
+    "a\n\nb\n\nc",
+    "a\nb\n\nc\nd",
+  ];
+
+  for (const shape of blankShapes) {
+    it(`holds for a slide shaped ${JSON.stringify(shape)}`, () => {
+      const raw = `{Songs:[{Guid:"g",Text:"T",Verses:[{Text:"${shape}"},{ID:2,Text:"trailer"}]}]}`;
+      const { songs } = parseVideoPsalmSongbook(raw);
+      for (const s of songs) {
+        for (const sec of s.sections) expect(sec, shape).not.toMatch(/\n\s*\n/);
+        expect(splitOnBlankLines(s.sections.join("\n\n")), shape).toEqual(s.sections);
+      }
+    });
+  }
+
+  it("holds across a whole song built from every shape above, packed together", () => {
+    const verses = blankShapes.map((shape, i) => `{ID:${i},Text:"${shape}"}`).join(",");
+    const raw = `{Songs:[{Guid:"g",Text:"T",Verses:[${verses}]}]}`;
+    const { songs } = parseVideoPsalmSongbook(raw);
+    for (const s of songs) {
+      for (const sec of s.sections) expect(sec).not.toMatch(/\n\s*\n/);
+      expect(splitOnBlankLines(s.sections.join("\n\n"))).toEqual(s.sections);
     }
   });
 });
