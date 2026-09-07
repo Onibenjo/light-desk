@@ -17,6 +17,24 @@ export function lyricsFromSections(sections: string[]): string {
   return sections.join("\n\n");
 }
 
+/**
+ * Shown after a 403 on Save or Delete. A new tab, not a full navigation: this
+ * is the one screen guaranteed to have unsaved text sitting on it, and
+ * sending it to /unlock in place would throw that text away. Unlock over
+ * there, then come back and press Save again with the text untouched.
+ */
+export function DeniedHint() {
+  return (
+    <p className="text-sm text-amber-400">
+      This browser is unlocked with the church PIN.{" "}
+      <a href="/unlock?next=/" target="_blank" rel="noopener noreferrer" className="underline">
+        Enter the admin PIN here
+      </a>{" "}
+      in a new tab, then come back and try again.
+    </p>
+  );
+}
+
 export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToast }: Props) {
   const [title, setTitle] = useState(song.title);
   const [author, setAuthor] = useState(song.author ?? "");
@@ -98,16 +116,7 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
         A blank line starts a new section — one section is one message in the chat. Tidy drops <span className="whitespace-nowrap">[Chorus]</span>-style labels and splits anything longer than six lines; Save keeps exactly what you see.
       </p>
 
-      {denied && (
-        <p className="text-sm text-amber-400">
-          This browser is unlocked with the church PIN.{" "}
-          {/* A full navigation, not a client route: the unlock page replaces this one and sends you back. */}
-          <a href="/unlock?next=/" className="underline">
-            Enter the admin PIN here
-          </a>{" "}
-          and try again.
-        </p>
-      )}
+      {denied && <DeniedHint />}
 
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={save} disabled={busy || !title.trim() || !lyrics.trim()} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">

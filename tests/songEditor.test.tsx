@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import SongEditor, { lyricsFromSections } from "../src/app/SongEditor";
+import SongEditor, { lyricsFromSections, DeniedHint } from "../src/app/SongEditor";
 import type { SearchableSong } from "../src/lib/songSearch";
 
 const song: SearchableSong = { id: 7, guid: "g", title: "El Roi", author: "Prinx Emmanuel", sections: ["a\nb", "c\nd"] };
@@ -56,5 +56,16 @@ describe("the editor form", () => {
     const cancel = button("Cancel");
     expect(save, "Save button").toContain("disabled:opacity-50");
     expect(cancel, "Cancel button").toContain("disabled:opacity-50");
+  });
+});
+
+describe("the 403 PIN hint", () => {
+  it("opens the unlock page in a new tab, so an in-progress edit survives it", () => {
+    const html = renderToStaticMarkup(<DeniedHint />);
+    expect(html).toContain('href="/unlock?next=/"');
+    expect(html).toContain('target="_blank"');
+    // Required alongside target="_blank": without it the new tab gets a
+    // window.opener handle back to this one.
+    expect(html).toContain('rel="noopener noreferrer"');
   });
 });
