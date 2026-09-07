@@ -8,6 +8,7 @@ import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
 import { MatchedLine } from "./MatchedLine";
+import SongEditor from "./SongEditor";
 import SongList from "./SongList";
 
 interface Props {
@@ -33,6 +34,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const [pinned, setPinned] = useState<number | null>(null);
   // Briefly flashes the row that was just copied, where the operator is looking.
   const [flash, setFlash] = useState<number | null>(null);
+  const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addTitle, setAddTitle] = useState("");
   const [addLyrics, setAddLyrics] = useState("");
@@ -95,6 +97,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
 
   const openSong = useCallback(
     (s: SearchableSong, matchedSection: number | null = null) => {
+      setEditing(false);
       setSong(s);
       setFound(matchedSection);
       setSent(new Set());
@@ -180,7 +183,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
 
   // Song-view keys. Safe on the document because this view renders no text field.
   useEffect(() => {
-    if (!song) return;
+    if (!song || editing) return;
     const count = song.sections.length;
     function onKey(e: KeyboardEvent) {
       if (isTypingTarget(e.target as HTMLElement) || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -331,13 +334,18 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
         </div>
       )}
 
-      {song && (
+      {song && !editing && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold leading-tight">{song.title}</h2>
-            <button onClick={closeSong} className="shrink-0 rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
-              ← Songs
-            </button>
+            <span className="flex shrink-0 gap-2">
+              <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+                Edit
+              </button>
+              <button onClick={closeSong} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+                ← Songs
+              </button>
+            </span>
           </div>
           {pinned !== null && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2">
@@ -405,6 +413,31 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
             ))}
           </ol>
         </div>
+      )}
+
+      {song && editing && (
+        <SongEditor
+          song={song}
+          showToast={showToast}
+          onCancel={() => setEditing(false)}
+          onSaved={(saved) => {
+            setEditing(false);
+            setSong(saved);
+            setSent(new Set());
+            setPinned(null);
+            sectionRefs.current = [];
+            // The local index is the search: without this the old lyrics keep
+            // answering searches until the page is reloaded.
+            setBook((b) => (b ? [...b.filter((i) => i.song.id !== saved.id), ...buildIndex([saved])] : b));
+            focusSection(0);
+          }}
+          onDeleted={() => {
+            setEditing(false);
+            setBook((b) => (b ? b.filter((i) => i.song.id !== song.id) : b));
+            setTotal((t) => (t === null ? t : t - 1));
+            closeSong();
+          }}
+        />
       )}
     </div>
   );
