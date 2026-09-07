@@ -132,17 +132,56 @@ each "section" is a short repeated call-and-response line or refrain
 (e.g. "Logo" / "GBAGBE OSHI" as standalone one-line sections alternating
 with response lines), not a normal song fragmented by a packing bug.
 
-**Note — local.db has 278 rows the current songbook file no longer
-contains.** Running the brief's Step 4 query unmodified against the full
-`songs` table (2,222 rows, not 1,944) returns `maxLines: 27`, `over6: 69`.
-Splitting the table by whether each row's guid appears in the freshly
-parsed `SongBooks/CLC.json` shows this is entirely explained by 278 rows
-whose guid is absent from the current file (e.g. "ACCOUNT NUMBER",
-"CITIZENS OF LIFE CHURCH HONOUR", "Power", "Hope", "Faith", "Love", "Peace
-- eiréné" — these read as church admin/word-study entries from an older or
-different import, not songs the current songbook re-import touches at
-all). The 1,944 guids that ARE in the current file all landed exactly on
-the expected shape (maxLines 6, over6 0). The 278 orphaned rows were left
-untouched, per instructions not to patch data — they are outside the
-scope of this migration since they have no corresponding entry to
-re-import from.
+**Note — local.db has 278 rows `SongBooks/CLC.json` does not contain.**
+Running the brief's Step 4 query unmodified against the full `songs` table
+(2,222 rows, not 1,944) returns `maxLines: 27`, `over6: 69`. These 278 rows
+are not stale garbage: they are real content from four other songbook
+files this spec never accounted for — `New songbook.json` (172),
+`Concordance.json` (101), `CONFESSIONS.vpc` (3), `Account Numbers.json`
+(2). This spec's "Facts that shaped the design" section above only
+profiled `CLC.json`; `local.db` was seeded at some point from all five
+files. See "Re-import result: the other four songbooks" below for the
+follow-up that closes this gap.
+
+## Re-import result: the other four songbooks
+
+`local.db`'s 278 non-CLC rows trace to four other songbook files in
+`SongBooks/`, none of which this spec's design phase examined:
+`New songbook.json`, `Concordance.json`, `CONFESSIONS.vpc` (a zip, read via
+`readSongbookFile` from `src/lib/vpc.ts`), and `Account Numbers.json`.
+Applied the same guid-matching re-import used for `CLC.json` to each, in
+the same run against `local.db` (same backup as above covers this too):
+
+| File | Songs in file | added | updated | unchanged | skipped |
+| --- | --- | --- | --- | --- | --- |
+| `New songbook.json` | 172 | 0 | 84 | 88 | 0 |
+| `Concordance.json` | 101 | 0 | 19 | 82 | 0 |
+| `CONFESSIONS.vpc` | 3 | 0 | 1 | 2 | 0 |
+| `Account Numbers.json` | 2 | 0 | 0 | 2 | 0 |
+
+172 + 101 + 3 + 2 = 278, exactly the row count that was previously
+unaccounted for. `added` is 0 in every file because every guid already
+existed in `local.db` from the original seed import; `skipped` is 0
+everywhere (nothing hand-edited). `Concordance.json` and
+`Account Numbers.json` hold non-song content (numbered outlines,
+scripture-reference lists) which is grouped by the same section rules as
+songs — expected, not a defect.
+
+Re-ran Step 4's whole-book query unmodified (no guid filtering needed
+now) against the full, unfiltered `songs` table:
+
+| Measure | Value |
+| --- | --- |
+| songs | 2,222 |
+| sections | 18,766 |
+| maxLines | 6 |
+| over6 | 0 |
+| empty | 0 |
+
+Clean across all 2,222 rows — the `over6`/`maxLines` values that showed up
+in the earlier unfiltered run are gone now that all five source files have
+been re-imported. Top of the most-sections list picked up one new entry
+from the other books: "FMA" (66 sections) — a leadership-training outline
+("Class Assessment", "Five Levels of Leadership", "Burden of Leadership",
+...) from one of the non-CLC books, correctly split into many short
+numbered-point sections, not a fragmented song.
