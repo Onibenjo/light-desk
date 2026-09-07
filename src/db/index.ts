@@ -28,9 +28,14 @@ let ensured: Promise<void> | null = null;
 /** Creates tables and any column added since, if missing. Cheap, idempotent, and saves a migration step for a one-church app. */
 export function ensureSchema(): Promise<void> {
   if (!ensured) {
-    ensured = (async () => {
-      await applySchema(getClient());
-    })();
+    // A rejection is cached the same way a success is, unless it's cleared here:
+    // a network blip on a cold start would otherwise wedge the process into
+    // 500ing forever, since every later call would just re-throw the same stale
+    // rejection instead of trying again.
+    ensured = applySchema(getClient()).catch((e) => {
+      ensured = null;
+      throw e;
+    });
   }
   return ensured;
 }

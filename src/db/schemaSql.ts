@@ -37,11 +37,26 @@ export const SCHEMA_SQL = `
  */
 const ADDED_COLUMNS = [{ table: "songs", column: "edited_at", type: "INTEGER" }] as const;
 
+/**
+ * True when `e` is SQLite's refusal to add a column that's already there. Two
+ * instances can both pass the PRAGMA check before either runs its ALTER — the
+ * loser of that race gets this, not a real problem, since the column it wanted
+ * now exists either way.
+ */
+function isDuplicateColumnError(e: unknown): boolean {
+  return e instanceof Error && /duplicate column name/i.test(e.message);
+}
+
 /** Bring any database — new or years old — up to the schema above. Idempotent. */
 export async function applySchema(client: Client): Promise<void> {
   await client.executeMultiple(SCHEMA_SQL);
   for (const { table, column, type } of ADDED_COLUMNS) {
     const info = await client.execute(`PRAGMA table_info(${table})`);
-    if (!info.rows.some((r) => r.name === column)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    if (info.rows.some((r) => r.name === column)) continue;
+    try {
+      await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    } catch (e) {
+      if (!isDuplicateColumnError(e)) throw e;
+    }
   }
 }

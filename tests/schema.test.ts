@@ -52,4 +52,17 @@ describe("bringing a database up to date", () => {
     await applySchema(client);
     expect((await columns()).filter((c) => c === "edited_at").length).toBe(1);
   });
+
+  it("tolerates a concurrent ALTER that lost the race, the way two instances cold-starting at once would", async () => {
+    // Same file, two separate connections — the shape a Turso client per
+    // container instance actually takes, not a single process racing itself.
+    const other = createClient({ url: `file:${join(dir, "test.db")}` });
+    try {
+      const results = await Promise.allSettled([applySchema(client), applySchema(other)]);
+      expect(results.map((r) => r.status)).toEqual(["fulfilled", "fulfilled"]);
+      expect((await columns()).filter((c) => c === "edited_at").length).toBe(1);
+    } finally {
+      other.close();
+    }
+  });
 });
