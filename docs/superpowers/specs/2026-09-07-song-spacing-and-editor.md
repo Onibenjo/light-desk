@@ -185,3 +185,72 @@ from the other books: "FMA" (66 sections) — a leadership-training outline
 ("Class Assessment", "Five Levels of Leadership", "Burden of Leadership",
 ...) from one of the non-CLC books, correctly split into many short
 numbered-point sections, not a fragmented song.
+
+## Re-import result: the blank-line invariant (final whole-branch review)
+
+The final whole-branch review found that `cleanSlideText` collapsed 3+
+newlines to 2 but never removed a blank line sitting *inside* a single
+slide, and a multi-line slide is stored whole. The editor joins sections
+with a blank line and Save splits back on one, so a surviving internal
+blank line was indistinguishable from a real section break: opening a song
+in the editor and pressing Save with no edit could silently change its
+section count. `toSlides()` in `src/lib/videopsalm.ts` now collapses any
+run of blank lines inside a slide's cleaned text to a single newline,
+holding the invariant that no stored section ever contains a blank line.
+
+Measured against `SongBooks/CLC.json` (1,944 songs), before and after that
+fix:
+
+| Measure | Before | After |
+| --- | --- | --- |
+| `blankInside` (sections containing an internal blank line) | 32 | 0 |
+| `rtFail` (songs whose section count changes on open-and-Save with no edit) | 15 | 0 |
+| `untrimmed` (sections starting or ending with a blank line) | 11 | 0 |
+
+`rtFail` reproduces exactly, including the reported case: one of the two
+songs titled "Elu agogo" (there are two distinct entries) went from 20
+sections to 24 on an open-and-Save round trip before the fix, and stays at
+20 after it.
+
+The quick-add path was checked, not assumed safe: `sectionsFromLyrics`
+(mechanical split) and `sectionsFromLlmReply` (the LLM path) both route
+every candidate section through `splitOnBlankLines` before it is stored,
+which by construction cannot leave a blank line inside a returned piece —
+splitting always happens exactly at the blank line. Confirmed by
+inspection and by 20,000-trial fuzzing over newline-heavy input in each
+path; no code change was needed there.
+
+**Repair of the already-stored data.** Backed up first
+(`npm run db:backup` → `backups/lightdesk-2026-09-07T21-03-54-439Z.json`),
+then re-imported all five songbook files against `local.db` through the
+fixed parser, the same guid-matching method Task 8 used. `edited_at` is
+still unset on every row, so nothing was skipped:
+
+| File | Songs in file | added | updated | unchanged | skipped |
+| --- | --- | --- | --- | --- | --- |
+| `CLC.json` | 1,944 | 0 | 15 | 1,929 | 0 |
+| `New songbook.json` | 172 | 0 | 6 | 166 | 0 |
+| `Concordance.json` | 101 | 0 | 0 | 101 | 0 |
+| `CONFESSIONS.vpc` | 3 | 0 | 0 | 3 | 0 |
+| `Account Numbers.json` | 2 | 0 | 0 | 2 | 0 |
+
+`updated` (15 for `CLC.json`, 6 for `New songbook.json`) lines up with the
+songs that actually held an internal blank line under the old code; every
+other row was already byte-identical under the new rules. `added` is 0
+everywhere because every guid already existed from the prior re-import.
+
+Final unfiltered whole-book statistics, over all 2,222 stored rows:
+
+| Measure | Value |
+| --- | --- |
+| songs | 2,222 |
+| sections | 18,760 |
+| maxLines | 6 |
+| over6 | 0 |
+| empty | 0 |
+| blankInside | 0 |
+| rtFail | 0 |
+| untrimmed | 0 |
+
+Clean across the whole table, including the two invariant checks the
+brief's original Step 4 query didn't cover.
