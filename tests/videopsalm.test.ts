@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
-import { repairVideoPsalm, parseVideoPsalmSongbook, cleanSlideText, formatSection, regroupSections } from "../src/lib/videopsalm";
+import { repairVideoPsalm, parseVideoPsalmSongbook, cleanSlideText, formatSection, regroupSlides, type Slide } from "../src/lib/videopsalm";
 
 describe("VideoPsalm repair", () => {
   it("quotes keys, escapes newlines and stray quotes", () => {
@@ -38,24 +38,60 @@ describe("slide cleaning + 🎵 formatting", () => {
   });
 });
 
-describe("regrouping one-line slides", () => {
-  it("merges one-line slides into 4-line sections", () => {
-    const slides = ["a", "b", "c", "d", "e", "f", "g", "h", "i"];
-    expect(regroupSections(slides)).toEqual(["a\nb\nc\nd", "e\nf\ng\nh", "i"]);
+describe("grouping songbook slides", () => {
+  const text = (...ts: string[]): Slide[] => ts.map((t) => ({ kind: "text", text: t }));
+  const BREAK: Slide = { kind: "break" };
+
+  it("packs consecutive one-line slides into fours", () => {
+    expect(regroupSlides(text("a", "b", "c", "d", "e", "f", "g", "h", "i"))).toEqual(["a\nb\nc\nd", "e\nf\ng\nh", "i"]);
   });
-  it("leaves multi-line slides alone", () => {
-    const slides = ["one\ntwo\nthree\nfour", "five\nsix\nseven"];
-    expect(regroupSections(slides)).toEqual(slides);
+
+  it("leaves a slide that already has its own lines alone", () => {
+    const slides = ["one\ntwo", "three\nfour\nfive"];
+    expect(regroupSlides(text(...slides))).toEqual(slides);
   });
-  it("regroups when at least half the slides are single lines (Army Arise case)", () => {
-    const slides = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k\nl", "m\nn"];
-    const out = regroupSections(slides);
-    expect(out.length).toBeLessThan(slides.length / 2);
-    expect(out[0]).toBe("a\nb\nc\nd");
+
+  it("never merges two-line slides — that is the couplet the media team authored", () => {
+    expect(regroupSlides(text("A o riri\n(Never seen)", "A o gbori\n(Nor heard before)"))).toEqual(["A o riri\n(Never seen)", "A o gbori\n(Nor heard before)"]);
   });
-  it("never splits an existing slide across sections", () => {
-    const slides = ["a", "b\nc", "d", "e"];
-    expect(regroupSections(slides)).toEqual(["a\nb\nc\nd", "e"]);
+
+  it("flushes the packed lines when a multi-line slide interrupts them", () => {
+    expect(regroupSlides(text("a", "b", "c\nd", "e"))).toEqual(["a\nb", "c\nd", "e"]);
+  });
+
+  it("starts a new section at a break, even mid-group", () => {
+    expect(regroupSlides([...text("a", "b"), BREAK, ...text("c", "d")])).toEqual(["a\nb", "c\nd"]);
+  });
+
+  it("ignores a break that has nothing before or after it", () => {
+    expect(regroupSlides([BREAK, ...text("a"), BREAK, BREAK])).toEqual(["a"]);
+  });
+
+  it("caps a slide that is longer than a chat message should be", () => {
+    const long = Array.from({ length: 7 }, (_, i) => `l${i + 1}`).join("\n");
+    expect(regroupSlides(text(long))).toEqual(["l1\nl2\nl3\nl4", "l5\nl6\nl7"]);
+  });
+});
+
+describe("the songbook's own section markers", () => {
+  it("starts a new section at a tagged entry that carries no text", () => {
+    const raw = '{Songs:[{Guid:"g",Text:"El Roi",Verses:[{Text:"You sit in heaven"},{ID:2,Text:"Ancient of days"},{Tag:1,ID:0},{ID:3,Text:"Jehovah elroi"},{ID:4,Text:"Na u dey see"}]}]}';
+    expect(parseVideoPsalmSongbook(raw).songs[0].sections).toEqual(["You sit in heaven\nAncient of days", "Jehovah elroi\nNa u dey see"]);
+  });
+
+  it("starts a new section at a tagged entry that does carry text", () => {
+    const raw = '{Songs:[{Guid:"g",Text:"Forever",Verses:[{Text:"a"},{ID:2,Text:"b"},{Tag:3,ID:3,Text:"the chorus starts"},{ID:4,Text:"d"}]}]}';
+    expect(parseVideoPsalmSongbook(raw).songs[0].sections).toEqual(["a\nb", "the chorus starts\nd"]);
+  });
+
+  it("drops an untagged empty entry without breaking the group", () => {
+    const raw = '{Songs:[{Guid:"g",Text:"T",Verses:[{Text:"a"},{ID:2},{ID:3,Text:"b"}]}]}';
+    expect(parseVideoPsalmSongbook(raw).songs[0].sections).toEqual(["a\nb"]);
+  });
+
+  it("drops a label-only slide", () => {
+    const raw = '{Songs:[{Guid:"g",Text:"T",Verses:[{Text:"[Chorus]"},{ID:2,Text:"a"},{ID:3,Text:"b"}]}]}';
+    expect(parseVideoPsalmSongbook(raw).songs[0].sections).toEqual(["a\nb"]);
   });
 });
 
