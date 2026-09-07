@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   // The whole book in one read: a select per song was 1,900 round trips, and
   // the preview cannot afford them at all.
   const existing = new Map<string, StoredSong>();
-  for (const r of await db.select({ guid: songs.guid, title: songs.title, author: songs.author, sections: songs.sections }).from(songs)) {
+  for (const r of await db.select({ guid: songs.guid, title: songs.title, author: songs.author, sections: songs.sections, editedAt: songs.editedAt }).from(songs)) {
     existing.set(r.guid, r);
   }
   const diff = diffSongbook(parsed.songs, existing);
@@ -50,6 +50,7 @@ export async function POST(req: Request) {
     unchanged: diff.unchanged,
     added: diff.added.map((s) => s.title),
     updated: diff.updated.map((s) => s.title),
+    skippedEdited: diff.skippedEdited.map((s) => s.title),
   };
 
   if (new URL(req.url).searchParams.get("preview") === "1") return NextResponse.json({ preview: true, ...summary });

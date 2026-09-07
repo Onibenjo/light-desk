@@ -44,4 +44,6 @@ export const songs = sqliteTable("songs", {
   source: text("source").notNull(), // videopsalm | manual
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  /** Set the first time someone corrects the song here; import then leaves it alone. */
+  editedAt: integer("edited_at", { mode: "timestamp" }),
 });

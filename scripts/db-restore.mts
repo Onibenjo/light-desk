@@ -12,7 +12,7 @@
  */
 import { createClient } from "@libsql/client";
 import { readFileSync } from "node:fs";
-import { SCHEMA_SQL } from "../src/db/schemaSql.ts";
+import { applySchema } from "../src/db/schemaSql.ts";
 import { importAll, DATA_TABLES, type Dump } from "../src/lib/dbTransfer.ts";
 
 const arg = (name: string, fallback?: string) => {
@@ -35,7 +35,7 @@ if (dump.version !== 1) {
 }
 
 const client = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
-await client.executeMultiple(SCHEMA_SQL);
+await applySchema(client);
 
 const existing: string[] = [];
 for (const table of DATA_TABLES) {

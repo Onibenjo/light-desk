@@ -9,12 +9,16 @@ export interface StoredSong {
   title: string;
   author: string | null;
   sections: string;
+  /** Set once someone corrected the song at the desk. */
+  editedAt: Date | null;
 }
 
 export interface SongbookDiff {
   added: VpSong[];
   updated: VpSong[];
   unchanged: number;
+  /** Corrected at the desk, so the songbook's version is not written over it. */
+  skippedEdited: VpSong[];
   /** Entries dropped because a later entry claimed the same Guid. */
   repeatedGuids: number;
 }
@@ -27,17 +31,21 @@ function changed(incoming: VpSong, current: StoredSong): boolean {
  * Compare a parsed songbook against the rows already stored, keyed by Guid.
  * A Guid claimed twice in one file keeps the last entry — the row is unique, so
  * writing both would fail, and the last is what a sequential import would leave.
+ *
+ * A song someone fixed here is never overwritten: losing a correction made on a
+ * Sunday morning to a routine re-import is worse than a stale songbook entry.
  */
 export function diffSongbook(parsed: VpSong[], existing: Map<string, StoredSong>): SongbookDiff {
   const byGuid = new Map<string, VpSong>();
   for (const s of parsed) byGuid.set(s.guid, s);
 
-  const diff: SongbookDiff = { added: [], updated: [], unchanged: 0, repeatedGuids: parsed.length - byGuid.size };
+  const diff: SongbookDiff = { added: [], updated: [], unchanged: 0, skippedEdited: [], repeatedGuids: parsed.length - byGuid.size };
   for (const song of byGuid.values()) {
     const current = existing.get(song.guid);
     if (!current) diff.added.push(song);
-    else if (changed(song, current)) diff.updated.push(song);
-    else diff.unchanged++;
+    else if (!changed(song, current)) diff.unchanged++;
+    else if (current.editedAt) diff.skippedEdited.push(song);
+    else diff.updated.push(song);
   }
   return diff;
 }
