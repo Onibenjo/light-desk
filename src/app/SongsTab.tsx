@@ -425,6 +425,9 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
             setSong(saved);
             setSent(new Set());
             setPinned(null);
+            // An edit can move section boundaries, so the old index no longer points
+            // at the line that matched the search — same reason openSong resets it.
+            setFound(null);
             sectionRefs.current = [];
             // The local index is the search: without this the old lyrics keep
             // answering searches until the page is reloaded.
