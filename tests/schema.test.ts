@@ -17,7 +17,13 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-const columns = async () => (await client.execute("PRAGMA table_info(songs)")).rows.map((r) => r.name as string);
+/** PRAGMA table_info's `name` column is untyped SqlValue; verify it's the string it always is rather than asserting it. */
+function columnName(value: unknown): string {
+  if (typeof value !== "string") throw new Error(`expected a column name, got ${typeof value}: ${String(value)}`);
+  return value;
+}
+
+const columns = async () => (await client.execute("PRAGMA table_info(songs)")).rows.map((r) => columnName(r.name));
 
 describe("bringing a database up to date", () => {
   it("creates the songs table with every column", async () => {
