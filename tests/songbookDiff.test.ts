@@ -5,7 +5,7 @@ import type { VpSong } from "../src/lib/videopsalm";
 const song = (over: Partial<VpSong> = {}): VpSong => ({ guid: "g1", title: "Abide With Me", author: "H.F. Lyte", sections: ["Abide with me"], ...over });
 
 /** The book as it sits in the database: sections already JSON, author nullable. */
-const stored = (over: Partial<StoredSong> = {}): StoredSong => ({ title: "Abide With Me", author: "H.F. Lyte", sections: JSON.stringify(["Abide with me"]), ...over });
+const stored = (over: Partial<StoredSong> = {}): StoredSong => ({ title: "Abide With Me", author: "H.F. Lyte", sections: JSON.stringify(["Abide with me"]), editedAt: null, ...over });
 
 const book = (entries: Record<string, StoredSong>) => new Map(Object.entries(entries));
 
@@ -65,5 +65,27 @@ describe("a songbook that repeats a guid", () => {
   it("reports how many entries it collapsed", () => {
     expect(diffSongbook(twice, book({})).repeatedGuids).toBe(1);
     expect(diffSongbook([song()], book({})).repeatedGuids).toBe(0);
+  });
+});
+
+describe("a song that was edited at the desk", () => {
+  const edited = stored({ sections: JSON.stringify(["Abide with me, fast falls the eventide"]), editedAt: new Date("2026-09-07T10:00:00Z") });
+
+  it("is left alone even though the songbook disagrees with it", () => {
+    const d = diffSongbook([song()], book({ g1: edited }));
+    expect(d.updated).toEqual([]);
+    expect(d.skippedEdited.map((s) => s.title)).toEqual(["Abide With Me"]);
+    expect(d.unchanged).toBe(0);
+  });
+
+  it("is not reported as skipped when the songbook already agrees with it", () => {
+    const d = diffSongbook([song()], book({ g1: stored({ editedAt: new Date("2026-09-07T10:00:00Z") }) }));
+    expect(d.skippedEdited).toEqual([]);
+    expect(d.unchanged).toBe(1);
+  });
+
+  it("does not stop a song the book has never seen from being added", () => {
+    const d = diffSongbook([song({ guid: "g2", title: "Above All" })], book({ g1: edited }));
+    expect(d.added.map((s) => s.title)).toEqual(["Above All"]);
   });
 });

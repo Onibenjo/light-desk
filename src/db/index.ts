@@ -1,7 +1,7 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
-import { SCHEMA_SQL } from "./schemaSql";
+import { applySchema } from "./schemaSql";
 
 // Turso in production (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN); a local SQLite
 // file in development so `npm run dev` works with no account at all.
@@ -25,12 +25,17 @@ export const db = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
 });
 
 let ensured: Promise<void> | null = null;
-/** Creates tables if missing. Cheap, idempotent, and saves a migration step for a one-church app. */
+/** Creates tables and any column added since, if missing. Cheap, idempotent, and saves a migration step for a one-church app. */
 export function ensureSchema(): Promise<void> {
   if (!ensured) {
-    ensured = (async () => {
-      await getClient().executeMultiple(SCHEMA_SQL);
-    })();
+    // A rejection is cached the same way a success is, unless it's cleared here:
+    // a network blip on a cold start would otherwise wedge the process into
+    // 500ing forever, since every later call would just re-throw the same stale
+    // rejection instead of trying again.
+    ensured = applySchema(getClient()).catch((e) => {
+      ensured = null;
+      throw e;
+    });
   }
   return ensured;
 }

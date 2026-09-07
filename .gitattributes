@@ -1,0 +1,4 @@
+# videopsalm.ts uses NUL as a fingerprint separator, which makes git call the
+# file binary and hide every diff of it. These files are text; diff them as text.
+*.ts text diff
+*.tsx text diff

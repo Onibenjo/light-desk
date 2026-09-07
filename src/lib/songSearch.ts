@@ -14,6 +14,8 @@ export interface SearchableSong {
   author?: string | null;
   sections: string[];
   source?: string;
+  /** Set when the song was corrected at the desk; serialised as a date string. */
+  editedAt?: string | Date | null;
 }
 
 export interface SnippetRange {

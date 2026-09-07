@@ -10,7 +10,7 @@ import type { SearchableSong } from "@/lib/songSearch";
  */
 export async function loadSongs(where?: SQL, limit?: number): Promise<SearchableSong[]> {
   let q = db
-    .select({ id: songs.id, guid: songs.guid, title: songs.title, author: songs.author, sections: songs.sections, source: songs.source })
+    .select({ id: songs.id, guid: songs.guid, title: songs.title, author: songs.author, sections: songs.sections, source: songs.source, editedAt: songs.editedAt })
     .from(songs)
     .$dynamic();
   if (where) q = q.where(where);
