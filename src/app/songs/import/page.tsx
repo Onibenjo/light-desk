@@ -2,17 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-
-/** What the import would do, or did. Titles, not just counts. */
-interface Summary {
-  totalEntries: number;
-  skippedEmpty: number;
-  collapsedDuplicates: number;
-  repeatedGuids: number;
-  unchanged: number;
-  added: string[];
-  updated: string[];
-}
+import { Footnotes, type Summary } from "./Footnotes";
 
 /** Enough titles to recognise the book at a glance; the rest are one tap away. */
 const SHOWN = 20;
@@ -41,17 +31,6 @@ function TitleList({ heading, titles }: { heading: string; titles: string[] }) {
       )}
     </div>
   );
-}
-
-function Footnotes({ s }: { s: Summary }) {
-  const entries = (n: number) => `${n} ${n === 1 ? "entry" : "entries"}`;
-  const notes = [
-    s.skippedEmpty ? `${entries(s.skippedEmpty)} ${s.skippedEmpty === 1 ? "has" : "have"} no lyrics and ${s.skippedEmpty === 1 ? "is" : "are"} skipped` : "",
-    s.collapsedDuplicates ? `${s.collapsedDuplicates} exact ${s.collapsedDuplicates === 1 ? "duplicate" : "duplicates"} collapsed` : "",
-    s.repeatedGuids ? `${entries(s.repeatedGuids)} reuse another entry's ID — only the last is kept` : "",
-  ].filter(Boolean);
-  if (!notes.length) return null;
-  return <p className="text-xs text-[var(--muted)]">{notes.join(" · ")}.</p>;
 }
 
 export default function ImportPage() {
@@ -119,7 +98,7 @@ export default function ImportPage() {
         <>
           <p className="text-sm text-zinc-400">
             Pick the songbook file the media team exported — <span className="font-mono">.json</span> or <span className="font-mono">.vpc</span> (e.g. <span className="font-mono">CLC.json</span>). You&rsquo;ll see exactly what would change before anything is
-            saved. Existing songs are updated, new ones added — nothing is deleted. Admin PIN required.
+            saved. Existing songs are updated, new ones added, songs you edited here are left as you left them — nothing is deleted. Admin PIN required.
           </p>
           <label className="block cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-10 text-center text-zinc-400 hover:border-[var(--accent)]">
             {busy === "preview" ? "Reading the file…" : "Tap to choose the .json or .vpc file"}
@@ -163,6 +142,7 @@ export default function ImportPage() {
 
           <TitleList heading="new songs" titles={preview.added} />
           <TitleList heading="songs that would change" titles={preview.updated} />
+          <TitleList heading="songs left alone (edited here)" titles={preview.skippedEdited} />
           <Footnotes s={preview} />
 
           <div className="flex flex-wrap gap-2 pt-1">
@@ -184,6 +164,7 @@ export default function ImportPage() {
           </div>
           <TitleList heading="songs added" titles={result.added} />
           <TitleList heading="songs updated" titles={result.updated} />
+          <TitleList heading="songs left alone (edited here)" titles={result.skippedEdited} />
           <Footnotes s={result} />
           <button onClick={reset} className="rounded-md border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800">
             Import another file
