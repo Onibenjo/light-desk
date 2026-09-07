@@ -77,7 +77,10 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold leading-tight">Edit song</h2>
-        <button onClick={onCancel} className="shrink-0 rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+        {/* Disabled while a save or delete is in flight: that request cannot be
+            un-sent, so letting Cancel dismiss the form here would let its
+            result land on a screen that already told the operator it didn't happen. */}
+        <button onClick={onCancel} disabled={busy} className="shrink-0 rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 disabled:opacity-50">
           Cancel
         </button>
       </div>
