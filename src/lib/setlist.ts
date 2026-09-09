@@ -66,7 +66,7 @@ export function moveItem<T>(items: T[], from: number, delta: number): T[] {
   return next;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
 
 /** The default name for a new setlist: the coming Sunday, or today if it is Sunday. */
 export function comingSundayName(now: Date): string {

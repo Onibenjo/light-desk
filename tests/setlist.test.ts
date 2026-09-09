@@ -70,11 +70,11 @@ describe("reordering", () => {
 
 describe("naming a new setlist", () => {
   it("suggests the coming Sunday", () => {
-    expect(comingSundayName(new Date("2026-09-09T12:00:00"))).toBe("Sunday 13 Sep");
+    expect(comingSundayName(new Date("2026-09-09T12:00:00"))).toBe("Sunday 13 Sept");
   });
 
   it("suggests today when today is Sunday", () => {
-    expect(comingSundayName(new Date("2026-09-13T12:00:00"))).toBe("Sunday 13 Sep");
+    expect(comingSundayName(new Date("2026-09-13T12:00:00"))).toBe("Sunday 13 Sept");
   });
 
   it("crosses a month end", () => {
