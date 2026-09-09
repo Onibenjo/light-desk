@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db, ensureSchema } from "@/db";
 import { songs } from "@/db/schema";
+import { loadSongs } from "@/db/songs";
 import { parseSongEdit } from "@/lib/songEdit";
 import { roleFromToken, SESSION_COOKIE } from "@/lib/auth";
 
@@ -18,6 +19,21 @@ async function admin(): Promise<boolean> {
 async function songId(params: Promise<{ id: string }>): Promise<number | null> {
   const id = Number((await params).id);
   return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/**
+ * GET /api/songs/:id — one song with its sections. Unlocked, not admin-gated:
+ * /api/songs/all already returns every song's full text to the same reader.
+ * It exists so a setlist row can be opened before the whole book has loaded.
+ */
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const id = await songId(params);
+  if (id === null) return NextResponse.json({ error: "No such song" }, { status: 404 });
+
+  await ensureSchema();
+  const [song] = await loadSongs(eq(songs.id, id), 1);
+  if (!song) return NextResponse.json({ error: "No such song" }, { status: 404 });
+  return NextResponse.json({ song });
 }
 
 /**
