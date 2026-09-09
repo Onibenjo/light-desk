@@ -37,6 +37,7 @@ export default function SetlistsPage() {
   async function send(id: number, body: unknown) {
     setBusy(true);
     setError(null);
+    setConfirming(null);
     try {
       const res = await fetch(`/api/setlists/${id}`, {
         method: "PATCH",
@@ -54,6 +55,7 @@ export default function SetlistsPage() {
   async function create() {
     if (!name.trim() || busy) return;
     setBusy(true);
+    setConfirming(null);
     try {
       const res = await fetch("/api/setlists", {
         method: "POST",
