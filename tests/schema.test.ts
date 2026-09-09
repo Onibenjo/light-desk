@@ -66,3 +66,42 @@ describe("bringing a database up to date", () => {
     }
   });
 });
+
+describe("the setlists table", () => {
+  const insertActive = (name: string, active: number) =>
+    client.execute({
+      sql: "INSERT INTO setlists (name, items, active, created_at, updated_at) VALUES (?,?,?,?,?)",
+      args: [name, "[]", active, 1, 1],
+    });
+
+  it("is created with every column", async () => {
+    await applySchema(client);
+    const cols = (await client.execute("PRAGMA table_info(setlists)")).rows.map((r) => columnName(r.name));
+    expect(cols).toEqual(["id", "name", "items", "active", "created_at", "updated_at"]);
+  });
+
+  it("refuses a second active setlist, so one-active is the database's rule and not the caller's", async () => {
+    await applySchema(client);
+    await insertActive("Sunday 1st service", 1);
+    await expect(insertActive("Sunday 2nd service", 1)).rejects.toThrow(/UNIQUE/i);
+  });
+
+  it("allows any number of setlists that are not active", async () => {
+    await applySchema(client);
+    await insertActive("Last Sunday", 0);
+    await insertActive("The Sunday before", 0);
+    await insertActive("Rehearsal", 0);
+    expect((await client.execute("SELECT count(*) AS n FROM setlists")).rows[0].n).toBe(3);
+  });
+
+  it("appears in a database made before setlists existed", async () => {
+    await client.executeMultiple(`CREATE TABLE songs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, guid TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
+      author TEXT, sections TEXT NOT NULL, source TEXT NOT NULL,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );`);
+    await applySchema(client);
+    await insertActive("Sunday", 1);
+    expect((await client.execute("SELECT name FROM setlists")).rows[0].name).toBe("Sunday");
+  });
+});
