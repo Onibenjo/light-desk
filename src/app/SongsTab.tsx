@@ -429,7 +429,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
             <h2 className="text-lg font-semibold leading-tight">{song.title}</h2>
             <span className="flex shrink-0 gap-2">
               <button onClick={() => addToSetlist(song)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
-                + Setlist
+                {setlist ? "+ Setlist" : "Start a setlist"}
               </button>
               <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
                 Edit
