@@ -62,6 +62,19 @@ export async function createSetlist(name: string): Promise<SetlistRecord> {
  * rather than an interactive transaction because libsql runs a batch inside an
  * implicit transaction over plain HTTP, which is how Turso is reached in
  * production.
+ *
+ * The upfront `findSetlist` comparison is only a fast path — it answers "gone"
+ * and catches the common "stale" case without a wasted write, but two PATCHes
+ * built on the same version could both pass it before either commits. What
+ * makes the guard atomic is folding `updatedAt = :expected` into the WHERE of
+ * the write itself: only the first of two racing writes can match a row still
+ * at that version, so at most one `.returning()` comes back non-empty. On the
+ * batch path a lost race leaves the old active row cleared and the new one
+ * still at its old version, unset — no setlist ends up active. That loses no
+ * songs (the caller gets "stale" back and re-applies against the current row)
+ * and is the only reachable outcome when a client sends `items` and `active`
+ * together and loses the race, since the two statements in one batch cannot be
+ * made conditional on each other.
  */
 export async function updateSetlist(id: number, patch: SetlistPatch): Promise<SetlistRecord | "gone" | "stale"> {
   const current = await findSetlist(id);
@@ -72,15 +85,30 @@ export async function updateSetlist(id: number, patch: SetlistPatch): Promise<Se
   if (patch.name !== undefined) values.name = patch.name;
   if (patch.items !== undefined) values.items = JSON.stringify(patch.items);
 
+  // Only a write that replaces `items` needs the version guard: it is the one
+  // case where silently applying a stale write discards someone else's songs.
+  const expectedVersion = patch.items !== undefined ? new Date(patch.updatedAt as string) : null;
+  const rowMatch = expectedVersion
+    ? and(eq(setlists.id, id), eq(setlists.updatedAt, expectedVersion))
+    : eq(setlists.id, id);
+
+  let matched: { id: number }[];
   if (patch.active === true) {
-    await db.batch([
+    const results = await db.batch([
       db.update(setlists).set({ active: false }).where(and(eq(setlists.active, true), ne(setlists.id, id))),
-      db.update(setlists).set({ ...values, active: true }).where(eq(setlists.id, id)),
+      db
+        .update(setlists)
+        .set({ ...values, active: true })
+        .where(rowMatch)
+        .returning({ id: setlists.id }),
     ]);
+    matched = results[1];
   } else {
     if (patch.active === false) values.active = false;
-    await db.update(setlists).set(values).where(eq(setlists.id, id));
+    matched = await db.update(setlists).set(values).where(rowMatch).returning({ id: setlists.id });
   }
+
+  if (expectedVersion && matched.length === 0) return "stale";
 
   const saved = await findSetlist(id);
   return saved ?? "gone";
