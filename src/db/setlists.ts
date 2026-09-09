@@ -1,7 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "./index";
 import { setlists } from "./schema";
-import type { SetlistItem } from "@/lib/setlistEdit";
+import type { SetlistItem, SetlistPatch } from "@/lib/setlistEdit";
 
 /**
  * A setlist as it goes over the wire. Timestamps are ISO strings rather than
@@ -50,4 +50,43 @@ export async function createSetlist(name: string): Promise<SetlistRecord> {
     .values({ name, items: "[]", active: false, createdAt: now, updatedAt: now })
     .returning();
   return toRecord(row);
+}
+
+/**
+ * Apply a change. "gone" if the setlist is not there; "stale" if the client's
+ * songs were built on a version someone else has since replaced.
+ *
+ * Activating clears the old active row first and does it in one batch. The
+ * order is not optional: `setlists_one_active` is a unique index, so setting a
+ * second active row before clearing the first is rejected. A batch is used
+ * rather than an interactive transaction because libsql runs a batch inside an
+ * implicit transaction over plain HTTP, which is how Turso is reached in
+ * production.
+ */
+export async function updateSetlist(id: number, patch: SetlistPatch): Promise<SetlistRecord | "gone" | "stale"> {
+  const current = await findSetlist(id);
+  if (!current) return "gone";
+  if (patch.items && current.updatedAt !== patch.updatedAt) return "stale";
+
+  const values: { updatedAt: Date; name?: string; items?: string; active?: boolean } = { updatedAt: new Date() };
+  if (patch.name !== undefined) values.name = patch.name;
+  if (patch.items !== undefined) values.items = JSON.stringify(patch.items);
+
+  if (patch.active === true) {
+    await db.batch([
+      db.update(setlists).set({ active: false }).where(and(eq(setlists.active, true), ne(setlists.id, id))),
+      db.update(setlists).set({ ...values, active: true }).where(eq(setlists.id, id)),
+    ]);
+  } else {
+    if (patch.active === false) values.active = false;
+    await db.update(setlists).set(values).where(eq(setlists.id, id));
+  }
+
+  const saved = await findSetlist(id);
+  return saved ?? "gone";
+}
+
+export async function deleteSetlist(id: number): Promise<boolean> {
+  const [row] = await db.delete(setlists).where(eq(setlists.id, id)).returning({ id: setlists.id });
+  return !!row;
 }
