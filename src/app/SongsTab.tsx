@@ -7,9 +7,12 @@ import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
+import { comingSundayName, resolveSetlist, songsById, staleNote } from "@/lib/setlist";
 import { MatchedLine } from "./MatchedLine";
 import SongEditor from "./SongEditor";
 import SongList from "./SongList";
+import SetlistBar from "./SetlistBar";
+import { useSetlist } from "./useSetlist";
 
 interface Props {
   copyText: (t: string) => Promise<boolean>;
@@ -19,10 +22,16 @@ interface Props {
 
 export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const [q, setQ] = useState("");
+  const { setlist, addSong, startSetlist } = useSetlist();
+  // The song waiting for a setlist to exist, and the name being typed for it.
+  const [starting, setStarting] = useState<SearchableSong | null>(null);
+  const [startName, setStartName] = useState("");
   // Searching the local copy is fast but not free; deferring it keeps the
   // keystrokes themselves instant on a phone.
   const deferredQ = useDeferredValue(q);
   const [book, setBook] = useState<IndexedSong[] | null>(null);
+  const byId = useMemo(() => songsById(book), [book]);
+  const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId) : []), [setlist, byId]);
   // Results from the server, used only until the local book has arrived.
   const [remote, setRemote] = useState<SongMatch[]>([]);
   const [total, setTotal] = useState<number | null>(null);
@@ -108,6 +117,34 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
       focusSection(0);
     },
     [focusSection],
+  );
+
+  /** A setlist row: open the song from the book, or fetch that one song if the book is still loading. */
+  const openSetlistRow = useCallback(
+    async (row: { id: number; song: SearchableSong | null; missing: boolean }) => {
+      if (row.missing) return;
+      if (row.song) return openSong(row.song);
+      const res = await fetch(`/api/songs/${row.id}`);
+      if (!res.ok) return showToast("Could not open that song — search for it", "err");
+      const { song: fetched } = (await res.json()) as { song: SearchableSong };
+      openSong(fetched);
+    },
+    [openSong, showToast],
+  );
+
+  /** + on a search row or in the song header. With no setlist yet, ask for a name first. */
+  const addToSetlist = useCallback(
+    async (song: SearchableSong) => {
+      if (!setlist) {
+        setStartName(comingSundayName(new Date()));
+        return setStarting(song);
+      }
+      const result = await addSong(song);
+      if (result === "added") showToast(`Added "${song.title}" to ${setlist.name}`);
+      else if (result === "duplicate") showToast("Already in the setlist", "warn");
+      else showToast("Could not add to the setlist", "err");
+    },
+    [setlist, addSong, showToast],
   );
 
   async function copySection(i: number, advance = false) {
@@ -217,8 +254,16 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
 
   return (
     <div className="space-y-4">
-      {!song && !adding && (
+      {!song && !adding && !starting && (
         <>
+          {setlist && (
+            <SetlistBar
+              name={setlist.name}
+              staleNote={staleNote(setlist.updatedAt, new Date())}
+              rows={setlistRows}
+              onOpen={openSetlistRow}
+            />
+          )}
           <input
             ref={inputRef}
             value={q}
@@ -246,6 +291,9 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
           <div className="flex items-center justify-between text-xs text-[var(--muted)]">
             <span>{total !== null && `${total} songs in the book`}</span>
             <span className="flex shrink-0 gap-3">
+              <Link href="/setlists" className="-my-1 py-1 underline hover:text-zinc-300">
+                Setlists
+              </Link>
               <button onClick={() => setAdding(true)} className="-my-1 py-1 underline hover:text-zinc-300">
                 + Quick add a song
               </button>
@@ -257,12 +305,12 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
           {hits.length > 0 && (
             <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/60">
               {hits.map((m, hi) => (
-                <li key={m.song.guid ?? m.song.id}>
+                <li key={m.song.guid ?? m.song.id} className="flex items-stretch">
                   <button
                     onClick={() => openSong(m.song, m.section)}
                     onMouseEnter={() => setHit(hi)}
                     aria-current={hi === hit ? "true" : undefined}
-                    className={`w-full px-4 py-3 text-left hover:bg-zinc-800/60 ${hi === hit ? "bg-zinc-800/60" : ""}`}
+                    className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-zinc-800/60 ${hi === hit ? "bg-zinc-800/60" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="min-w-0 font-medium">{m.song.title}</span>
@@ -279,6 +327,14 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
                         <MatchedLine text={m.snippet.text} ranges={m.snippet.ranges} />
                       </span>
                     )}
+                  </button>
+                  <button
+                    onClick={() => addToSetlist(m.song)}
+                    aria-label={`Add ${m.song.title} to the setlist`}
+                    title="Add to the setlist"
+                    className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200"
+                  >
+                    +
                   </button>
                 </li>
               ))}
@@ -334,11 +390,47 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
         </div>
       )}
 
+      {starting && (
+        <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium">Start a setlist</h2>
+            <button onClick={() => setStarting(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+              Cancel
+            </button>
+          </div>
+          <p className="text-sm text-[var(--muted)]">&ldquo;{starting.title}&rdquo; will be the first song.</p>
+          <input
+            autoFocus
+            value={startName}
+            onChange={(e) => setStartName(e.target.value)}
+            aria-label="Setlist name"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
+          />
+          <button
+            onClick={async () => {
+              const song = starting;
+              const name = startName.trim();
+              if (!song || !name) return;
+              setStarting(null);
+              const result = await startSetlist(name, song);
+              showToast(result === "added" ? `Started ${name} with "${song.title}"` : "Could not start the setlist", result === "added" ? "ok" : "err");
+            }}
+            disabled={!startName.trim()}
+            className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50"
+          >
+            Start it
+          </button>
+        </div>
+      )}
+
       {song && !editing && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold leading-tight">{song.title}</h2>
             <span className="flex shrink-0 gap-2">
+              <button onClick={() => addToSetlist(song)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+                {setlist ? "+ Setlist" : "Start a setlist"}
+              </button>
               <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
                 Edit
               </button>

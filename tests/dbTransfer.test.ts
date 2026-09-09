@@ -33,6 +33,10 @@ beforeEach(async () => {
     sql: "INSERT INTO songs (guid, title, author, sections, source, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
     args: ["vp-1", "Amazing", null, '["verse one"]', "videopsalm", 1788288361, 1788288361],
   });
+  await source.execute({
+    sql: "INSERT INTO setlists (name, items, active, created_at, updated_at) VALUES (?,?,?,?,?)",
+    args: ["Sunday", '[{"id":1,"title":"Way Maker"}]', 1, 1788288361, 1788288361],
+  });
 });
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -44,6 +48,12 @@ describe("exportAll", () => {
     expect(dump.tables.songs).toHaveLength(1);
     expect(dump.tables.verse_cache).toEqual([]);
     expect(dump.tables.messages).toEqual([]);
+    expect(dump.tables.setlists).toHaveLength(1);
+    expect(dump.tables.setlists[0]).toMatchObject({
+      name: "Sunday",
+      items: '[{"id":1,"title":"Way Maker"}]',
+      active: 1,
+    });
   });
 
   it("stamps the dump so a restore can be identified later", async () => {
@@ -90,6 +100,7 @@ describe("importAll", () => {
       expect.arrayContaining([
         { table: "sent_log", rows: 2 },
         { table: "songs", rows: 1 },
+        { table: "setlists", rows: 1 },
       ]),
     );
   });
@@ -99,5 +110,13 @@ describe("importAll", () => {
     await importAll(target, first);
     const second = await exportAll(target);
     expect(second.tables).toEqual(first.tables);
+  });
+
+  it("restores a setlist with its items JSON intact", async () => {
+    await importAll(target, await exportAll(source));
+    const rows = await target.execute("SELECT name, items, active, created_at, updated_at FROM setlists");
+    expect(rows.rows.map((r) => ({ ...r }))).toEqual([
+      { name: "Sunday", items: '[{"id":1,"title":"Way Maker"}]', active: 1, created_at: 1788288361, updated_at: 1788288361 },
+    ]);
   });
 });

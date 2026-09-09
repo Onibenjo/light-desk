@@ -1,6 +1,6 @@
 import type { Client } from "@libsql/client";
 /** Every table carrying data, in an order that is safe to restore sequentially. */
-export const DATA_TABLES = ["verse_cache", "sent_log", "songs", "messages"] as const;
+export const DATA_TABLES = ["verse_cache", "sent_log", "songs", "messages", "setlists"] as const;
 
 type Row = Record<string, unknown>;
 
