@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { comingSundayName, moveItem } from "@/lib/setlist";
+import { itemKey } from "@/lib/setlistEdit";
 import type { Setlist } from "../useSetlist";
 
 /**
@@ -144,7 +145,7 @@ export default function SetlistsPage() {
           ) : (
             <ol className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
               {s.items.map((item, i) => (
-                <li key={item.id} className="flex items-center gap-2 px-2 py-1.5">
+                <li key={itemKey(item)} className="flex items-center gap-2 px-2 py-1.5">
                   <span className="w-5 shrink-0 text-center text-xs text-[var(--muted)]">{i + 1}</span>
                   <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
                   <button onClick={() => send(s.id, { items: moveItem(s.items, i, -1), updatedAt: s.updatedAt })} disabled={busy || i === 0} aria-label={`Move ${item.title} up`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
@@ -153,7 +154,7 @@ export default function SetlistsPage() {
                   <button onClick={() => send(s.id, { items: moveItem(s.items, i, 1), updatedAt: s.updatedAt })} disabled={busy || i === s.items.length - 1} aria-label={`Move ${item.title} down`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
                     ↓
                   </button>
-                  <button onClick={() => send(s.id, { items: s.items.filter((x) => x.id !== item.id), updatedAt: s.updatedAt })} disabled={busy} aria-label={`Remove ${item.title}`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30">
+                  <button onClick={() => send(s.id, { items: s.items.filter((x) => itemKey(x) !== itemKey(item)), updatedAt: s.updatedAt })} disabled={busy} aria-label={`Remove ${item.title}`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30">
                     ×
                   </button>
                 </li>

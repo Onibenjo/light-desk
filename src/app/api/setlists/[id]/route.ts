@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { ensureSchema } from "@/db";
 import { deleteSetlist, findSetlist, updateSetlist } from "@/db/setlists";
-import { parseSetlistPatch } from "@/lib/setlistEdit";
+import { factsForMessages } from "@/db/messages";
+import { addedMessageIds, parseSetlistPatch, refusedMessage } from "@/lib/setlistEdit";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
   await ensureSchema();
+
+  // Only messages being added are judged. One already in the setlist stays even
+  // if its section has since been switched out of service, so flipping a toggle
+  // cannot make Sunday's prepared order unsaveable.
+  if (parsed.items) {
+    const current = await findSetlist(id);
+    if (!current) return NextResponse.json({ error: "No such setlist" }, { status: 404 });
+    const added = addedMessageIds(current.items, parsed.items);
+    const refused = refusedMessage(added, await factsForMessages(added));
+    if (refused) return NextResponse.json({ error: refused }, { status: 400 });
+  }
+
   const result = await updateSetlist(id, parsed);
   if (result === "gone") return NextResponse.json({ error: "No such setlist" }, { status: 404 });
   if (result === "stale") {

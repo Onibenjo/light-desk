@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { SetlistItem } from "@/lib/setlistEdit";
-import type { SearchableSong } from "@/lib/songSearch";
+import { itemKey, type SetlistItem } from "@/lib/setlistEdit";
 
 export interface Setlist {
   id: number;
@@ -13,16 +12,16 @@ export interface Setlist {
   updatedAt: string;
 }
 
-export type AddResult = "added" | "duplicate" | "failed";
+export type AddResult = "added" | "duplicate" | "failed" | { refused: string };
 
-async function patch(id: number, body: unknown): Promise<{ status: number; setlist?: Setlist }> {
+async function patch(id: number, body: unknown): Promise<{ status: number; setlist?: Setlist; error?: string }> {
   const res = await fetch(`/api/setlists/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = (await res.json().catch(() => null)) as { setlist?: Setlist } | null;
-  return { status: res.status, setlist: data?.setlist };
+  const data = (await res.json().catch(() => null)) as { setlist?: Setlist; error?: string } | null;
+  return { status: res.status, setlist: data?.setlist, error: data?.error };
 }
 
 /**
@@ -54,16 +53,16 @@ export function useSetlist() {
     };
   }, []);
 
-  const addSong = useCallback(
-    async (song: SearchableSong): Promise<AddResult> => {
-      if (!setlist || song.id === undefined) return "failed";
-      const item = { id: song.id, title: song.title };
-      if (setlist.items.some((i) => i.id === item.id)) return "duplicate";
+  const addItem = useCallback(
+    async (item: SetlistItem): Promise<AddResult> => {
+      if (!setlist) return "failed";
+      const key = itemKey(item);
+      if (setlist.items.some((i) => itemKey(i) === key)) return "duplicate";
 
       // Two goes: ours, and one more on top of whatever the other person saved.
       let target = setlist;
       for (let attempt = 0; attempt < 2; attempt++) {
-        const { status, setlist: saved } = await patch(target.id, {
+        const { status, setlist: saved, error } = await patch(target.id, {
           items: [...target.items, item],
           updatedAt: target.updatedAt,
         });
@@ -72,14 +71,15 @@ export function useSetlist() {
           return "added";
         }
         if (status === 409 && saved) {
-          // They may have added the very song we are adding.
-          if (saved.items.some((i) => i.id === item.id)) {
+          // They may have added the very thing we are adding.
+          if (saved.items.some((i) => itemKey(i) === key)) {
             setSetlist(saved);
             return "duplicate";
           }
           target = saved;
           continue;
         }
+        if (status === 400 && error) return { refused: error };
         return "failed";
       }
       return "failed";
@@ -87,9 +87,8 @@ export function useSetlist() {
     [setlist],
   );
 
-  /** Create a setlist, make it the active one, and put this song in it. */
-  const startSetlist = useCallback(async (name: string, song: SearchableSong): Promise<AddResult> => {
-    if (song.id === undefined) return "failed";
+  /** Create a setlist, make it the active one, and put this item in it. */
+  const startSetlist = useCallback(async (name: string, item: SetlistItem): Promise<AddResult> => {
     const res = await fetch("/api/setlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -101,15 +100,18 @@ export function useSetlist() {
     const activated = await patch(created.id, { active: true });
     if (!activated.setlist) return "failed";
 
-    const added = await patch(activated.setlist.id, {
-      items: [{ id: song.id, title: song.title }],
-      updatedAt: activated.setlist.updatedAt,
-    });
+    const added = await patch(activated.setlist.id, { items: [item], updatedAt: activated.setlist.updatedAt });
+    if (added.status === 400 && added.error) {
+      setSetlist(activated.setlist);
+      return { refused: added.error };
+    }
     if (!added.setlist) return "failed";
 
     setSetlist(added.setlist);
     return "added";
   }, []);
 
-  return { setlist, addSong, startSetlist };
+  return { setlist, addItem, startSetlist };
 }
+
+export type SetlistApi = ReturnType<typeof useSetlist>;

@@ -22,7 +22,7 @@ interface Props {
 
 export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const [q, setQ] = useState("");
-  const { setlist, addSong, startSetlist } = useSetlist();
+  const { setlist, addItem, startSetlist } = useSetlist();
   // The song waiting for a setlist to exist, and the name being typed for it.
   const [starting, setStarting] = useState<SearchableSong | null>(null);
   const [startName, setStartName] = useState("");
@@ -139,12 +139,13 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
         setStartName(comingSundayName(new Date()));
         return setStarting(song);
       }
-      const result = await addSong(song);
+      if (song.id === undefined) return showToast("Save the song before adding it to a setlist", "err");
+      const result = await addItem({ kind: "song", id: song.id, title: song.title });
       if (result === "added") showToast(`Added "${song.title}" to ${setlist.name}`);
       else if (result === "duplicate") showToast("Already in the setlist", "warn");
       else showToast("Could not add to the setlist", "err");
     },
-    [setlist, addSong, showToast],
+    [setlist, addItem, showToast],
   );
 
   async function copySection(i: number, advance = false) {
@@ -412,7 +413,8 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
               const name = startName.trim();
               if (!song || !name) return;
               setStarting(null);
-              const result = await startSetlist(name, song);
+              if (song.id === undefined) return;
+              const result = await startSetlist(name, { kind: "song", id: song.id, title: song.title });
               showToast(result === "added" ? `Started ${name} with "${song.title}"` : "Could not start the setlist", result === "added" ? "ok" : "err");
             }}
             disabled={!startName.trim()}

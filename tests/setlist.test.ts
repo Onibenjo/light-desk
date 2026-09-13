@@ -7,7 +7,7 @@ const book = buildIndex([song(1, "Way Maker", "Sinach"), song(2, "Oceans")]);
 
 describe("resolving a setlist against the book", () => {
   it("shows the live title, not the one cached when the song was added", () => {
-    const rows = resolveSetlist([{ id: 1, title: "Waymaker" }], songsById(book));
+    const rows = resolveSetlist([{ kind: "song", id: 1, title: "Waymaker" }], songsById(book));
     expect(rows[0].title).toBe("Way Maker");
     expect(rows[0].author).toBe("Sinach");
     expect(rows[0].song).not.toBe(null);
@@ -15,21 +15,21 @@ describe("resolving a setlist against the book", () => {
   });
 
   it("falls back to the cached title while the book is still loading, and calls nothing missing yet", () => {
-    const rows = resolveSetlist([{ id: 1, title: "Waymaker" }], songsById(null));
+    const rows = resolveSetlist([{ kind: "song", id: 1, title: "Waymaker" }], songsById(null));
     expect(rows[0].title).toBe("Waymaker");
     expect(rows[0].song).toBe(null);
     expect(rows[0].missing).toBe(false);
   });
 
   it("marks a song deleted from the book as missing rather than dropping the row", () => {
-    const rows = resolveSetlist([{ id: 1, title: "Way Maker" }, { id: 99, title: "Deleted One" }], songsById(book));
+    const rows = resolveSetlist([{ kind: "song", id: 1, title: "Way Maker" }, { kind: "song", id: 99, title: "Deleted One" }], songsById(book));
     expect(rows).toHaveLength(2);
     expect(rows[1].missing).toBe(true);
     expect(rows[1].title).toBe("Deleted One");
   });
 
   it("keeps the order the setlist was prepared in", () => {
-    const rows = resolveSetlist([{ id: 2, title: "Oceans" }, { id: 1, title: "Way Maker" }], songsById(book));
+    const rows = resolveSetlist([{ kind: "song", id: 2, title: "Oceans" }, { kind: "song", id: 1, title: "Way Maker" }], songsById(book));
     expect(rows.map((r) => r.title)).toEqual(["Oceans", "Way Maker"]);
   });
 });

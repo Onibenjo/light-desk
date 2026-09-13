@@ -2,11 +2,31 @@
 // live in exactly one place. Same convention as songEdit.ts: the parsed value
 // on success, the message to show the operator on failure.
 
-export interface SetlistItem {
+import { cleanParts } from "./messageEdit";
+
+export interface SongItem {
+  kind: "song";
   /** The song's row id. This is the reference; lyrics are always read live. */
   id: number;
   /** A cached label so the list can paint before the songbook has loaded. */
   title: string;
+}
+
+export interface MessageItem {
+  kind: "message";
+  /** The library message's row id. Its text is read live unless `parts` is set. */
+  id: number;
+  /** A cached "Section · Title" label, for the same reason as a song's. */
+  title: string;
+  /** Text edited for this service only. Present, it wins over the library's. */
+  parts?: string[];
+}
+
+export type SetlistItem = SongItem | MessageItem;
+
+/** Song 12 and message 12 are different things; this is what tells them apart. */
+export function itemKey(item: { kind: "song" | "message"; id: number }): string {
+  return `${item.kind}:${item.id}`;
 }
 
 export interface SetlistCreate {
@@ -26,7 +46,7 @@ const MAX_NAME = 80;
 const MAX_TITLE = 200;
 
 const NAME_ERROR = `A setlist needs a name of 1 to ${MAX_NAME} characters`;
-const ITEM_ERROR = "Every song in a setlist needs an id and a title";
+const ITEM_ERROR = "Every song or message in a setlist needs an id and a title";
 
 /** One line, trimmed. Null when there is nothing usable there. */
 function cleanName(value: unknown): string | null {
@@ -35,23 +55,33 @@ function cleanName(value: unknown): string | null {
   return name && name.length <= MAX_NAME ? name : null;
 }
 
-/** The songs, deduplicated by id keeping the first, or the message to show. */
+/** The items, deduplicated by kind and id keeping the first, or the message to show. */
 function cleanItems(value: unknown): SetlistItem[] | string {
   if (!Array.isArray(value)) return ITEM_ERROR;
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   const items: SetlistItem[] = [];
   for (const raw of value) {
     if (typeof raw !== "object" || raw === null) return ITEM_ERROR;
-    const { id, title } = raw as { id?: unknown; title?: unknown };
+    const { kind = "song", id, title, parts } = raw as { kind?: unknown; id?: unknown; title?: unknown; parts?: unknown };
+    // No kind means a song: every setlist saved before messages existed looks like that.
+    if (kind !== "song" && kind !== "message") return ITEM_ERROR;
     if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) return ITEM_ERROR;
     if (typeof title !== "string" || !title.trim()) return ITEM_ERROR;
-    if (seen.has(id)) continue;
-    seen.add(id);
+    const key = itemKey({ kind, id });
+    if (seen.has(key)) continue;
+    seen.add(key);
     // Truncated rather than refused: it is only a cached label, and the live
-    // title replaces it as soon as the songbook has loaded.
-    items.push({ id, title: title.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE) });
+    // title replaces it as soon as the songbook or library has loaded.
+    const label = title.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE);
+    if (kind === "song" || parts === undefined) {
+      items.push({ kind, id, title: label });
+      continue;
+    }
+    const edited = cleanParts(parts);
+    if (typeof edited === "string") return `Edited text: ${edited}`;
+    items.push({ kind, id, title: label, parts: edited });
   }
-  return items.length > MAX_ITEMS ? `A setlist holds at most ${MAX_ITEMS} songs` : items;
+  return items.length > MAX_ITEMS ? `A setlist holds at most ${MAX_ITEMS} items` : items;
 }
 
 export function parseSetlistCreate(body: unknown): SetlistCreate | string {
@@ -88,4 +118,33 @@ export function parseSetlistPatch(body: unknown): SetlistPatch | string {
   }
 
   return Object.keys(patch).length ? patch : "Nothing to change";
+}
+
+/**
+ * Items as stored, trusted — they passed cleanItems on the way in. The one
+ * repair is `kind`: rows written before messages existed have none, and every
+ * one of those is a song. They are written back with it on the next change.
+ */
+export function storedItems(raw: unknown): SetlistItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => ("kind" in item ? item : { ...item, kind: "song" }) as SetlistItem);
+}
+
+/** Messages in `after` that were not already in `before`: the only ones the setlist rule applies to. */
+export function addedMessageIds(before: SetlistItem[], after: SetlistItem[]): number[] {
+  const had = new Set(before.filter((i) => i.kind === "message").map((i) => i.id));
+  return after.filter((i) => i.kind === "message" && !had.has(i.id)).map((i) => i.id);
+}
+
+/**
+ * Why one of these messages cannot be added, or null. An apology is posted when
+ * the sound drops, not at a point in the order, so its section is out of service.
+ */
+export function refusedMessage(ids: number[], facts: Map<number, { inService: boolean; sectionName: string }>): string | null {
+  for (const id of ids) {
+    const fact = facts.get(id);
+    if (!fact) return "That message is no longer in the library";
+    if (!fact.inService) return `${fact.sectionName} can't go in a setlist`;
+  }
+  return null;
 }

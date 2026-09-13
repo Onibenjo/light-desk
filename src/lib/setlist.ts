@@ -8,7 +8,7 @@
 // have is a song deleted since the setlist was prepared.
 
 import type { IndexedSong, SearchableSong } from "./songSearch";
-import type { SetlistItem } from "./setlistEdit";
+import type { SetlistItem, SongItem } from "./setlistEdit";
 
 export interface SetlistRow {
   id: number;
@@ -29,17 +29,19 @@ export function songsById(book: IndexedSong[] | null): Map<number, SearchableSon
 }
 
 export function resolveSetlist(items: SetlistItem[], byId: Map<number, SearchableSong> | null): SetlistRow[] {
-  return items.map((item) => {
-    const song = byId?.get(item.id) ?? null;
-    return {
-      id: item.id,
-      title: song?.title ?? item.title,
-      author: song?.author ?? null,
-      song,
-      // Not knowing yet is not the same as knowing it is gone.
-      missing: byId !== null && song === null,
-    };
-  });
+  return items
+    .filter((item): item is SongItem => item.kind === "song")
+    .map((item) => {
+      const song = byId?.get(item.id) ?? null;
+      return {
+        id: item.id,
+        title: song?.title ?? item.title,
+        author: song?.author ?? null,
+        song,
+        // Not knowing yet is not the same as knowing it is gone.
+        missing: byId !== null && song === null,
+      };
+    });
 }
 
 export const STALE_AFTER_DAYS = 3;
