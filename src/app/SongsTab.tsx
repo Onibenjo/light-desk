@@ -7,23 +7,33 @@ import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
-import { resolveSetlist, songsById, staleNote } from "@/lib/setlist";
+import { resolveSetlist, songsById, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
+import { messagesById, type Library } from "@/lib/messageLibrary";
 import { MatchedLine } from "./MatchedLine";
 import SongEditor from "./SongEditor";
 import SongList from "./SongList";
 import SetlistBar from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
-import { addToast, useSetlist } from "./useSetlist";
+import { addToast, type SetlistApi } from "./useSetlist";
 
 interface Props {
   copyText: (t: string) => Promise<boolean>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   logSend: (kind: string, label: string, body: string, meta?: unknown) => void;
+  /** Owned by the desk, so the Songs and Messages tabs show one setlist. */
+  setlistApi: SetlistApi;
+  library: Library | null;
+  copied: ReadonlySet<string>;
+  /** A message row in the bar: the desk copies it, or switches to Messages to send it in parts. */
+  onMessageRow: (row: MessageRow) => void;
+  /** A song row tapped on the Messages tab, to open on arrival. */
+  pendingSong: SongRow | null;
+  onPendingSongDone: () => void;
 }
 
-export default function SongsTab({ copyText, showToast, logSend }: Props) {
+export default function SongsTab({ copyText, showToast, logSend, setlistApi, library, copied, onMessageRow, pendingSong, onPendingSongDone }: Props) {
   const [q, setQ] = useState("");
-  const { setlist, addItem, startSetlist } = useSetlist();
+  const { setlist, addItem, startSetlist } = setlistApi;
   // The song waiting for a setlist to exist.
   const [starting, setStarting] = useState<SearchableSong | null>(null);
   // Searching the local copy is fast but not free; deferring it keeps the
@@ -31,7 +41,8 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const deferredQ = useDeferredValue(q);
   const [book, setBook] = useState<IndexedSong[] | null>(null);
   const byId = useMemo(() => songsById(book), [book]);
-  const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, null) : []), [setlist, byId]);
+  const libraryById = useMemo(() => messagesById(library), [library]);
+  const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, libraryById) : []), [setlist, byId, libraryById]);
   // Results from the server, used only until the local book has arrived.
   const [remote, setRemote] = useState<SongMatch[]>([]);
   const [total, setTotal] = useState<number | null>(null);
@@ -121,7 +132,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
 
   /** A setlist row: open the song from the book, or fetch that one song if the book is still loading. */
   const openSetlistRow = useCallback(
-    async (row: { id: number; song: SearchableSong | null; missing: boolean }) => {
+    async (row: SongRow) => {
       if (row.missing) return;
       if (row.song) return openSong(row.song);
       const res = await fetch(`/api/songs/${row.id}`);
@@ -131,6 +142,14 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
     },
     [openSong, showToast],
   );
+
+  // A song row tapped on the Messages tab: the desk switched here to open it.
+  useEffect(() => {
+    if (!pendingSong) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opening a song handed over by the desk is the effect's whole job
+    void openSetlistRow(pendingSong);
+    onPendingSongDone();
+  }, [pendingSong, openSetlistRow, onPendingSongDone]);
 
   /** + on a search row or in the song header. With no setlist yet, ask for a name first. */
   const addToSetlist = useCallback(
@@ -258,9 +277,9 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
               name={setlist.name}
               staleNote={staleNote(setlist.updatedAt, new Date())}
               rows={setlistRows}
-              copied={new Set()}
+              copied={copied}
               onOpen={openSetlistRow}
-              onMessage={() => showToast("Open the Messages tab to copy this message", "warn")}
+              onMessage={onMessageRow}
             />
           )}
           <input
