@@ -2,7 +2,7 @@
 
 One text box. Type a Bible reference the way you'd say it (`rom 8 28`, `1 cor 13 4-7`, `ps 23`, `john 3 16 amp`) or describe the verse (`walk on snakes and not be bitten`), press **Enter**, and the verse is on your clipboard formatted exactly the way the CLC chat already posts it. Alt+Tab to Mixlr, Ctrl+V, Enter.
 
-Milestone 1 (this repo): verses. Milestone 2: canned-message runsheet. Milestone 3: songbook.
+Milestone 1: verses. Milestone 2: the message library (the engagement document). Milestone 3: songbook and setlists.
 
 ## How it works
 
@@ -12,6 +12,7 @@ Milestone 1 (this repo): verses. Milestone 2: canned-message runsheet. Milestone
 - **Formatting**: line 1 reference, line 2 full translation name, then `28. text` one verse per line. Plain text. Passages longer than `MAX_MESSAGE_CHARS` (default 1000) are split into parts with the header repeated.
 - **Keys**: `+` copies the next verse as its own message. **Whole passage** re-copies everything looked up in that range. **Chapter** opens the full chapter so you can click any verse. **Esc** clears.
 - **Log**: everything copied is stored with a timestamp (handover, re-send, and pilot metrics).
+- **Messages**: the engagement document — greetings, prayer introductions, the confession, account details, next-service lines, apologies — lives in the 💬 Messages tab and in ⌘K. A one-post message copies on tap; a long one (the confession) sends part by part like a song. Service-order messages go into a setlist beside songs, and a setlist can carry its own text for one service (the date in a next-service line). The library is edited at `/messages` with the admin PIN; an empty library offers **Load starter messages**, seeded from `src/data/messages.seed.json`.
 - **Access**: one church PIN unlocks the laptop for a year (cookie). API routes refuse without it. Search endpoints are rate-limited.
 
 ## Run locally
@@ -59,7 +60,9 @@ src/lib/findVerse.ts      description → candidates
 src/lib/llm.ts            provider switch (Anthropic / OpenAI-compatible)
 src/lib/books.ts          66 books, aliases, USFM/OSIS codes
 src/lib/translations.ts   codes, names, API ids
-src/db/schema.ts          verse_cache, sent_log, messages (M2)
+src/db/schema.ts          verse_cache, sent_log, songs, message_sections, messages, setlists
+src/app/messages/page.tsx the message library editor (admin)
+src/lib/messageEdit.ts    what a message may hold; messageSearch.ts, messageLibrary.ts beside it
 src/data/kjv.json         KJV text, public domain
 tests/                    vitest
 ```
@@ -68,5 +71,4 @@ tests/                    vitest
 
 - Calibrate the Mixlr message limit (paste one long block and see) and set `MAX_MESSAGE_CHARS`.
 - Confirm YouVersion / API.Bible translation ids once keys are approved.
-- M2: import the Google Doc into `messages`, build the runsheet screen.
 - M3: songbook, WhatsApp set import, quick-add.
