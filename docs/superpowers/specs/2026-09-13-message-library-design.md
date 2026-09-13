@@ -97,7 +97,7 @@ replaced rather than bent to fit.
 ```sql
 CREATE TABLE IF NOT EXISTS message_sections (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  name TEXT NOT NULL COLLATE NOCASE UNIQUE,
   sort INTEGER NOT NULL,
   in_service INTEGER NOT NULL DEFAULT 1
 );
@@ -151,9 +151,13 @@ The doc is not parsed at runtime. The text is cleaned by hand, once, into
 - Multi-post entries (the confession, each account block) split into parts
   where a blank line falls.
 
-`npm run db:seed-messages` (`scripts/db-seed-messages.mts`, shaped like the
-backup scripts) inserts the seed only when both tables are empty; a second run
-reports that and does nothing.
+Loading it is an admin button, not a script: **Load starter messages** on
+`/messages`, shown only while the library is empty, calling
+`POST /api/messages/seed`. It inserts the seed in one batch only when both
+tables are empty; a second call answers 409 and changes nothing. (A script was
+the first idea, but `scripts/` run under Node's type stripping, which cannot
+follow the extensionless imports inside `src/lib`; a route also reaches the
+production database without handing anyone Turso credentials.)
 
 The seed JSON is reviewed by the user before it is committed, because it is an
 interpretation of the doc. The raw export, the `.docx` and the photos in
@@ -243,15 +247,17 @@ Shaped like `api/songs/*` and `api/setlists/*`: `runtime = "nodejs"`,
 |---|---|---|
 | `GET /api/messages` | church | every section and message, one payload |
 | `POST /api/messages` | admin | `{ sectionId, title, text }` → the created message |
-| `PATCH /api/messages/:id` | admin | `{ title?, text?, sectionId?, sort? }` |
+| `PATCH /api/messages/:id` | admin | `{ title?, text?, sectionId?, move? }` |
+| `POST /api/messages/seed` | admin | load the starter library into an empty one; 409 otherwise |
 | `DELETE /api/messages/:id` | admin | removes one |
 | `POST /api/message-sections` | admin | `{ name, inService }` → the created section |
-| `PATCH /api/message-sections/:id` | admin | `{ name?, sort?, inService? }` |
+| `PATCH /api/message-sections/:id` | admin | `{ name?, inService?, move? }` |
 | `DELETE /api/message-sections/:id` | admin | only when empty; 409 otherwise |
 
-`text` is the textarea's contents; the route splits it into `parts`. Reordering
-swaps the `sort` of two rows in one `db.batch`, the same way activating a
-setlist does.
+`text` is the textarea's contents; the route splits it into `parts`. `move` is
+`-1` or `1`: the server swaps `sort` with the neighbour above or below (within
+the same section, for a message) in one `db.batch`, the same way activating a
+setlist does. Moving a message to another section puts it at the end there.
 
 ### Permissions
 
@@ -399,7 +405,7 @@ Written first, as usual for this repo.
   *edited* tag, and gets its ✓
 - `tests/dbTransfer.test.ts` (extended) — `message_sections` dumped and restored
   before `messages`
-- the seed script — a second run inserts nothing
+- `tests/messages.test.ts` — the real seed file passes the library's rules; seeding an empty library works and a second seed changes nothing
 
 ## Explicitly out of scope
 
