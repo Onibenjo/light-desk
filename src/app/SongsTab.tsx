@@ -110,25 +110,36 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     return () => window.clearTimeout(debounce.current);
   }, [q, book]);
 
+  // Once a song is open its section buttons are already mounted, so a direct
+  // focus (no rAF) always lands — the race is only ever on the *first* render
+  // of a freshly opened song, handled below by the effect keyed on `song`.
   const focusSection = useCallback((i: number) => {
     setCursor(i);
-    requestAnimationFrame(() => sectionRefs.current[i]?.focus());
+    sectionRefs.current[i]?.focus();
   }, []);
 
-  const openSong = useCallback(
-    (s: SearchableSong, matchedSection: number | null = null) => {
-      setEditing(false);
-      setSong(s);
-      setFound(matchedSection);
-      setSent(new Set());
-      setPinned(null);
-      sectionRefs.current = [];
-      // Land on section 1 so the first Enter sends it, with no click needed —
-      // a song is nearly always sent from the top, whichever line found it.
-      focusSection(0);
-    },
-    [focusSection],
-  );
+  const openSong = useCallback((s: SearchableSong, matchedSection: number | null = null) => {
+    setEditing(false);
+    setSong(s);
+    setFound(matchedSection);
+    setSent(new Set());
+    setPinned(null);
+    sectionRefs.current = [];
+    // Land on section 1 so the first Enter sends it, with no click needed — a
+    // song is nearly always sent from the top, whichever line found it. The
+    // actual DOM focus happens in the effect below, once the section buttons
+    // have committed.
+    setCursor(0);
+  }, []);
+
+  // Focuses the opened song's current section once React has committed its
+  // buttons, instead of racing requestAnimationFrame against that commit.
+  // Keyed on `song` itself, not `cursor`, so a mouse click that deliberately
+  // stays put does not steal focus back.
+  useEffect(() => {
+    if (song) sectionRefs.current[cursor]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the opened song only, see comment above
+  }, [song]);
 
   /** A setlist row: open the song from the book, or fetch that one song if the book is still loading. */
   const openSetlistRow = useCallback(
@@ -231,7 +242,11 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   }, [focusSearch]);
 
   useEffect(() => {
-    focusSearch();
+    // A song is about to be handed over from the Messages tab: it wins the
+    // focus once it opens, rather than the search box briefly grabbing it
+    // just before that view replaces it.
+    if (!pendingSong) focusSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; `pendingSong` is only checked, not tracked
   }, [focusSearch]);
 
   // Song-view keys. Safe on the document because this view renders no text field.
@@ -523,7 +538,9 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             // The local index is the search: without this the old lyrics keep
             // answering searches until the page is reloaded.
             setBook((b) => (b ? [...b.filter((i) => i.song.id !== saved.id), ...buildIndex([saved])] : b));
-            focusSection(0);
+            // The section buttons remount for the saved song; the effect keyed
+            // on `song` focuses section 0 once they have.
+            setCursor(0);
           }}
           onDeleted={() => {
             setEditing(false);

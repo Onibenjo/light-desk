@@ -47,24 +47,45 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
   const groups = useMemo(() => (!library ? [] : deferredQ.trim() ? groupEntries(hits) : groupLibrary(library)), [library, deferredQ, hits]);
   const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, null, byId) : []), [setlist, byId]);
 
+  // Once a message is open its part buttons are already mounted, so a direct
+  // focus (no rAF) always lands — the race is only ever on the *first* render
+  // of a freshly opened message, handled below by the effect keyed on `open`.
   const focusPart = useCallback((i: number) => {
     setCursor(i);
-    requestAnimationFrame(() => partRefs.current[i]?.focus());
+    partRefs.current[i]?.focus();
   }, []);
 
-  const openMessage = useCallback(
-    (m: OpenMessage) => {
-      setOpen(m);
-      setSent(new Set());
-      partRefs.current = [];
-      focusPart(0);
-    },
-    [focusPart],
-  );
+  const openMessage = useCallback((m: OpenMessage) => {
+    setOpen(m);
+    // A message handed over while the Start-a-setlist panel is up must not be
+    // hidden behind it.
+    setStarting(null);
+    setSent(new Set());
+    setCursor(0);
+    partRefs.current = [];
+  }, []);
 
   const closeMessage = useCallback(() => {
     setOpen(null);
     if (hasFinePointer()) requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  // Focuses the newly opened message's current part once React has committed
+  // its buttons, instead of racing requestAnimationFrame against that commit —
+  // that race is what left `document.activeElement === body` after a
+  // hand-over (a setlist row, ⌘K). Keyed on `open` itself, not `cursor`, so a
+  // mouse click that deliberately stays put does not steal focus back.
+  useEffect(() => {
+    if (open) partRefs.current[cursor]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the opened message only, see comment above
+  }, [open]);
+
+  // Focus the search box on mount, on a device with a pointer to come back
+  // to it, the way SongsTab does — unless a message is about to be handed
+  // over, in which case that message wins the focus instead.
+  useEffect(() => {
+    if (!pending && hasFinePointer()) requestAnimationFrame(() => inputRef.current?.focus());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; `pending` is only checked, not tracked
   }, []);
 
   // A message sent here from elsewhere: a setlist row on the Songs tab, or ⌘K.
@@ -117,7 +138,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
 
   // Message-view keys. Safe on the document because the view renders no text field.
   useEffect(() => {
-    if (!open) return;
+    if (!open || starting) return;
     const count = open.parts.length;
     function onKey(e: KeyboardEvent) {
       if (isTypingTarget(e.target as HTMLElement) || e.metaKey || e.ctrlKey || e.altKey) return;
