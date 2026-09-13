@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { comingSundayName, moveItem, withParts } from "@/lib/setlist";
+import { comingSundayName, moveItem, planMessageEdit, withParts } from "@/lib/setlist";
 import { itemKey } from "@/lib/setlistEdit";
 import { useMessages } from "../useMessages";
 import { messageLabel, messagesById } from "@/lib/messageLibrary";
@@ -42,7 +42,8 @@ export default function SetlistsPage() {
     void load();
   }, [load]);
 
-  async function send(id: number, body: unknown) {
+  /** PATCHes the setlist and reloads it either way. Returns whether it saved, so a caller that closes an editor on success does not lose the operator's text on a 409 or a 400. */
+  async function send(id: number, body: unknown): Promise<boolean> {
     setBusy(true);
     setError(null);
     setConfirming(null);
@@ -55,6 +56,7 @@ export default function SetlistsPage() {
       if (res.status === 409) setError("Someone else changed this setlist — reloaded it for you");
       else if (!res.ok) setError(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? "That did not save");
       await load();
+      return res.ok;
     } finally {
       setBusy(false);
     }
@@ -201,11 +203,19 @@ export default function SetlistsPage() {
                         <p className="text-xs text-[var(--muted)]">Only this setlist changes. A blank line starts a new post. Once edited, fixes to the library no longer reach this item.</p>
                         <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               const parts = partsFromText(editing.text);
                               if (typeof parts === "string") return setError(parts);
-                              setEditing(null);
-                              void send(s.id, { items: withParts(s.items, i, parts), updatedAt: s.updatedAt });
+                              const alreadyEdited = item.kind === "message" && item.parts !== undefined;
+                              const plan = planMessageEdit(parts, entry?.message.parts, alreadyEdited);
+                              // Typed back the library's own words: nothing to
+                              // save, or an edit to undo — either way, no PATCH
+                              // needed and the editor can close right away.
+                              if (plan.kind === "skip") return setEditing(null);
+                              const nextParts = plan.kind === "save" ? plan.parts : undefined;
+                              const ok = await send(s.id, { items: withParts(s.items, i, nextParts), updatedAt: s.updatedAt });
+                              // A 409 or a 400 leaves the editor open with what was typed, rather than losing it.
+                              if (ok) setEditing(null);
                             }}
                             disabled={busy}
                             className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50"

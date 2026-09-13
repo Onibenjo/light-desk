@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildIndex, type SearchableSong } from "../src/lib/songSearch";
-import { ageInDays, comingSundayName, moveItem, openMessageFromRow, resolveSetlist, songsById, staleNote, withParts, STALE_AFTER_DAYS } from "../src/lib/setlist";
+import { ageInDays, comingSundayName, moveItem, openMessageFromRow, planMessageEdit, resolveSetlist, songsById, staleNote, withParts, STALE_AFTER_DAYS } from "../src/lib/setlist";
 import { messagesById } from "../src/lib/messageLibrary";
 import { library } from "./fixtures/library";
 
@@ -126,6 +126,28 @@ describe("editing a message for one service", () => {
 
   it("never puts text on a song", () => {
     expect(withParts(items, 0, ["nope"])).toEqual(items);
+  });
+});
+
+describe("deciding what Save for this service does", () => {
+  it("saves text that differs from the library's", () => {
+    expect(planMessageEdit(["new words"], ["old words"], false)).toEqual({ kind: "save", parts: ["new words"] });
+  });
+
+  it("skips a save that only retypes the library's own words", () => {
+    expect(planMessageEdit(["As we gather"], ["As we gather"], false)).toEqual({ kind: "skip" });
+  });
+
+  it("resets rather than storing a copy when the retyped text matches the library and an edit was already there", () => {
+    expect(planMessageEdit(["As we gather"], ["As we gather"], true)).toEqual({ kind: "reset" });
+  });
+
+  it("saves when the library's text is unknown — the message is gone, or the library has not loaded", () => {
+    expect(planMessageEdit(["whatever was typed"], undefined, false)).toEqual({ kind: "save", parts: ["whatever was typed"] });
+  });
+
+  it("compares parts in order, not just as a set", () => {
+    expect(planMessageEdit(["b", "a"], ["a", "b"], false)).toEqual({ kind: "save", parts: ["b", "a"] });
   });
 });
 

@@ -84,6 +84,31 @@ export function resolveSetlist(
   });
 }
 
+function sameParts(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((part, i) => part === b[i]);
+}
+
+export type EditSaveDecision = { kind: "skip" } | { kind: "reset" } | { kind: "save"; parts: string[] };
+
+/**
+ * What "Save for this service" on /setlists should do with the parts just
+ * typed, given the library message's own parts (undefined when it is gone or
+ * not loaded yet) and whether the item already carries text edited for this
+ * service.
+ *
+ * Typing back the library's own words is not an edit: saving it anyway would
+ * mark the item edited and cut it off from future library fixes. So text that
+ * matches the library either does nothing (nothing was edited yet — `skip`)
+ * or clears the edit (one was there before — `reset`) instead of being stored
+ * as a redundant copy.
+ */
+export function planMessageEdit(parts: string[], libraryParts: string[] | undefined, alreadyEdited: boolean): EditSaveDecision {
+  if (libraryParts !== undefined && sameParts(parts, libraryParts)) {
+    return alreadyEdited ? { kind: "reset" } : { kind: "skip" };
+  }
+  return { kind: "save", parts };
+}
+
 /** Set (or, with undefined, remove) the text edited for this service on one message item. */
 export function withParts(items: SetlistItem[], index: number, parts: string[] | undefined): SetlistItem[] {
   return items.map((item, i) => {
