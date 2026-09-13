@@ -31,7 +31,7 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const deferredQ = useDeferredValue(q);
   const [book, setBook] = useState<IndexedSong[] | null>(null);
   const byId = useMemo(() => songsById(book), [book]);
-  const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId) : []), [setlist, byId]);
+  const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, null) : []), [setlist, byId]);
   // Results from the server, used only until the local book has arrived.
   const [remote, setRemote] = useState<SongMatch[]>([]);
   const [total, setTotal] = useState<number | null>(null);
@@ -262,7 +262,9 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
               name={setlist.name}
               staleNote={staleNote(setlist.updatedAt, new Date())}
               rows={setlistRows}
+              copied={new Set()}
               onOpen={openSetlistRow}
+              onMessage={() => showToast("Open the Messages tab to copy this message", "warn")}
             />
           )}
           <input
