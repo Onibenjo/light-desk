@@ -143,6 +143,13 @@ export default function Desk() {
   // Owned here rather than in a tab: both tabs show the same setlist, and the
   // palette copies messages from any tab.
   const setlistApi = useSetlist();
+  const { reload: reloadSetlist } = setlistApi;
+  // Someone else can prepare the setlist — reorder it, "Edit for this
+  // service" — while this desk sits open elsewhere; refetch it on every visit
+  // to a tab that shows it, rather than only once when the desk first opened.
+  useEffect(() => {
+    if (tab === "songs" || tab === "messages") void reloadSetlist();
+  }, [tab, reloadSetlist]);
   const { library, failed: libraryFailed, reload: reloadLibrary } = useMessages();
   const { copied, copyPart } = useMessageCopy({ copyText, showToast, logSend });
   const [pendingSong, setPendingSong] = useState<SongRow | null>(null);

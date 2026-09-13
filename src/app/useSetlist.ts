@@ -34,24 +34,30 @@ async function patch(id: number, body: unknown): Promise<{ status: number; setli
 export function useSetlist() {
   const [setlist, setSetlist] = useState<Setlist | null>(null);
 
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/setlists");
-        // A 401 from an expired PIN parses cleanly; taking it would leave the
-        // bar hidden for the rest of the service with no way to notice.
-        if (!res.ok) return;
-        const data = (await res.json()) as { setlists?: Setlist[] };
-        if (live) setSetlist(data.setlists?.find((s) => s.active) ?? null);
-      } catch {
-        // No bar. Search and browse are untouched, which is the point.
-      }
-    })();
-    return () => {
-      live = false;
-    };
+  /**
+   * Loads the active setlist. Someone else can prepare it — reorder it, edit a
+   * message for the service — on another device or the /setlists page while
+   * this desk sits open on Songs or Messages, so callers reload it on every
+   * visit to either tab rather than trusting the one fetch from mount.
+   */
+  const reload = useCallback(async () => {
+    try {
+      const res = await fetch("/api/setlists");
+      // A 401 from an expired PIN parses cleanly; taking it would leave the
+      // bar hidden, or stuck on stale data, for the rest of the service with
+      // no way to notice — so a failure here just keeps whatever is showing.
+      if (!res.ok) return;
+      const data = (await res.json()) as { setlists?: Setlist[] };
+      setSetlist(data.setlists?.find((s) => s.active) ?? null);
+    } catch {
+      // Keep the current setlist. Search and browse are untouched, which is the point.
+    }
   }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetching the setlist on mount is the effect's whole job, same as useMessages's initial load
+    void reload();
+  }, [reload]);
 
   const addItem = useCallback(
     async (item: SetlistItem): Promise<AddResult> => {
@@ -111,7 +117,7 @@ export function useSetlist() {
     return "added";
   }, []);
 
-  return { setlist, addItem, startSetlist };
+  return { setlist, addItem, startSetlist, reload };
 }
 
 export type SetlistApi = ReturnType<typeof useSetlist>;
