@@ -1,1 +1,572 @@
-{ "sections": [] }
+{
+  "sections": [
+    {
+      "name": "Apologies",
+      "inService": false,
+      "messages": [
+        {
+          "title": "Volume being fixed",
+          "text": "Thank you Sirs and Mas for the feedback. The volume is being worked on by the Technical team right now. It should be fixed shortly."
+        },
+        {
+          "title": "Working on the sound",
+          "text": "Thank you for the feedback Sirs and Mas. We are committed to serve and ensure you have an awesome experience in service. We are working on the sound."
+        },
+        {
+          "title": "Sound is a work in progress",
+          "text": "Sirs and Mas; We apologize. The sound is a work in progress, please stay connected; the sound will be restored shortly. Thank you Sirs and Mas."
+        },
+        {
+          "title": "Volume increased",
+          "text": "Thank you Sirs and Mas for the feedback. The volume has been increased."
+        },
+        {
+          "title": "Sound restored",
+          "text": "Sirs and Mas, we apologize for the interruption. The sound has been restored."
+        },
+        {
+          "title": "Interruption, volume increased",
+          "text": "Sirs and Mas, we apologize for the interruption. The volume has been increased."
+        },
+        {
+          "title": "Remain connected, sound soon",
+          "text": "Sirs and Mas, we apologize, remain connected; sound will be restored soon. The sound is currently being worked on. Thank you, Sirs and Mas."
+        },
+        {
+          "title": "Back after a break in transmission",
+          "text": "Sirs and Mas, we apologize for the break in transmission, we are back now. Thank you Sirs and Mas."
+        },
+        {
+          "title": "Sound will be restored shortly",
+          "text": "Sound will be restored shortly Sirs and Mas, we sincerely apologize for the interruption. Thank you Sirs and Mas."
+        },
+        {
+          "title": "Will be fixed shortly",
+          "text": "Sirs and Mas, we sincerely apologize for the interruption. It will be fixed shortly."
+        },
+        {
+          "title": "Check your network and refresh",
+          "text": "Thank you Sirs and Mas for the feedback. Kindly check your network and refresh."
+        }
+      ]
+    },
+    {
+      "name": "Greetings",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Wednesday",
+          "text": "Good evening, Sirs and Mas. It's another beautiful Wednesday. Get ready for an awesome time in God’s presence this evening. Make sure your heart is ready to receive tonight, distance is no barrier in the realm of the Spirit."
+        },
+        {
+          "title": "Sunday",
+          "text": "We are super excited you joined service this Morning Sirs and Mas and one thing is certain, God has a word for you.\nSirs and Mas we urge you to stay focused, as we raise our worship to the Father this morning, God has a lot in store for you. Thank you Sirs and Mas 🩷🩷🩷"
+        },
+        {
+          "title": "Sunday · Romans 15:7",
+          "text": "Romans 15:7 says “welcome one another as Christ has welcomed you, for the glory of God.” Thank you Sirs and Mas for making it to our online Church today. We hope you’ll have an awesome time in God’s presence today. Welcome to Freedom Sirs and Mas!"
+        },
+        {
+          "title": "Apostolic Service",
+          "text": "Welcome to the Apostolic Service! We are delighted to have you join us this morning. We know you will have an incredible experience in God's presence. And we hope you are here with your expectations.\nThank you, Sirs and Mas."
+        }
+      ]
+    },
+    {
+      "name": "Prayer Before Ambience Jewel",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Pastor Queen Okoye",
+          "text": "Let's take a moment to come before God in prayer. Wherever you are, join us in seeking His guidance, comfort, and wisdom. Let's pray together as Pastor Queen Okoye leads us."
+        },
+        {
+          "title": "Pastor Jisola Adekeye",
+          "text": "Let's take a moment to come before God in prayer. Wherever you are, join us in seeking His guidance, comfort, and wisdom. Let's pray together as Pastor Jisola Adekeye leads us."
+        },
+        {
+          "title": "Pastor Ireoluwa Oluwatade",
+          "text": "Let's take a moment to come before God in prayer. Wherever you are, join us in seeking His guidance, comfort, and wisdom. Let's pray together as Pastor Ireoluwa Oluwatade leads us."
+        },
+        {
+          "title": "Pastor Oluwatade Falade",
+          "text": "Let's take a moment to come before God in prayer. Wherever you are, join us in seeking His guidance, comfort, and wisdom. Let's pray together as Pastor Oluwatade Falade leads us."
+        },
+        {
+          "title": "Pastor Charles Olumorin",
+          "text": "Let's take a moment to come before God in prayer. Wherever you are, join us in seeking His guidance, comfort, and wisdom. Let's pray together as Pastor Charles Olumorin leads us."
+        },
+        {
+          "title": "Pastor Ajibowu Abayomi",
+          "text": "Let's take a moment to come before God in prayer. Wherever you are, join us in seeking His guidance, comfort, and wisdom. Let's pray together as Pastor Ajibowu Abayomi leads us."
+        },
+        {
+          "title": "Pastor Ayomidotun Fayode",
+          "text": "Let's take a moment to come before God in prayer. Wherever you are, join us in seeking His guidance, comfort, and wisdom. Let's pray together as Pastor Ayomidotun Fayode leads us."
+        }
+      ]
+    },
+    {
+      "name": "Welcoming Ambience Jewel",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Sunday",
+          "text": "As we gather to honour and exalt the name of the Lord in worship, please join us in welcoming Ambience Jewel, who will lead us into God’s presence through song."
+        },
+        {
+          "title": "Sunday · Worship",
+          "text": "Arms wide, hearts bowed with our spirits raised; we worship our Maker."
+        },
+        {
+          "title": "Sunday · Praise",
+          "text": "I was glad when they said unto me, Let us go into the house of the Lord.\nWith the same energy raise your voices to the Most High God."
+        },
+        {
+          "title": "Wednesday",
+          "text": "🎶Now Ministering: Ambience Jewel🎶"
+        },
+        {
+          "title": "Wednesday · Worship",
+          "text": "With outstretched arms lets raise our worship to the Father in heaven"
+        },
+        {
+          "title": "Wednesday · Praise",
+          "text": "I was glad when they said unto me, Let us go into the house of the Lord.\nWith the same energy raise your voices to the Most High God."
+        }
+      ]
+    },
+    {
+      "name": "Prayer Before Sermon",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Pastor Jisola Adekeye",
+          "text": "With one heart and one mind we lift up our voices in Prayer as Pastor Jisola Adekeye leads us."
+        },
+        {
+          "title": "Pastor Queen Okoye",
+          "text": "With one heart and one mind we lift up our voices in Prayer as Pastor Queen Okoye leads us."
+        },
+        {
+          "title": "Pastor Ireoluwa Oluwatade",
+          "text": "With one heart and one mind we lift up our voices in Prayer as Pastor Ireoluwa Oluwatade leads us."
+        },
+        {
+          "title": "Pastor Oluwatade Falade",
+          "text": "With one heart and one mind we lift up our voices in Prayer as Pastor Oluwatade Falade leads us."
+        },
+        {
+          "title": "Pastor Ajibowu Abayomi",
+          "text": "With one heart and one mind we lift up our voices in Prayer as Pastor Ajibowu Abayomi leads us."
+        },
+        {
+          "title": "Pastor Charles Olumorin",
+          "text": "With one heart and one mind we lift up our voices in Prayer as Pastor Charles Olumorin leads us."
+        },
+        {
+          "title": "Pastor Ayomidotun Fayode",
+          "text": "With one heart and one mind we lift up our voices in Prayer as Pastor Ayomidotun Fayode leads us."
+        }
+      ]
+    },
+    {
+      "name": "Confession",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Sunday",
+          "text": "Sirs and Mas, join us as we proclaim our confession wholeheartedly."
+        },
+        {
+          "title": "Wednesday",
+          "text": "Dear family, join us as we proclaim our confession wholeheartedly."
+        },
+        {
+          "title": "Family Meeting",
+          "text": "Dear family, join us as we proclaim our confession wholeheartedly."
+        },
+        {
+          "title": "Full text",
+          "text": "Father we thank You for it has pleased You\nBy the eternal law of confession and utterance\nTo set the direction of our lives\nThis day again\nWe set the course of our lives\nWith the rudder of our mouth\n\nToward peace, joy, faith and progress\nCitizens of Light Church is a city set on a hill\nAnd we can’t be hidden\nWe are a lighthouse to the nations\n\nIn this house there is transformation\nIn this house there is hope\nA small one has become a thousand\nAnd there is no weakling in our midst\nOur trajectory is forward and upward only in Jesus Name\nEvery son and daughter of this family\nHas come into the fullness of God’s purpose and will for their lives\nWe are in our path of ordination and preordination and we do not depart.\nIn all our services\nThe sick are healed\nThe poor are made rich\n\nThe grace of God is released to change situations\nand create a supernatural turnaround for everyone\n\nThis is the house of the mighty\nand we are the camp of the wealthy\n\nOur homes are safe\nOur properties are protected\nOur journeys are blessed to and fro\nAs the ransomed of the Lord that we are\nWe have found favor with the old\nThe young, the familiar\nAnd the strangers alike in Jesus Name\nI boldly decree and declare\nThe kingdom of God is my priority\nThe desire of God is my pursuit\nThe pleasure of God is my passion\nI love the Lord wholly with my heart\nMy resources, and strength\n\nI live and not die\nFor God fulfills the number of my days\nI live in health\nI live in peace\nI live in joy\nI am a Citizen of the Kingdom of Light and Life\nTherefore I live and shine as bright as the Sun\nFor my generation to see Jesus\nJesus is glorified through my life!!!"
+        }
+      ]
+    },
+    {
+      "name": "Testimony",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Share your testimony",
+          "text": "As we gather as one body in Christ, let's rejoice in what God has done in our lives, as we share our testimonies.\nEven if you’re not onsite, you can still share your Testimonies"
+        },
+        {
+          "title": "Email and format",
+          "text": "Sirs and Mas  please share your Testimonies via: clcilorintestimony@gmail.com\nThis is the format for your testimonies Sirs and Mas\nSubject tag for the Email should be: Testimony from (Name of Service)\nYour name:\nLocation:\nTestimony:\nDuration:"
+        }
+      ]
+    },
+    {
+      "name": "Recap",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Recap",
+          "text": "Just in case you missed out on the last message, kindly listen to the recap and be blessed Sirs and Mas."
+        }
+      ]
+    },
+    {
+      "name": "Welcoming Pastor",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Pastor Ibukun Faleye",
+          "text": "With Jesus' joy, let's welcome God's own vessel, Pastor Ibukun Faleye, as he delivers the word of God in its simplicity to us. The Lord has a word for you now."
+        },
+        {
+          "title": "Pastor Damilola Faleye",
+          "text": "With Jesus' joy, let's welcome God's own vessel, Pastor Damilola Faleye, as she delivers the word of God in its simplicity to us. The Lord has a word for you now."
+        },
+        {
+          "title": "Evangelist Chuks Okoye",
+          "text": "With Jesus' joy, let's welcome God's own vessel, Evangelist Chuks Okoye, as he delivers the word of God in its simplicity to us. The Lord has a word for you now."
+        },
+        {
+          "title": "Pastor Oluwatade Falade",
+          "text": "With Jesus' joy, let's welcome God's own vessel, Pastor Oluwatade Falade, as he delivers the word of God in its simplicity to us. The Lord has a word for you now."
+        },
+        {
+          "title": "Pastor Queen Okoye",
+          "text": "With Jesus' joy, let's welcome God's own vessel, Pastor Queen Okoye, as she delivers the word of God in its simplicity to us. The Lord has a word for you now."
+        },
+        {
+          "title": "Apostle Muyiwa Areo",
+          "text": "With heartfelt honor and deep gratitude, we warmly welcome our Spiritual Father, Apostle Muyiwa Areo, as he pours out what God has placed in his heart, we are ready to receive with open spirits."
+        },
+        {
+          "title": "Pastor Temitope Areo",
+          "text": "With heartfelt honor and deep gratitude, we warmly welcome our Spiritual Mother, Pastor Temitope Areo, as she pours out what God has placed in his heart, we are ready to receive with open spirits."
+        }
+      ]
+    },
+    {
+      "name": "Altar Call",
+      "inService": true,
+      "messages": [
+        {
+          "title": "New convert link",
+          "text": "If you have made a decision to give your life to Christ, kindly click on this link https://citizensoflightchurch.org/new-convert/ Thank you, Sirs and Mas!"
+        },
+        {
+          "title": "Accept Jesus link",
+          "text": "If you have made a decision to follow Jesus or want to learn more about Him click here: https://citizensoflightchurch.org/accept-jesus/. Also, send  your name, address, phone number to clcilorin@citizensoflightchurch.org"
+        }
+      ]
+    },
+    {
+      "name": "Announcement",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Listen to the announcement",
+          "text": "📢📢📢 Sirs and Mas, we have some special information to share with you ; kindly listen to the announcement. Thank you, Sirs and Mas."
+        },
+        {
+          "title": "Morning Altar Prayer",
+          "text": "@Oluwatobiloba Sir/Ma, you can connect to the morning altar prayer via our Spiritual Father’s mix-lr by searching for: apostlemuyiwaareo"
+        },
+        {
+          "title": "Watch the last service",
+          "text": "In case you missed the last Service, you can watch the whole Service on our YouTube or Facebook page @YouTube:  www.youtube.com/citizensoflightchurch / Facebook: https://www.facebook.com/clcilorin and if you prefer the audio version, you can listen to the whole Service on our Mixlr channel or visit www.muyiwaareo.com to download the messages. Thank you, Sirs and Mas."
+        },
+        {
+          "title": "Global Prayer Group",
+          "text": "Sirs and Mas, to join the Rivers and Wells Global Prayer Group click the link below:\nhttps://t.me/+hhht6OX3SkM5NTI0"
+        },
+        {
+          "title": "Final-year brethren",
+          "text": "Let’s celebrate with our final-year brethren in the house."
+        }
+      ]
+    },
+    {
+      "name": "Offerings and Tithe",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Sunday offering",
+          "text": "Now is the time to give to the Lord through our offerings, in response to what we have received from Him. Our sown seed is blessed, and harvest comes to us speedily in Jesus' Name."
+        },
+        {
+          "title": "Wednesday offering",
+          "text": "We have received from the Lord, now it is time to give to Him through our offerings. Our seed sown is blessed and harvest comes to us speedily In Jesus Name."
+        },
+        {
+          "title": "Offering accounts",
+          "text": "Naira Account Details\nAccount name: Citizens of light church |\nAccount number: 1222628120 |\nBank: Zenith Bank\n\nDollar Account Details |\nAccount Name; Citizens of Light Church\nAccount Number: 5071272523\n\nPound Sterling Account Details |\nAccount Name: Citizens of Light Church |\nAccount Number: 506051738\n\nEuro Account Details |\nAccount number: Citizens of light church |\nAccount number: 5080504857\n\nSort code: 057140036 |\nSwift code- ZEIBNGLA |\nIBAN- GB80CITI18500810407925"
+        },
+        {
+          "title": "Tithe accounts",
+          "text": "To give your Tithe, kindly use your preferred account(s). Thank you, Sirs and Mas.\n\nNaira Account Details\nAccount name: Citizens of light church - Tithes |\nAccount number: 1222628106 |\nBank: Zenith Bank\n\nDollar Account Details |\nAccount Name; Citizens of Light Church\nAccount Number: 5071272523\n\nPound Sterling Account Details |\nAccount Name: Citizens of Light Church |\nAccount Number: 506051738\n\nEuro Account Details |\nAccount number: Citizens of light church |\nAccount number: 5080504857\n\nSort code: 057140036 |\nSwift code- ZEIBNGLA |\nIBAN- GB80CITI18500810407925"
+        },
+        {
+          "title": "MAMI Partnership accounts",
+          "text": "To give your MAMI Partnership seed, kindly use the accounts below. Thank you, Sirs and Mas.\n\nNaira Account Details |\n1015747324  |\nZenith Bank  |\nACCOUNT NAME: MUYIWA AREO MINISTRY INTERNATIONAL\n\nDollar Account Details\nACCOUNT NAME: MUYIWA AREO MINISTRY INTERNATIONAL\nACCOUNT NUMBER: 3004265796\nBANK: UBA"
+        },
+        {
+          "title": "Outreach account",
+          "text": "CITIZENS OF LIGHT CHURCH OUTREACH\n1014146872\nZENITH BANK"
+        },
+        {
+          "title": "Welfare account",
+          "text": "Welfare Account\n1228831834\nZENITH BANK\nCitizens of Light Church -"
+        },
+        {
+          "title": "Honour account",
+          "text": "ACCOUNT NAME: CITIZENS OF LIGHT CHURCH - HONOUR\nACCOUNT NUMBER: 122744492\nBANK: ZENITH BANK"
+        },
+        {
+          "title": "Nations Seed account",
+          "text": "CITIZENS OF LIGHT CHURCH - NATIONS SEED\nBANK: ZENITH BANK\nACCOUNT NUMBER:1229228574"
+        }
+      ]
+    },
+    {
+      "name": "First Timer",
+      "inService": true,
+      "messages": [
+        {
+          "title": "First timer",
+          "text": "We are excited to have you here with us for the first time. We would love to see you again and again and again. Thank you for worshiping with us Sirs and Mas.❤️\nOur Vision:\nTo raise enlightened citizens of God’s kingdom for a lifestyle of freedom and dominion.\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        }
+      ]
+    },
+    {
+      "name": "Apostolic Blessing",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Father",
+          "text": "What a delight it is when a Father blesses His children.\nSirs and Mas, let's welcome and celebrate our spiritual father Apostle Muyiwa Areo as  we receive the Fatherly and Apostolic Blessing."
+        },
+        {
+          "title": "Mother",
+          "text": "What a delight it is when a Mother blesses her children.\nSirs and Mas, let's welcome and celebrate our spiritual mother Pastor Temi Areo as  we receive the Motherly and Apostolic Blessing."
+        },
+        {
+          "title": "Father and Mother",
+          "text": "What a delight it is when parents bless their children.\nSirs and Mas, let's welcome and celebrate our spiritual father and mother Apostle Muyiwa Areo and  Pastor Temi Areo as  we receive the Fatherly and Motherly Apostolic Blessing."
+        }
+      ]
+    },
+    {
+      "name": "Closing Charge",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Galatians 5:1",
+          "text": "“It is for freedom that Christ has set us free. We stand firm, then, and do not let ourselves be burdened again by any yoke of slavery.” - Galatians 5:1 NIV"
+        }
+      ]
+    },
+    {
+      "name": "Next Service",
+      "inService": true,
+      "messages": [
+        {
+          "title": "First Service · Second starts by 10am",
+          "text": "Thank you Sirs and Mas for joining First Service. Second Service starts by 10am.\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        },
+        {
+          "title": "First Service · Second starts immediately",
+          "text": "Thank you Sirs and Mas for joining First Service. Second Service starts immediately.\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        },
+        {
+          "title": "First Service · Marathon Prayer on Saturday",
+          "text": "Thank you Sirs and Mas for joining First Service. Second Service starts immediately.\nJoin our Marathon Prayer on Saturday by 9AM - 12PM.\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        },
+        {
+          "title": "First Service · Fasting continues",
+          "text": "Thank you Sirs and Mas for joining First Service. Second Service starts immediately.\nWELCOME TO FREEDOM, SIRS AND MAS!!!\nOur fasting continues tomorrow, join us in the Spiritual feast and don’t forget to join the prayers via our headquarter mixlr channel (clc-maryland)"
+        },
+        {
+          "title": "Second Service · Next Wednesday",
+          "text": "Thank you Sirs and Mas for joining Second Service. Our next service is on Wednesday, [DATE] by 5:30pm, whether online or onsite. God bless as you come.\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        },
+        {
+          "title": "Second Service · Single service reminder",
+          "text": "Please be reminded that our next sunday service is a single service, Global Miracle Service on Sunday, [DATE] by 9AM."
+        },
+        {
+          "title": "Second Service · No service on Wednesday",
+          "text": "Thank you Sirs and Mas for joining Second Service. Kindly note that there will not be service on Wednesday, [DATE] as [REASON]."
+        },
+        {
+          "title": "Second Service · Global Prayer Group",
+          "text": "Don’t forget to join  the Rivers and Wells Global Prayer Group click the link below:\nhttps://t.me/+hhht6OX3SkM5NTI0"
+        },
+        {
+          "title": "Second Service · Fasting and prayers",
+          "text": "Don’t forget to join us in the 3 days Fasting and Prayers starting tomorrow [DATE]. Be expectant and stay blessed!"
+        },
+        {
+          "title": "Special service · Next Wednesday",
+          "text": "Thank you Sirs and Mas for joining [SERVICE NAME]. Our next service is on Wednesday, [DATE] by 5:30pm, whether online or onsite. God bless as you come.\nWELCOME TO FREEDOM, SIRS AND MAS!!!!"
+        },
+        {
+          "title": "Midweek · Workers Meeting and Sunday",
+          "text": "Thank you, Sirs and Mas, for joining us for Midweek Service this evening.\nDon’t miss our Global Workers Meeting this Saturday, [DATE] and\nSunday services on Sunday, [DATE] by 8 AM and 10 AM, whether online or onsite.\nWELCOME TO FREEDOM, SIRS AND MAS!!!!"
+        },
+        {
+          "title": "Midweek · Next Sunday, two services",
+          "text": "Thank you, Sirs and Mas, for joining us for Mid-week Service this evening.\nOur next service is on Sunday, [DATE] at 8 AM and 10 AM, whether online or onsite.\nWELCOME TO FREEDOM, SIRS AND MAS!!!!"
+        },
+        {
+          "title": "Midweek · Next Sunday, single service",
+          "text": "Thank you Sirs and Mas for joining us for Mid-week Service this evening. Our next service is on Sunday, [DATE] by 9am (single service).\nWe would love to have you in any of our Services, whether online or onsite! See you on Sunday!\nWELCOME TO FREEDOM, SIRS AND MAS!!!!"
+        },
+        {
+          "title": "Family Meeting · Tomorrow's services",
+          "text": "Thank you Sirs and Mas for joining us for Family Meeting.Our next service is tomorrow, [DATE] by 8am for the first service and 10am for the second service.\nWe would love to have you in any of our Services, whether online or onsite!\nSee you on Sunday.\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        },
+        {
+          "title": "Cross Over · Next service",
+          "text": "Thank you Sirs and Mas for joining us for Cross Over Service. Our next service is Super Sunday Service with Apostle Muyiwa Areo on Sunday, [DATE] by 8am with a single service. We would love to have you in Service, whether online or onsite! See you on Sunday!\nHAPPY NEW YEAR, SIRS AND MAS!!!"
+        }
+      ]
+    },
+    {
+      "name": "Communion",
+      "inService": true,
+      "messages": [
+        {
+          "title": "Stay connected",
+          "text": "It's time for the communion Sirs and Mas. Stay connected as we eat and drink from the body of Christ as commanded."
+        },
+        {
+          "title": "Get a token",
+          "text": "It's time for the communion Sirs and Mas. Get a token(juice, wafer, bread drink or whatever you can find) and join us as we drink and eat of Christ."
+        }
+      ]
+    },
+    {
+      "name": "Special Programs",
+      "inService": false,
+      "messages": [
+        {
+          "title": "Family Meeting · First of the year",
+          "text": "Good morning Sirs and Mas,\nIt's the first family meeting of the year and we’re so glad you made it.\nStay connected; distance is not a barrier in the realm of the Spirit."
+        },
+        {
+          "title": "Love Choices · It's here",
+          "text": "Glory to God!!!\nLove Choices and Other Beautiful Words is here!!!\nWho is excited???"
+        },
+        {
+          "title": "New Year's Eve · Reflect",
+          "text": "From unlimited grace to groundbreaking testimonies, 2024 gave us many things to be grateful for. Now, the last day of the year is here, and it’s the perfect moment to celebrate, reflect, and set intentions for 2025."
+        },
+        {
+          "title": "New Year · Evening service",
+          "text": "Good evening family, thank you Sirs and Mas for making it to our online Church today and we are so excited for what God has in store for us this evening, as we continue to prepare for a productive new year."
+        },
+        {
+          "title": "Vow Renewal",
+          "text": "Good morning Sirs and Mas, we welcome the married and the singles as well  to our 2025 vow renewal service here at CLC Ilorin. You are welcome Sirs and Mas."
+        },
+        {
+          "title": "Marathon Prayer · Welcome",
+          "text": "Good Morning Family!\nThank you Sirs and Mas for making it to our online Marathon Prayer Today."
+        },
+        {
+          "title": "Partners · The day is here",
+          "text": "Dear Sons, Daughters, and Partners of Apostle Muyiwa and Pastor Temitope Areo:\nThe day we’ve all been waiting for is here!"
+        },
+        {
+          "title": "Welcome back from IGOSDP",
+          "text": "Glory to God!!\nWelcome back from IGOSDP 2025 Sirs and Mas 🥳💃\nTune your spirit the frequency of the Holy Spirit;\ndistance is not a barrier in the realm of the Spirit."
+        },
+        {
+          "title": "R.A.W. · Day one",
+          "text": "Welcome to Day one of R.A.W. 2024. We are delighted to have you join us this evening. We know you will have an incredible experience in God's presence. And we hope you are here with your expectations.\nThank you, Sirs and Mas."
+        },
+        {
+          "title": "R.A.W. · Final morning",
+          "text": "We are super excited you joined service this Morning Sirs and Mas and one thing is certain, God has a word for you. Sirs and Mas we urge you to stay focused, as we wrap up R.A.W 2024 this morning, God has a lot in store for you. Thank you Sirs and Mas 🩷🩷🩷"
+        },
+        {
+          "title": "R.A.W. · Thanksgiving",
+          "text": "Today is our Thanksgiving towards Rivers and Wells 2024.\nWe hope you are with your dancing shoes as we give God praise together for R.A.W 2024.\nThank you Sirs and Mas."
+        },
+        {
+          "title": "AMA Praise Party",
+          "text": "We are super excited you joined AMA PRAISE PARTY 2025 this evening Sirs and Mas and one thing is certain, God is said to fill your joy as we praise together. Sirs and Mas we urge you to stay focused, as we raise our praise to the Father this evening, God has a lot in store for you. Thank you Sirs and Mas 🩷🩷🩷"
+        },
+        {
+          "title": "Freedom Conference · Day 4",
+          "text": "We're glad you made it to Day 4 of Freedom Conference 2024.\nWe hope you are here with your expectations yet again as we experience God's favour in all our sessions today."
+        },
+        {
+          "title": "Honouring Daddy and Mummy",
+          "text": "For God has given us pastors after His own heart, and those that labour in words and doctrine are worthy of double honor. Join us Sirs and Mas as we celebrate and honour Daddy and Mummy. Thank you Sirs and Mas."
+        },
+        {
+          "title": "Freedom Finalists' meeting",
+          "text": "Good evening Family!\nWe welcome you all to the Freedom Finalists’ meeting today.\nWe are glad to have you here with us."
+        },
+        {
+          "title": "Fasting and prayer · Day 6",
+          "text": "Good evening Family!\nWelcome to day 6 of our fasting and prayer meeting.\nWe are glad to have you worship with us."
+        },
+        {
+          "title": "New Year · Midweek",
+          "text": "Happy New Year Family!\nWelcome to Midweek Service!\nWe are delighted to have you worship with us this evening."
+        },
+        {
+          "title": "Father's Day · Greeting",
+          "text": "HAPPY FATHER’S DAY to all our fathers and potential fathers in the house\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        },
+        {
+          "title": "Marathon Prayer · Still praying",
+          "text": "Marathon Prayers: We are still praying as Pastor Oluwatade Falade leads us."
+        },
+        {
+          "title": "Now Ministering · Ambience Jewel",
+          "text": "Now Ministering: The best choir in the world, Ambience Jewel🎶🎶🎶"
+        },
+        {
+          "title": "Love Choices · Intro",
+          "text": "Was It Love or Was It Me?\nA heart-check moment is this God’s design or just my desire?\nToday, we uncover the difference between true love and personal longing.\nToday, we’re not just asking a question, we’re starting a conversation.\nA conversation about love, choices, growth, and God who writes the best love stories.\n\nWe’re so excited to have you here! Truly, it’s amazing to see you in church today.\nWelcome to Love Choices and Other Beautiful Words 2026 where hearts are open, minds are renewed, and lives are transformed.\nGet ready,\nIt’s going to be real.\nIt’s going to be refreshing.\nAnd most of all, it’s going to be an unforgettable time in God’s presence.\nYou’re in the right place. 💛"
+        },
+        {
+          "title": "Love Choices · Closing",
+          "text": "As we close Love Choices and Other Beautiful Words 2026, don’t just leave with notes, leave with clarity, growth, and a heart aligned with God. May you never confuse love with loneliness or desire with destiny, but walk boldly in wisdom and truth. Thank you for showing up open and ready, go out wiser, go out confident, and most of all, go out loved. 💛\n\nOur next service is on Wednesday, 26th of November, 2026 by 5:30pm, whether online or onsite.\nWELCOME TO FREEDOM, SIRS AND MAS!!!"
+        },
+        {
+          "title": "Love Choices · Prayer",
+          "text": "With hearts aligned and faith rising, we move into a powerful moment of prayer. With one heart and one mind, let’s lift up our voices as Pastor Jisola Adekeye leads us. Get ready to pray with passion, confidence, and expectation — because when we pray together, heaven responds. 💛"
+        },
+        {
+          "title": "Love Choices · Ambience Jewel",
+          "text": "As we continue in this powerful atmosphere of LCAOBW 2026, get ready to lift your heart even higher. Please rise with joy and expectation as Ambience Jewel takes us deeper leading us to honor God in pure, powerful worship. Let’s receive our very own AJ with energy and gratitude as they usher us into His presence! 💛"
+        },
+        {
+          "title": "Love Choices · Welcoming the Pastor",
+          "text": "Our hearts are open, our spirits are ready, and expectation is in the air. It’s time to receive the Word that will guide our choices, shape our love, and align us with God’s perfect will. Please welcome our Pastor for his ministration — come ready to listen, grow, and be transformed."
+        },
+        {
+          "title": "Easter",
+          "text": "Good morning and Happy Easter! 🌅✨\nWe are truly excited to have you join us for service today. This is a special day of celebration, and we believe God has a powerful word just for you.\nAs we lift our voices in worship and reflect on the victory of the resurrection, we encourage you to stay focused and expectant, God has so much in store for you this morning.\nThank you for joining us, and welcome to service!"
+        },
+        {
+          "title": "Father's Day · Next service",
+          "text": "Thank you Sirs and Mas for joining Father’s Day Service. Our next service is on Wednesday, [DATE] by 5:30pm, whether online or onsite. God bless as you come."
+        },
+        {
+          "title": "Thanksgiving · Dedications",
+          "text": "Sirs and Mas let us celebrate with these families as they dedicate their babies and bless their marriage💃"
+        }
+      ]
+    }
+  ]
+}
