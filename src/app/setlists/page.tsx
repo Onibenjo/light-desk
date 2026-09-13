@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { comingSundayName, moveItem } from "@/lib/setlist";
+import { comingSundayName, moveItem, withParts } from "@/lib/setlist";
 import { itemKey } from "@/lib/setlistEdit";
+import { useMessages } from "../useMessages";
+import { messageLabel, messagesById } from "@/lib/messageLibrary";
+import { partsFromText, textFromParts } from "@/lib/messageEdit";
 import type { Setlist } from "../useSetlist";
 
 /**
@@ -21,6 +24,10 @@ export default function SetlistsPage() {
   const [error, setError] = useState<string | null>(null);
   /** The setlist whose Delete has been armed; a second press does it. */
   const [confirming, setConfirming] = useState<number | null>(null);
+  const { library } = useMessages();
+  const byId = useMemo(() => messagesById(library), [library]);
+  /** The message item whose text is being edited for its service: setlist id and item key. */
+  const [editing, setEditing] = useState<{ setlistId: number; key: string; text: string } | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/setlists");
@@ -92,8 +99,8 @@ export default function SetlistsPage() {
       </div>
 
       <p className="text-sm text-[var(--muted)]">
-        The active setlist is the one the operator sees at the top of the Songs tab. Add songs to it from there, with the
-        + beside a search result.
+        The active setlist is the one the operator sees at the top of the Songs and Messages tabs. Add songs and messages
+        to it from there, with the + beside a search result or a message.
       </p>
 
       {error && <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">{error}</p>}
@@ -141,24 +148,91 @@ export default function SetlistsPage() {
           </div>
 
           {s.items.length === 0 ? (
-            <p className="px-2 text-sm text-[var(--muted)]">No songs yet — add them from the Songs tab.</p>
+            <p className="px-2 text-sm text-[var(--muted)]">Nothing in it yet — add songs and messages from the desk.</p>
           ) : (
             <ol className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-              {s.items.map((item, i) => (
-                <li key={itemKey(item)} className="flex items-center gap-2 px-2 py-1.5">
-                  <span className="w-5 shrink-0 text-center text-xs text-[var(--muted)]">{i + 1}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
-                  <button onClick={() => send(s.id, { items: moveItem(s.items, i, -1), updatedAt: s.updatedAt })} disabled={busy || i === 0} aria-label={`Move ${item.title} up`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
-                    ↑
-                  </button>
-                  <button onClick={() => send(s.id, { items: moveItem(s.items, i, 1), updatedAt: s.updatedAt })} disabled={busy || i === s.items.length - 1} aria-label={`Move ${item.title} down`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
-                    ↓
-                  </button>
-                  <button onClick={() => send(s.id, { items: s.items.filter((x) => itemKey(x) !== itemKey(item)), updatedAt: s.updatedAt })} disabled={busy} aria-label={`Remove ${item.title}`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30">
-                    ×
-                  </button>
-                </li>
-              ))}
+              {s.items.map((item, i) => {
+                const entry = item.kind === "message" ? byId?.get(item.id) : undefined;
+                const label = entry ? messageLabel(entry.section, entry.message) : item.title;
+                const key = itemKey(item);
+                const isEditing = editing?.setlistId === s.id && editing.key === key;
+                return (
+                  <li key={key} className="px-2 py-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 shrink-0 text-center text-xs text-[var(--muted)]">{i + 1}</span>
+                      <span className="shrink-0" aria-label={item.kind === "song" ? "Song" : "Message"}>
+                        {item.kind === "song" ? "🎵" : "💬"}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        {label}
+                        {item.kind === "message" && item.parts && (
+                          <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">edited</span>
+                        )}
+                      </span>
+                      {item.kind === "message" && !isEditing && (
+                        <button
+                          onClick={() => setEditing({ setlistId: s.id, key, text: textFromParts(item.parts ?? entry?.message.parts ?? []) })}
+                          disabled={busy || (!item.parts && !entry)}
+                          className="shrink-0 rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800 disabled:opacity-30"
+                        >
+                          Edit for this service
+                        </button>
+                      )}
+                      <button onClick={() => send(s.id, { items: moveItem(s.items, i, -1), updatedAt: s.updatedAt })} disabled={busy || i === 0} aria-label={`Move ${label} up`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
+                        ↑
+                      </button>
+                      <button onClick={() => send(s.id, { items: moveItem(s.items, i, 1), updatedAt: s.updatedAt })} disabled={busy || i === s.items.length - 1} aria-label={`Move ${label} down`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
+                        ↓
+                      </button>
+                      <button onClick={() => send(s.id, { items: s.items.filter((x) => itemKey(x) !== key), updatedAt: s.updatedAt })} disabled={busy} aria-label={`Remove ${label}`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30">
+                        ×
+                      </button>
+                    </div>
+                    {isEditing && editing && (
+                      <div className="mt-2 space-y-2 pl-7">
+                        <textarea
+                          autoFocus
+                          value={editing.text}
+                          onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+                          aria-label={`Text of ${label} for this service`}
+                          rows={6}
+                          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                        />
+                        <p className="text-xs text-[var(--muted)]">Only this setlist changes. A blank line starts a new post. Once edited, fixes to the library no longer reach this item.</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => {
+                              const parts = partsFromText(editing.text);
+                              if (typeof parts === "string") return setError(parts);
+                              setEditing(null);
+                              void send(s.id, { items: withParts(s.items, i, parts), updatedAt: s.updatedAt });
+                            }}
+                            disabled={busy}
+                            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50"
+                          >
+                            Save for this service
+                          </button>
+                          {item.kind === "message" && item.parts && entry && (
+                            <button
+                              onClick={() => {
+                                setEditing(null);
+                                void send(s.id, { items: withParts(s.items, i, undefined), updatedAt: s.updatedAt });
+                              }}
+                              disabled={busy}
+                              className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 disabled:opacity-50"
+                            >
+                              Reset to library text
+                            </button>
+                          )}
+                          <button onClick={() => setEditing(null)} className="rounded-md px-3 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
           )}
         </section>
