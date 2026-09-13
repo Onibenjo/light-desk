@@ -115,3 +115,11 @@ export function useSetlist() {
 }
 
 export type SetlistApi = ReturnType<typeof useSetlist>;
+
+/** The toast for adding something to the setlist, the same from both tabs. */
+export function addToast(result: AddResult, what: string, setlistName: string): { text: string; tone: "ok" | "warn" | "err" } {
+  if (result === "added") return { text: `Added "${what}" to ${setlistName}`, tone: "ok" };
+  if (result === "duplicate") return { text: "Already in the setlist", tone: "warn" };
+  if (typeof result === "object") return { text: result.refused, tone: "err" };
+  return { text: "Could not add to the setlist", tone: "err" };
+}

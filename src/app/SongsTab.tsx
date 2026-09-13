@@ -7,12 +7,13 @@ import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
-import { comingSundayName, resolveSetlist, songsById, staleNote } from "@/lib/setlist";
+import { resolveSetlist, songsById, staleNote } from "@/lib/setlist";
 import { MatchedLine } from "./MatchedLine";
 import SongEditor from "./SongEditor";
 import SongList from "./SongList";
 import SetlistBar from "./SetlistBar";
-import { useSetlist } from "./useSetlist";
+import StartSetlist from "./StartSetlist";
+import { addToast, useSetlist } from "./useSetlist";
 
 interface Props {
   copyText: (t: string) => Promise<boolean>;
@@ -23,9 +24,8 @@ interface Props {
 export default function SongsTab({ copyText, showToast, logSend }: Props) {
   const [q, setQ] = useState("");
   const { setlist, addItem, startSetlist } = useSetlist();
-  // The song waiting for a setlist to exist, and the name being typed for it.
+  // The song waiting for a setlist to exist.
   const [starting, setStarting] = useState<SearchableSong | null>(null);
-  const [startName, setStartName] = useState("");
   // Searching the local copy is fast but not free; deferring it keeps the
   // keystrokes themselves instant on a phone.
   const deferredQ = useDeferredValue(q);
@@ -135,15 +135,11 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
   /** + on a search row or in the song header. With no setlist yet, ask for a name first. */
   const addToSetlist = useCallback(
     async (song: SearchableSong) => {
-      if (!setlist) {
-        setStartName(comingSundayName(new Date()));
-        return setStarting(song);
-      }
+      if (!setlist) return setStarting(song);
       if (song.id === undefined) return showToast("Save the song before adding it to a setlist", "err");
       const result = await addItem({ kind: "song", id: song.id, title: song.title });
-      if (result === "added") showToast(`Added "${song.title}" to ${setlist.name}`);
-      else if (result === "duplicate") showToast("Already in the setlist", "warn");
-      else showToast("Could not add to the setlist", "err");
+      const toast = addToast(result, song.title, setlist.name);
+      showToast(toast.text, toast.tone);
     },
     [setlist, addItem, showToast],
   );
@@ -394,37 +390,17 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
       )}
 
       {starting && (
-        <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">Start a setlist</h2>
-            <button onClick={() => setStarting(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
-              Cancel
-            </button>
-          </div>
-          <p className="text-sm text-[var(--muted)]">&ldquo;{starting.title}&rdquo; will be the first song.</p>
-          <input
-            autoFocus
-            value={startName}
-            onChange={(e) => setStartName(e.target.value)}
-            aria-label="Setlist name"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
-          />
-          <button
-            onClick={async () => {
-              const song = starting;
-              const name = startName.trim();
-              if (!song || !name) return;
-              setStarting(null);
-              if (song.id === undefined) return;
-              const result = await startSetlist(name, { kind: "song", id: song.id, title: song.title });
-              showToast(result === "added" ? `Started ${name} with "${song.title}"` : "Could not start the setlist", result === "added" ? "ok" : "err");
-            }}
-            disabled={!startName.trim()}
-            className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50"
-          >
-            Start it
-          </button>
-        </div>
+        <StartSetlist
+          what={starting.title}
+          onCancel={() => setStarting(null)}
+          onStart={async (name) => {
+            const song = starting;
+            setStarting(null);
+            if (song.id === undefined) return;
+            const result = await startSetlist(name, { kind: "song", id: song.id, title: song.title });
+            showToast(result === "added" ? `Started ${name} with "${song.title}"` : addToast(result, song.title, name).text, result === "added" ? "ok" : "err");
+          }}
+        />
       )}
 
       {song && !editing && (

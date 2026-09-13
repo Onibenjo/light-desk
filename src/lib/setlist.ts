@@ -11,7 +11,7 @@
 
 import type { IndexedSong, SearchableSong } from "./songSearch";
 import { itemKey, type MessageItem, type SetlistItem } from "./setlistEdit";
-import { messageLabel, type LibraryEntry } from "./messageLibrary";
+import { messageLabel, type LibraryEntry, type OpenMessage } from "./messageLibrary";
 
 export interface SongRow {
   kind: "song";
@@ -125,4 +125,17 @@ export function comingSundayName(now: Date): string {
   const d = new Date(now);
   d.setDate(d.getDate() + ((7 - d.getDay()) % 7));
   return `Sunday ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** What tapping a message row opens or copies. Null when the row has no text to offer. */
+export function openMessageFromRow(row: MessageRow, library: Map<number, LibraryEntry> | null): OpenMessage | null {
+  if (!row.parts) return null;
+  return {
+    key: row.key,
+    id: row.id,
+    label: row.title,
+    parts: row.parts,
+    edited: row.edited,
+    inService: library?.get(row.id)?.section.inService ?? false,
+  };
 }

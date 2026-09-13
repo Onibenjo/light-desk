@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildIndex, type SearchableSong } from "../src/lib/songSearch";
-import { ageInDays, comingSundayName, moveItem, resolveSetlist, songsById, staleNote, withParts, STALE_AFTER_DAYS } from "../src/lib/setlist";
+import { ageInDays, comingSundayName, moveItem, openMessageFromRow, resolveSetlist, songsById, staleNote, withParts, STALE_AFTER_DAYS } from "../src/lib/setlist";
 import { messagesById } from "../src/lib/messageLibrary";
 import { library } from "./fixtures/library";
 
@@ -126,5 +126,28 @@ describe("editing a message for one service", () => {
 
   it("never puts text on a song", () => {
     expect(withParts(items, 0, ["nope"])).toEqual(items);
+  });
+});
+
+describe("opening a message from its setlist row", () => {
+  const lib = messagesById(library);
+
+  it("carries the row's text, edited or not, and the section's setlist rule", () => {
+    const [row] = resolveSetlist([{ kind: "message", id: 11, title: "x", parts: ["Easter worship"] }], null, lib);
+    if (row.kind !== "message") throw new Error("expected a message row");
+    expect(openMessageFromRow(row, lib)).toEqual({
+      key: "message:11",
+      id: 11,
+      label: "Welcoming Ambience Jewel · Sunday · Worship",
+      parts: ["Easter worship"],
+      edited: true,
+      inService: true,
+    });
+  });
+
+  it("opens nothing for a row with nothing to copy", () => {
+    const [row] = resolveSetlist([{ kind: "message", id: 77, title: "Gone" }], null, lib);
+    if (row.kind !== "message") throw new Error("expected a message row");
+    expect(openMessageFromRow(row, lib)).toBe(null);
   });
 });

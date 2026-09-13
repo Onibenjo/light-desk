@@ -68,3 +68,32 @@ export function messagesById(library: Library | null): Map<number, LibraryEntry>
   if (!library) return null;
   return new Map(libraryEntries(library).map((entry) => [entry.message.id, entry]));
 }
+
+/** A message the desk is about to copy or has open: from the library, a setlist row, or ⌘K. */
+export interface OpenMessage {
+  /** itemKey() of the message, which is also what the ✓ ticks are keyed by. */
+  key: string;
+  id: number;
+  label: string;
+  parts: string[];
+  /** Text edited for one service, not the library's. */
+  edited: boolean;
+  /** Whether its section may go in a setlist, which decides if + is offered. */
+  inService: boolean;
+}
+
+export function openMessageFor({ section, message }: LibraryEntry): OpenMessage {
+  return {
+    key: `message:${message.id}`,
+    id: message.id,
+    label: messageLabel(section, message),
+    parts: message.parts,
+    edited: false,
+    inService: section.inService,
+  };
+}
+
+/** The log label for one copied part. A one-part message is just its label. */
+export function partLabel(label: string, index: number, count: number): string {
+  return count > 1 ? `${label} · part ${index + 1} of ${count}` : label;
+}

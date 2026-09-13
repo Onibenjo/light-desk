@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupLibrary, groupEntries, libraryEntries, messageLabel, messagesById } from "../src/lib/messageLibrary";
+import { groupLibrary, groupEntries, libraryEntries, messageLabel, messagesById, openMessageFor, partLabel } from "../src/lib/messageLibrary";
 import { library } from "./fixtures/library";
 
 describe("the library in order", () => {
@@ -33,5 +33,24 @@ describe("grouping search results", () => {
       ["Welcoming Ambience Jewel", [10, 11]],
       ["Apologies", [20]],
     ]);
+  });
+});
+
+describe("opening and logging a message", () => {
+  it("opens a library message with its key, label and whether it can go in a setlist", () => {
+    const [sorry] = libraryEntries(library);
+    expect(openMessageFor(sorry)).toEqual({
+      key: "message:20",
+      id: 20,
+      label: "Apologies · Sound restored",
+      parts: sorry.message.parts,
+      edited: false,
+      inService: false,
+    });
+  });
+
+  it("logs which part of a long message was sent, and nothing extra for a short one", () => {
+    expect(partLabel("Apologies · Sound restored", 0, 1)).toBe("Apologies · Sound restored");
+    expect(partLabel("Confession · Full text", 1, 3)).toBe("Confession · Full text · part 2 of 3");
   });
 });
