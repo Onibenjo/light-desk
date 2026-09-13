@@ -39,6 +39,7 @@ export default function MessagesPage() {
   async function write(url: string, method: "POST" | "PATCH" | "DELETE", body?: unknown): Promise<boolean> {
     setBusy(true);
     setError(null);
+    setDenied(false);
     setConfirming(null);
     try {
       const res = await fetch(url, {
@@ -54,7 +55,6 @@ export default function MessagesPage() {
         setError(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? "That did not save");
         return false;
       }
-      setDenied(false);
       await load();
       return true;
     } finally {
@@ -169,7 +169,12 @@ export default function MessagesPage() {
             <input
               key={section.name}
               defaultValue={section.name}
-              onBlur={(e) => e.target.value.trim() !== section.name && write(`/api/message-sections/${section.id}`, "PATCH", { name: e.target.value })}
+              onBlur={async (e) => {
+                const input = e.currentTarget;
+                if (input.value.trim() === section.name) return;
+                const ok = await write(`/api/message-sections/${section.id}`, "PATCH", { name: input.value });
+                if (!ok) input.value = section.name;
+              }}
               aria-label={`Name of ${section.name}`}
               className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 font-medium hover:border-zinc-700 focus:border-[var(--accent)] focus:outline-none"
             />
