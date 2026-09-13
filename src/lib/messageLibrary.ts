@@ -52,6 +52,17 @@ export function libraryEntries(library: Library): LibraryEntry[] {
   return groupLibrary(library).flatMap(({ section, messages }) => messages.map((message) => ({ section, message })));
 }
 
+/** Search results back into section groups, keeping the order they came in. */
+export function groupEntries(entries: LibraryEntry[]): LibraryGroup[] {
+  const groups: LibraryGroup[] = [];
+  for (const { section, message } of entries) {
+    const last = groups.at(-1);
+    if (last && last.section.id === section.id) last.messages.push(message);
+    else groups.push({ section, messages: [message] });
+  }
+  return groups;
+}
+
 /** Lookup for setlist rows, or null while the library is still loading. */
 export function messagesById(library: Library | null): Map<number, LibraryEntry> | null {
   if (!library) return null;

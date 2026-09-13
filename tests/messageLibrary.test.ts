@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupLibrary, libraryEntries, messageLabel, messagesById } from "../src/lib/messageLibrary";
+import { groupLibrary, groupEntries, libraryEntries, messageLabel, messagesById } from "../src/lib/messageLibrary";
 import { library } from "./fixtures/library";
 
 describe("the library in order", () => {
@@ -22,5 +22,16 @@ describe("the library in order", () => {
     expect(messagesById(null)).toBe(null);
     expect(messagesById(library)?.get(11)?.section.name).toBe("Welcoming Ambience Jewel");
     expect(messagesById(library)?.has(99)).toBe(false);
+  });
+});
+
+describe("grouping search results", () => {
+  it("groups consecutive results under their section, in the order given", () => {
+    const entries = libraryEntries(library);
+    const groups = groupEntries([entries[1], entries[2], entries[0]]);
+    expect(groups.map((g) => [g.section.name, g.messages.map((m) => m.id)])).toEqual([
+      ["Welcoming Ambience Jewel", [10, 11]],
+      ["Apologies", [20]],
+    ]);
   });
 });
