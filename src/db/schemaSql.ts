@@ -24,9 +24,14 @@ export const SCHEMA_SQL = `
     author TEXT, sections TEXT NOT NULL, source TEXT NOT NULL,
     created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, edited_at INTEGER
   );
+  CREATE TABLE IF NOT EXISTS message_sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    sort INTEGER NOT NULL, in_service INTEGER NOT NULL DEFAULT 1
+  );
   CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, section TEXT NOT NULL, title TEXT NOT NULL,
-    body TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0
+    id INTEGER PRIMARY KEY AUTOINCREMENT, section_id INTEGER NOT NULL REFERENCES message_sections(id),
+    title TEXT NOT NULL, parts TEXT NOT NULL, sort INTEGER NOT NULL,
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
   );
   CREATE TABLE IF NOT EXISTS setlists (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, items TEXT NOT NULL,
@@ -52,8 +57,31 @@ function isDuplicateColumnError(e: unknown): boolean {
   return e instanceof Error && /duplicate column name/i.test(e.message);
 }
 
+/**
+ * The first release created `messages` as an M2 placeholder (section, title,
+ * body, sort) that nothing ever wrote to. CREATE TABLE IF NOT EXISTS would keep
+ * that shape forever, so it is dropped here when — and only when — it is still
+ * the placeholder and still empty. A placeholder with rows means someone put
+ * data there by hand; refusing loudly beats dropping it.
+ *
+ * Two instances booting at once can both pass the check; the second DROP then
+ * finds either nothing (IF EXISTS) or the new, still-empty table, which the
+ * SCHEMA_SQL that follows recreates. Nothing with data in it is reachable.
+ */
+async function replacePlaceholderMessages(client: Client): Promise<void> {
+  const info = await client.execute("PRAGMA table_info(messages)");
+  if (!info.rows.some((r) => r.name === "body")) return;
+  const count = await client.execute("SELECT count(*) AS n FROM messages");
+  const rows = Number(count.rows[0].n);
+  if (rows > 0) {
+    throw new Error(`The messages table still has its old placeholder shape and ${rows} row(s); refusing to drop it. Back it up, empty it, and restart.`);
+  }
+  await client.execute("DROP TABLE IF EXISTS messages");
+}
+
 /** Bring any database — new or years old — up to the schema above. Idempotent. */
 export async function applySchema(client: Client): Promise<void> {
+  await replacePlaceholderMessages(client);
   await client.executeMultiple(SCHEMA_SQL);
   for (const { table, column, type } of ADDED_COLUMNS) {
     const info = await client.execute(`PRAGMA table_info(${table})`);

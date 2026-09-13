@@ -105,3 +105,48 @@ describe("the setlists table", () => {
     expect((await client.execute("SELECT name FROM setlists")).rows[0].name).toBe("Sunday");
   });
 });
+
+describe("the message library tables", () => {
+  const placeholder = `CREATE TABLE messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, section TEXT NOT NULL, title TEXT NOT NULL,
+    body TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0
+  );`;
+  const cols = async (table: string) => (await client.execute(`PRAGMA table_info(${table})`)).rows.map((r) => columnName(r.name));
+
+  it("creates both tables with every column", async () => {
+    await applySchema(client);
+    expect(await cols("message_sections")).toEqual(["id", "name", "sort", "in_service"]);
+    expect(await cols("messages")).toEqual(["id", "section_id", "title", "parts", "sort", "created_at", "updated_at"]);
+  });
+
+  it("replaces the empty placeholder table the first release created", async () => {
+    await client.executeMultiple(placeholder);
+    await applySchema(client);
+    expect(await cols("messages")).toContain("parts");
+    expect(await cols("messages")).not.toContain("body");
+  });
+
+  it("refuses to drop a placeholder table that has rows, and leaves them where they are", async () => {
+    await client.executeMultiple(placeholder);
+    await client.execute({ sql: "INSERT INTO messages (section, title, body) VALUES (?,?,?)", args: ["Apologies", "Sound", "Sorry"] });
+    await expect(applySchema(client)).rejects.toThrow(/messages/);
+    expect((await client.execute("SELECT body FROM messages")).rows[0].body).toBe("Sorry");
+  });
+
+  it("leaves a real library alone on the next boot", async () => {
+    await applySchema(client);
+    await client.execute({ sql: "INSERT INTO message_sections (name, sort) VALUES (?,?)", args: ["Apologies", 0] });
+    await client.execute({
+      sql: "INSERT INTO messages (section_id, title, parts, sort, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+      args: [1, "Sound restored", '["Sorry"]', 0, 1, 1],
+    });
+    await applySchema(client);
+    expect((await client.execute("SELECT count(*) AS n FROM messages")).rows[0].n).toBe(1);
+  });
+
+  it("treats section names that differ only in case as the same name", async () => {
+    await applySchema(client);
+    await client.execute({ sql: "INSERT INTO message_sections (name, sort) VALUES (?,?)", args: ["Apologies", 0] });
+    await expect(client.execute({ sql: "INSERT INTO message_sections (name, sort) VALUES (?,?)", args: ["apologies", 1] })).rejects.toThrow(/UNIQUE/i);
+  });
+});
