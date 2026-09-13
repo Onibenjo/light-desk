@@ -91,8 +91,11 @@ async function swapSection(current: SectionRow, delta: -1 | 1): Promise<void> {
 export async function updateSection(id: number, patch: SectionPatch): Promise<LibrarySection | "gone" | "duplicate"> {
   const current = await findSectionRow(id);
   if (!current) return "gone";
-  if (patch.move) await swapSection(current, patch.move);
 
+  // The rename/flag change is applied first and can fail on the unique name;
+  // a refused change must change nothing, so the move only happens once that
+  // has succeeded. (current.sort is unaffected by a rename, so it is still
+  // valid for the swap below.)
   const values: { name?: string; inService?: boolean } = {};
   if (patch.name !== undefined) values.name = patch.name;
   if (patch.inService !== undefined) values.inService = patch.inService;
@@ -104,6 +107,8 @@ export async function updateSection(id: number, patch: SectionPatch): Promise<Li
       throw e;
     }
   }
+  if (patch.move) await swapSection(current, patch.move);
+
   const saved = await findSectionRow(id);
   return saved ? toSection(saved) : "gone";
 }

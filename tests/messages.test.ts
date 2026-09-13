@@ -67,6 +67,15 @@ describe("sections", () => {
     expect(await lib.updateSection(999, { name: "x" })).toBe("gone");
   });
 
+  it("leaves order and name untouched when a combined move and rename is refused as a duplicate", async () => {
+    await section("A");
+    await section("B");
+    const c = await section("C");
+    expect(await lib.updateSection(c.id, { move: -1, name: "a" })).toBe("duplicate");
+    expect((await lib.loadLibrary()).sections.map((s) => s.name)).toEqual(["A", "B", "C"]);
+    expect((await lib.loadLibrary()).sections.find((s) => s.id === c.id)?.name).toBe("C");
+  });
+
   it("cannot be deleted while they still hold messages, so one click never wipes twenty", async () => {
     const a = await section("Apologies");
     await message(a.id, "Sound restored");
