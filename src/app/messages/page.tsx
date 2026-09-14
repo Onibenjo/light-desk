@@ -2,12 +2,74 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { DeniedHint } from "../SongEditor";
+import { useArmed } from "../useArmed";
 import { MAX_MESSAGE_CHARS } from "@/lib/format";
+import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { groupLibrary, type Library, type LibraryMessage, type LibrarySection } from "@/lib/messageLibrary";
-import { longParts, partsFromText, textFromParts } from "@/lib/messageEdit";
+import { longParts, MAX_MESSAGE_TITLE, MAX_SECTION_NAME, partsFromText, textFromParts } from "@/lib/messageEdit";
 
 type Draft = { id: number | "new"; sectionId: number; title: string; text: string };
+
+type LibraryState = { kind: "loading" } | { kind: "loaded"; library: Library } | { kind: "failed"; failure: Failure };
+
+/** A failure to show above the library. `saved` when the write went through and only the reload after it failed. */
+type Notice = { failure: Failure; saved: boolean };
+
+const COPY_SUFFIX = " (copy)";
+
+async function fetchLibrary(): Promise<{ ok: true; library: Library } | { ok: false; failure: Failure }> {
+  let res: Response;
+  try {
+    res = await fetch("/api/messages");
+  } catch {
+    return { ok: false, failure: OFFLINE };
+  }
+  if (!res.ok) return { ok: false, failure: await failureFrom(res, "Could not load the library") };
+  try {
+    return { ok: true, library: (await res.json()) as Library };
+  } catch {
+    // A 200 that is not the library: a captive portal's page, or the body cut off mid-read.
+    return { ok: false, failure: describeFailure(502) };
+  }
+}
+
+/** A title plus " (copy)" that stays within the server's limit, without splitting an emoji in half. */
+function copyTitle(title: string): string {
+  const cut = title.slice(0, MAX_MESSAGE_TITLE - COPY_SUFFIX.length);
+  return `${/[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut}${COPY_SUFFIX}`;
+}
+
+/**
+ * What went wrong, and the one thing to do about it: Retry, or unlock when the
+ * device's PIN has gone. After a write, the unlock link opens a new tab so a
+ * half-written message on this page survives.
+ */
+function Problem({ failure, saved = false, onRetry, next, newTab }: { failure: Failure; saved?: boolean; onRetry?: () => void; next: string; newTab: boolean }) {
+  if (failure.kind === "denied") return <DeniedHint />;
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+      <p className="min-w-0 wrap-anywhere">{saved ? `Saved, but the library did not reload. ${failure.message}` : failure.message}</p>
+      {failure.kind === "locked" ? (
+        <a
+          href={unlockHref(next)}
+          target={newTab ? "_blank" : undefined}
+          rel={newTab ? "noopener noreferrer" : undefined}
+          className="inline-flex items-center underline pointer-coarse:min-h-11"
+        >
+          {newTab ? "Unlock in a new tab, then come back and try again" : "Unlock this device"}
+        </a>
+      ) : (
+        onRetry && (
+          <button onClick={onRetry} className="rounded-md border border-amber-500/40 px-3 py-1 text-sm hover:bg-amber-500/10 pointer-coarse:min-h-11">
+            Retry
+          </button>
+        )
+      )}
+    </div>
+  );
+}
 
 /**
  * The engagement document, kept here instead of in a Google Doc. Admin only:
@@ -15,47 +77,69 @@ type Draft = { id: number | "new"; sectionId: number; title: string; text: strin
  * same reason /setlists is — it is prepared ahead, not used mid-service.
  */
 export default function MessagesPage() {
-  const [library, setLibrary] = useState<Library | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [denied, setDenied] = useState(false);
+  const pathname = usePathname();
+  const [state, setState] = useState<LibraryState>({ kind: "loading" });
+  const [notice, setNotice] = useState<Notice | null>(null);
+  /** Disables every write control while one is in flight. React re-renders between two clicks, so a second click finds it set. */
   const [busy, setBusy] = useState(false);
   const [newSection, setNewSection] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   /** "section:3" or "message:12" whose Delete has been armed; a second press does it. */
-  const [confirming, setConfirming] = useState<string | null>(null);
+  const armed = useArmed<string>();
 
-  const load = useCallback(async () => {
-    const res = await fetch("/api/messages");
-    if (!res.ok) return setError("Could not load the library");
-    setLibrary((await res.json()) as Library);
+  /** Loads the library. A library already on screen stays there when this fails; the failure is returned to show. */
+  const refresh = useCallback(async (): Promise<Failure | null> => {
+    const result = await fetchLibrary();
+    if (result.ok) {
+      setState({ kind: "loaded", library: result.library });
+      return null;
+    }
+    setState((s) => (s.kind === "loaded" ? s : { kind: "failed", failure: result.failure }));
+    return result.failure;
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading the library on mount is the effect's whole job
+    void refresh();
+  }, [refresh]);
+
+  const retryLoad = () => {
+    setState({ kind: "loading" });
+    void refresh();
+  };
+
+  const retryReload = async () => {
+    const failure = await refresh();
+    setNotice(failure ? { failure, saved: true } : null);
+  };
 
   /** Every write: send, show the server's refusal if any, reload. True when it saved. */
   async function write(url: string, method: "POST" | "PATCH" | "DELETE", body?: unknown): Promise<boolean> {
+    if (busy) return false;
     setBusy(true);
-    setError(null);
-    setDenied(false);
-    setConfirming(null);
+    setNotice(null);
+    armed.disarm();
     try {
-      const res = await fetch(url, {
-        method,
-        headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-      if (res.status === 403) {
-        setDenied(true);
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method,
+          headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+      } catch {
+        setNotice({ failure: OFFLINE, saved: false });
         return false;
       }
       if (!res.ok) {
-        setError(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? "That did not save");
+        const failure = await failureFrom(res, "That did not save");
+        setNotice({ failure, saved: false });
+        // Someone else changed or removed it first: show the library as it is now.
+        if (failure.kind === "conflict" || res.status === 404) await refresh();
         return false;
       }
-      await load();
+      const failure = await refresh();
+      if (failure) setNotice({ failure, saved: true });
       return true;
     } finally {
       setBusy(false);
@@ -71,8 +155,7 @@ export default function MessagesPage() {
     if (ok) setDraft(null);
   }
 
-  const duplicate = (m: LibraryMessage) =>
-    write("/api/messages", "POST", { sectionId: m.sectionId, title: `${m.title.slice(0, 113)} (copy)`, text: textFromParts(m.parts) });
+  const duplicate = (m: LibraryMessage) => write("/api/messages", "POST", { sectionId: m.sectionId, title: copyTitle(m.title), text: textFromParts(m.parts) });
 
   const draftParts = draft ? partsFromText(draft.text) : [];
   const warnings = Array.isArray(draftParts) ? longParts(draftParts, MAX_MESSAGE_CHARS) : [];
@@ -86,6 +169,7 @@ export default function MessagesPage() {
             autoFocus
             value={draft.title}
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+            maxLength={MAX_MESSAGE_TITLE}
             aria-label="Message title"
             placeholder="Title — e.g. Sunday · Worship, or the pastor's name"
             className={`min-w-0 flex-1 px-3 py-2 ${field}`}
@@ -94,7 +178,7 @@ export default function MessagesPage() {
             value={draft.sectionId}
             onChange={(e) => setDraft({ ...draft, sectionId: Number(e.target.value) })}
             aria-label="Section"
-            className={`px-2 py-2 ${field}`}
+            className={`max-w-full px-2 py-2 ${field}`}
           >
             {sections.map((s) => (
               <option key={s.id} value={s.id}>
@@ -131,6 +215,7 @@ export default function MessagesPage() {
     );
   }
 
+  const library = state.kind === "loaded" ? state.library : null;
   const groups = library ? groupLibrary(library) : [];
   const sections = groups.map((g) => g.section);
   const small = "rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800 disabled:opacity-30 pointer-coarse:min-h-11";
@@ -152,9 +237,13 @@ export default function MessagesPage() {
         sections like Apologies, which happen whenever they happen.
       </p>
 
-      {denied && <DeniedHint />}
-      {error && <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">{error}</p>}
-      {!library && !error && <p className="text-sm text-[var(--muted)]">Loading…</p>}
+      <p id={armed.regionId} role="status" className="sr-only">
+        {armed.announcement}
+      </p>
+
+      {notice && <Problem failure={notice.failure} saved={notice.saved} onRetry={notice.saved ? retryReload : undefined} next={pathname} newTab />}
+      {state.kind === "loading" && <p className="text-sm text-[var(--muted)]">Loading…</p>}
+      {state.kind === "failed" && <Problem failure={state.failure} onRetry={retryLoad} next={pathname} newTab={false} />}
 
       {library && library.sections.length === 0 && library.messages.length === 0 && (
         <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-4">
@@ -171,6 +260,7 @@ export default function MessagesPage() {
             <input
               key={section.name}
               defaultValue={section.name}
+              maxLength={MAX_SECTION_NAME}
               onBlur={async (e) => {
                 const input = e.currentTarget;
                 if (input.value.trim() === section.name) return;
@@ -197,12 +287,12 @@ export default function MessagesPage() {
                 ↓
               </button>
               <button
-                onClick={() => (confirming === `section:${section.id}` ? write(`/api/message-sections/${section.id}`, "DELETE") : setConfirming(`section:${section.id}`))}
+                {...armed.buttonProps(`section:${section.id}`, `the section ${section.name}`, () => void write(`/api/message-sections/${section.id}`, "DELETE"))}
                 disabled={busy || messages.length > 0}
                 title={messages.length > 0 ? "Move or delete its messages first" : undefined}
                 className={small}
               >
-                {confirming === `section:${section.id}` ? "Sure?" : "Delete"}
+                {armed.isArmed(`section:${section.id}`) ? "Sure?" : "Delete"}
               </button>
             </span>
           </div>
@@ -234,12 +324,8 @@ export default function MessagesPage() {
                       <button onClick={() => write(`/api/messages/${m.id}`, "PATCH", { move: 1 })} disabled={busy || mi === messages.length - 1} aria-label={`Move ${m.title} down`} className={square}>
                         ↓
                       </button>
-                      <button
-                        onClick={() => (confirming === `message:${m.id}` ? write(`/api/messages/${m.id}`, "DELETE") : setConfirming(`message:${m.id}`))}
-                        disabled={busy}
-                        className={small}
-                      >
-                        {confirming === `message:${m.id}` ? "Sure?" : "Delete"}
+                      <button {...armed.buttonProps(`message:${m.id}`, `the message ${m.title}`, () => void write(`/api/messages/${m.id}`, "DELETE"))} disabled={busy} className={small}>
+                        {armed.isArmed(`message:${m.id}`) ? "Sure?" : "Delete"}
                       </button>
                     </span>
                   </div>
@@ -250,7 +336,7 @@ export default function MessagesPage() {
               {draft?.id === "new" && draft.sectionId === section.id ? (
                 editor(sections)
               ) : (
-                <button onClick={() => setDraft({ id: "new", sectionId: section.id, title: "", text: "" })} disabled={busy} className={quiet}>
+                <button onClick={() => setDraft({ id: "new", sectionId: section.id, title: "", text: "" })} disabled={busy} className={`text-left wrap-anywhere ${quiet}`}>
                   + Add a message to {section.name}
                 </button>
               )}
@@ -264,13 +350,16 @@ export default function MessagesPage() {
           <input
             value={newSection}
             onChange={(e) => setNewSection(e.target.value)}
+            maxLength={MAX_SECTION_NAME}
             aria-label="New section name"
             placeholder="New section — e.g. Baby Dedication"
             className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
           />
           <button
             onClick={async () => {
-              if (newSection.trim() && (await write("/api/message-sections", "POST", { name: newSection }))) setNewSection("");
+              const sent = newSection;
+              // Cleared only if nothing more was typed while it saved.
+              if (sent.trim() && (await write("/api/message-sections", "POST", { name: sent }))) setNewSection((now) => (now === sent ? "" : now));
             }}
             disabled={busy || !newSection.trim()}
             className="shrink-0 rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11"
