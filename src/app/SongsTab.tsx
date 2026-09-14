@@ -227,8 +227,13 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   // keys it advertises only exist on a device that has them.
   const [keyboard, setKeyboard] = useState(false);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setKeyboard(hasFinePointer());
+    // The hint is 43 characters and clips mid-word below the `sm` breakpoint,
+    // so it also waits for a window wide enough to show all of it.
+    const room = window.matchMedia("(min-width: 40rem)");
+    const update = () => setKeyboard(hasFinePointer() && room.matches);
+    update();
+    room.addEventListener("change", update);
+    return () => room.removeEventListener("change", update);
   }, []);
 
   const focusSearch = useCallback(() => {
@@ -321,16 +326,16 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             placeholder={keyboard ? "Search the songbook — ↑↓ to pick, ↵ to open" : "Search the songbook"}
             className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
           />
-          <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-            <span>{total !== null && `${total} songs in the book`}</span>
-            <span className="flex shrink-0 gap-3">
-              <Link href="/setlists" className="-my-1 py-1 underline hover:text-zinc-300">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
+            <span className="whitespace-nowrap">{total !== null && `${total} songs in the book`}</span>
+            <span className="flex flex-wrap items-center gap-x-3">
+              <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 Setlists
               </Link>
-              <button onClick={() => setAdding(true)} className="-my-1 py-1 underline hover:text-zinc-300">
+              <button onClick={() => setAdding(true)} className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 + Quick add a song
               </button>
-              <Link href="/songs/import" className="-my-1 py-1 underline hover:text-zinc-300">
+              <Link href="/songs/import" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 Import songbook
               </Link>
             </span>
@@ -397,7 +402,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
         <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">Quick add a song</h2>
-            <button onClick={() => setAdding(false)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+            <button onClick={() => setAdding(false)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 pointer-coarse:min-h-11">
               Cancel
             </button>
           </div>
@@ -439,16 +444,16 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
 
       {song && !editing && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold leading-tight">{song.title}</h2>
-            <span className="flex shrink-0 gap-2">
-              <button onClick={() => addToSetlist(song)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="basis-full text-lg font-semibold leading-tight sm:basis-auto">{song.title}</h2>
+            <span className="flex flex-wrap gap-2 sm:shrink-0">
+              <button onClick={() => addToSetlist(song)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 {setlist ? "+ Setlist" : "Start a setlist"}
               </button>
-              <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+              <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 Edit
               </button>
-              <button onClick={closeSong} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+              <button onClick={closeSong} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 ← Songs
               </button>
             </span>
@@ -456,7 +461,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           {pinned !== null && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2">
               <span className="px-1 text-xs uppercase tracking-wide text-[var(--muted)]">Pinned</span>
-              <button onClick={() => copySection(pinned)} className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm font-medium text-black">
+              <button onClick={() => copySection(pinned)} className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm font-medium text-black pointer-coarse:min-h-11">
                 <span className="sr-only">Re-send </span>↻ {pinned + 1} · {song.sections[pinned].split("\n")[0].slice(0, 28)}
               </button>
               <span className="kbd">C</span>

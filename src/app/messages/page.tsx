@@ -88,13 +88,13 @@ export default function MessagesPage() {
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
             aria-label="Message title"
             placeholder="Title — e.g. Sunday · Worship, or the pastor's name"
-            className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            className={`min-w-0 flex-1 px-3 py-2 ${field}`}
           />
           <select
             value={draft.sectionId}
             onChange={(e) => setDraft({ ...draft, sectionId: Number(e.target.value) })}
             aria-label="Section"
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-2 text-sm"
+            className={`px-2 py-2 ${field}`}
           >
             {sections.map((s) => (
               <option key={s.id} value={s.id}>
@@ -120,10 +120,10 @@ export default function MessagesPage() {
           </p>
         ))}
         <div className="flex gap-2">
-          <button onClick={saveDraft} disabled={busy} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50">
+          <button onClick={saveDraft} disabled={busy} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
             Save
           </button>
-          <button onClick={() => setDraft(null)} className="rounded-md px-3 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800">
+          <button onClick={() => setDraft(null)} className="rounded-md px-3 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 pointer-coarse:min-h-11">
             Cancel
           </button>
         </div>
@@ -133,14 +133,16 @@ export default function MessagesPage() {
 
   const groups = library ? groupLibrary(library) : [];
   const sections = groups.map((g) => g.section);
-  const small = "rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800 disabled:opacity-30";
+  const small = "rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800 disabled:opacity-30 pointer-coarse:min-h-11";
   const square = "grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30";
+  const quiet = "inline-flex items-center text-sm text-[var(--muted)] underline hover:text-zinc-300 pointer-coarse:min-h-11";
+  const field = "rounded-md border border-zinc-700 bg-zinc-900 text-sm outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11";
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-4">
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-xl font-semibold">Message library</h1>
-        <Link href="/" className="text-sm text-[var(--muted)] underline hover:text-zinc-300">
+        <Link href="/" className={quiet}>
           ← Back to the desk
         </Link>
       </div>
@@ -157,7 +159,7 @@ export default function MessagesPage() {
       {library && library.sections.length === 0 && library.messages.length === 0 && (
         <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-4">
           <p className="text-sm">The library is empty. Load the starter messages taken from the engagement document?</p>
-          <button onClick={() => write("/api/messages/seed", "POST")} disabled={busy} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">
+          <button onClick={() => write("/api/messages/seed", "POST")} disabled={busy} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
             Load starter messages
           </button>
         </div>
@@ -176,31 +178,33 @@ export default function MessagesPage() {
                 if (!ok) input.value = section.name;
               }}
               aria-label={`Name of ${section.name}`}
-              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 font-medium hover:border-zinc-700 focus:border-[var(--accent)] focus:outline-none"
+              className="min-w-48 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 font-medium hover:border-zinc-700 focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
             />
-            <label className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--muted)]">
-              <input
-                type="checkbox"
-                checked={section.inService}
-                onChange={(e) => write(`/api/message-sections/${section.id}`, "PATCH", { inService: e.target.checked })}
-                disabled={busy}
-              />
-              Can go in a setlist
-            </label>
-            <button onClick={() => write(`/api/message-sections/${section.id}`, "PATCH", { move: -1 })} disabled={busy || si === 0} aria-label={`Move ${section.name} up`} className={square}>
-              ↑
-            </button>
-            <button onClick={() => write(`/api/message-sections/${section.id}`, "PATCH", { move: 1 })} disabled={busy || si === groups.length - 1} aria-label={`Move ${section.name} down`} className={square}>
-              ↓
-            </button>
-            <button
-              onClick={() => (confirming === `section:${section.id}` ? write(`/api/message-sections/${section.id}`, "DELETE") : setConfirming(`section:${section.id}`))}
-              disabled={busy || messages.length > 0}
-              title={messages.length > 0 ? "Move or delete its messages first" : undefined}
-              className={small}
-            >
-              {confirming === `section:${section.id}` ? "Sure?" : "Delete"}
-            </button>
+            <span className="flex flex-wrap items-center gap-2">
+              <label className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--muted)] pointer-coarse:min-h-11">
+                <input
+                  type="checkbox"
+                  checked={section.inService}
+                  onChange={(e) => write(`/api/message-sections/${section.id}`, "PATCH", { inService: e.target.checked })}
+                  disabled={busy}
+                />
+                Can go in a setlist
+              </label>
+              <button onClick={() => write(`/api/message-sections/${section.id}`, "PATCH", { move: -1 })} disabled={busy || si === 0} aria-label={`Move ${section.name} up`} className={square}>
+                ↑
+              </button>
+              <button onClick={() => write(`/api/message-sections/${section.id}`, "PATCH", { move: 1 })} disabled={busy || si === groups.length - 1} aria-label={`Move ${section.name} down`} className={square}>
+                ↓
+              </button>
+              <button
+                onClick={() => (confirming === `section:${section.id}` ? write(`/api/message-sections/${section.id}`, "DELETE") : setConfirming(`section:${section.id}`))}
+                disabled={busy || messages.length > 0}
+                title={messages.length > 0 ? "Move or delete its messages first" : undefined}
+                className={small}
+              >
+                {confirming === `section:${section.id}` ? "Sure?" : "Delete"}
+              </button>
+            </span>
           </div>
 
           <ol className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
@@ -209,33 +213,35 @@ export default function MessagesPage() {
                 {draft?.id === m.id ? (
                   editor(sections)
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="w-full min-w-0 sm:w-auto sm:flex-1">
                       <span className="block truncate text-sm font-medium">{m.title}</span>
                       <span className="block truncate text-xs text-[var(--muted)]">
                         {m.parts.length > 1 ? `${m.parts.length} posts · ` : ""}
                         {m.parts[0]}
                       </span>
                     </span>
-                    <button onClick={() => setDraft({ id: m.id, sectionId: m.sectionId, title: m.title, text: textFromParts(m.parts) })} disabled={busy} className={small}>
-                      Edit
-                    </button>
-                    <button onClick={() => duplicate(m)} disabled={busy} className={small}>
-                      Duplicate
-                    </button>
-                    <button onClick={() => write(`/api/messages/${m.id}`, "PATCH", { move: -1 })} disabled={busy || mi === 0} aria-label={`Move ${m.title} up`} className={square}>
-                      ↑
-                    </button>
-                    <button onClick={() => write(`/api/messages/${m.id}`, "PATCH", { move: 1 })} disabled={busy || mi === messages.length - 1} aria-label={`Move ${m.title} down`} className={square}>
-                      ↓
-                    </button>
-                    <button
-                      onClick={() => (confirming === `message:${m.id}` ? write(`/api/messages/${m.id}`, "DELETE") : setConfirming(`message:${m.id}`))}
-                      disabled={busy}
-                      className={small}
-                    >
-                      {confirming === `message:${m.id}` ? "Sure?" : "Delete"}
-                    </button>
+                    <span className="flex items-center gap-2">
+                      <button onClick={() => setDraft({ id: m.id, sectionId: m.sectionId, title: m.title, text: textFromParts(m.parts) })} disabled={busy} className={small}>
+                        Edit
+                      </button>
+                      <button onClick={() => duplicate(m)} disabled={busy} className={small}>
+                        Duplicate
+                      </button>
+                      <button onClick={() => write(`/api/messages/${m.id}`, "PATCH", { move: -1 })} disabled={busy || mi === 0} aria-label={`Move ${m.title} up`} className={square}>
+                        ↑
+                      </button>
+                      <button onClick={() => write(`/api/messages/${m.id}`, "PATCH", { move: 1 })} disabled={busy || mi === messages.length - 1} aria-label={`Move ${m.title} down`} className={square}>
+                        ↓
+                      </button>
+                      <button
+                        onClick={() => (confirming === `message:${m.id}` ? write(`/api/messages/${m.id}`, "DELETE") : setConfirming(`message:${m.id}`))}
+                        disabled={busy}
+                        className={small}
+                      >
+                        {confirming === `message:${m.id}` ? "Sure?" : "Delete"}
+                      </button>
+                    </span>
                   </div>
                 )}
               </li>
@@ -244,7 +250,7 @@ export default function MessagesPage() {
               {draft?.id === "new" && draft.sectionId === section.id ? (
                 editor(sections)
               ) : (
-                <button onClick={() => setDraft({ id: "new", sectionId: section.id, title: "", text: "" })} disabled={busy} className="text-sm text-[var(--muted)] underline hover:text-zinc-300">
+                <button onClick={() => setDraft({ id: "new", sectionId: section.id, title: "", text: "" })} disabled={busy} className={quiet}>
                   + Add a message to {section.name}
                 </button>
               )}
@@ -260,14 +266,14 @@ export default function MessagesPage() {
             onChange={(e) => setNewSection(e.target.value)}
             aria-label="New section name"
             placeholder="New section — e.g. Baby Dedication"
-            className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
           />
           <button
             onClick={async () => {
               if (newSection.trim() && (await write("/api/message-sections", "POST", { name: newSection }))) setNewSection("");
             }}
             disabled={busy || !newSection.trim()}
-            className="shrink-0 rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50"
+            className="shrink-0 rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11"
           >
             Add section
           </button>

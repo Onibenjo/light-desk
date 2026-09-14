@@ -118,35 +118,40 @@ export default function LogPage() {
           <h1 className="text-lg font-semibold">Lightdesk · log</h1>
           <p className="text-xs text-[var(--muted)]">Everything copied to chat, by day.</p>
         </div>
-        <Link href="/" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800">
+        <Link href="/" className="inline-flex items-center rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 pointer-coarse:min-h-11">
           ← Desk
         </Link>
       </header>
 
       {/* Day picker */}
       <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-4">
+        {/* Below sm the arrows and the label take a row of their own, so
+            "Wed 30 Sep 2026" never wraps; the date input, Today and All dates
+            drop to a second row. From sm up everything sits on one row. */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => {
-              setScope("day");
-              setDate((d) => shiftDay(d, -1));
-            }}
-            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm hover:bg-zinc-800"
-            aria-label="Previous day"
-          >
-            ←
-          </button>
-          <span className={`min-w-0 flex-1 text-center text-sm font-medium sm:min-w-[10.5rem] sm:flex-none ${scope === "all" ? "text-[var(--muted)] line-through" : ""}`}>{formatDayLabel(date)}</span>
-          <button
-            onClick={() => {
-              setScope("day");
-              setDate((d) => shiftDay(d, 1));
-            }}
-            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm hover:bg-zinc-800"
-            aria-label="Next day"
-          >
-            →
-          </button>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <button
+              onClick={() => {
+                setScope("day");
+                setDate((d) => shiftDay(d, -1));
+              }}
+              className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              aria-label="Previous day"
+            >
+              ←
+            </button>
+            <span className={`min-w-0 flex-1 whitespace-nowrap text-center text-sm font-medium sm:min-w-[10.5rem] sm:flex-none ${scope === "all" ? "text-[var(--muted)] line-through" : ""}`}>{formatDayLabel(date)}</span>
+            <button
+              onClick={() => {
+                setScope("day");
+                setDate((d) => shiftDay(d, 1));
+              }}
+              className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              aria-label="Next day"
+            >
+              →
+            </button>
+          </div>
           <input
             type="date"
             aria-label="Show entries for this day"
@@ -156,20 +161,20 @@ export default function LogPage() {
               setScope("day");
               setDate(e.target.value);
             }}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm [color-scheme:dark]"
+            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm [color-scheme:dark] pointer-coarse:min-h-11"
           />
           <button
             onClick={() => {
               setScope("day");
               setDate(today);
             }}
-            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800"
+            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 pointer-coarse:min-h-11"
           >
             Today
           </button>
           <button
             onClick={() => setScope(scope === "all" ? "day" : "all")}
-            className={`ml-auto rounded-md border px-2.5 py-1.5 text-sm ${scope === "all" ? "border-[var(--accent)] text-[var(--accent)]" : "border-zinc-700 text-zinc-400 hover:bg-zinc-800"}`}
+            className={`ml-auto rounded-md border px-2.5 py-1.5 text-sm pointer-coarse:min-h-11 ${scope === "all" ? "border-[var(--accent)] text-[var(--accent)]" : "border-zinc-700 text-zinc-400 hover:bg-zinc-800"}`}
           >
             All dates
           </button>
@@ -186,7 +191,7 @@ export default function LogPage() {
                   setDate(d.iso);
                 }}
                 title={`${formatDayLabel(d.iso)} · ${d.count} ${d.count === 1 ? "entry" : "entries"}`}
-                className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs ${
+                className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs pointer-coarse:min-h-11 ${
                   scope === "day" && d.iso === date
                     ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
                     : isSunday(d.iso)
@@ -210,10 +215,10 @@ export default function LogPage() {
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search the log"
             placeholder="Search a reference, a song title, or words in the text…"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="rounded-md border border-zinc-700 px-3 text-sm text-zinc-400 hover:bg-zinc-800">
+            <button onClick={() => setQuery("")} className="rounded-md border border-zinc-700 px-3 text-sm text-zinc-400 hover:bg-zinc-800 pointer-coarse:min-h-11">
               Clear
             </button>
           )}
@@ -223,7 +228,7 @@ export default function LogPage() {
             <button
               key={k}
               onClick={() => setKind(k)}
-              className={`rounded-full border px-3 py-1.5 text-xs capitalize ${kind === k ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]" : "border-zinc-800 text-zinc-400 hover:bg-zinc-800"}`}
+              className={`rounded-full border px-3 py-1.5 text-xs capitalize pointer-coarse:min-h-11 ${kind === k ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]" : "border-zinc-800 text-zinc-400 hover:bg-zinc-800"}`}
             >
               {k}
             </button>
@@ -248,12 +253,12 @@ export default function LogPage() {
               {scope === "day" ? `Nothing ${debounced ? "matching" : "logged"} on ${formatDayLabel(date)}.` : "No matches."}
             </p>
             {scope === "day" && debounced && (
-              <button onClick={() => setScope("all")} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800">
+              <button onClick={() => setScope("all")} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 pointer-coarse:min-h-11">
                 Search all dates instead
               </button>
             )}
             {scope === "day" && !debounced && countForDate === 0 && days.length > 0 && (
-              <button onClick={() => setDate(days[0].iso)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800">
+              <button onClick={() => setDate(days[0].iso)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 pointer-coarse:min-h-11">
                 Jump to {formatDayLabel(days[0].iso)}
               </button>
             )}
@@ -278,7 +283,7 @@ export default function LogPage() {
                 {row.body && (
                   <button
                     onClick={() => copyText(row.body!).then((ok) => flash(ok ? `Copied ${row.label}` : "Copy failed"))}
-                    className="shrink-0 rounded border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800"
+                    className="shrink-0 rounded border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                   >
                     Copy
                   </button>

@@ -42,6 +42,17 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
   const inputRef = useRef<HTMLInputElement>(null);
   const partRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  // The example-laden placeholder is 47 characters and clips mid-word below the
+  // `sm` breakpoint. Resolved after mount so the server and first client render agree.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const room = window.matchMedia("(min-width: 40rem)");
+    const update = () => setWide(room.matches);
+    update();
+    room.addEventListener("change", update);
+    return () => room.removeEventListener("change", update);
+  }, []);
+
   const byId = useMemo(() => messagesById(library), [library]);
   const hits = useMemo(() => (library && deferredQ.trim() ? searchMessages(library, deferredQ) : []), [library, deferredQ]);
   const groups = useMemo(() => (!library ? [] : deferredQ.trim() ? groupEntries(hits) : groupLibrary(library)), [library, deferredQ, hits]);
@@ -229,16 +240,16 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
           }
         }}
         aria-label="Search messages"
-        placeholder="Search messages — sound restored, sermon queen…"
+        placeholder={wide ? "Search messages — sound restored, sermon queen…" : "Search messages"}
         className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
       />
-      <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-        <span>{library && `${library.messages.length} messages`}</span>
-        <span className="flex shrink-0 gap-3">
-          <Link href="/setlists" className="-my-1 py-1 underline hover:text-zinc-300">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
+        <span className="whitespace-nowrap">{library && `${library.messages.length} messages`}</span>
+        <span className="flex flex-wrap items-center gap-x-3">
+          <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
             Setlists
           </Link>
-          <Link href="/messages" className="-my-1 py-1 underline hover:text-zinc-300">
+          <Link href="/messages" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
             Edit library
           </Link>
         </span>
@@ -246,7 +257,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
       {failed && (
         <p className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
           Couldn&rsquo;t load messages.
-          <button onClick={onRetry} className="shrink-0 rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10">
+          <button onClick={onRetry} className="shrink-0 rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
             Retry
           </button>
         </p>
