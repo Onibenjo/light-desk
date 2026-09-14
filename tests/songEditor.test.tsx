@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import SongEditor, { lyricsFromSections, DeniedHint } from "../src/app/SongEditor";
+import SongEditor, { lyricsFromSections, DeniedHint, readSong, songFromBody } from "../src/app/SongEditor";
 import type { SearchableSong } from "../src/lib/songSearch";
 
 const song: SearchableSong = { id: 7, guid: "g", title: "El Roi", author: "Prinx Emmanuel", sections: ["a\nb", "c\nd"] };
@@ -67,5 +67,29 @@ describe("the 403 PIN hint", () => {
     // Required alongside target="_blank": without it the new tab gets a
     // window.opener handle back to this one.
     expect(html).toContain('rel="noopener noreferrer"');
+  });
+});
+
+describe("reading a song out of a response", () => {
+  it("takes a song the API sent, Yoruba diacritics and apostrophes untouched", () => {
+    const sent = { id: 3, guid: "g3", title: "A F'ope f'Olorun", author: null, sections: ["Ọlọ́run ọba 🙌"], source: "manual" };
+    expect(songFromBody({ ok: true, song: sent })).toEqual(sent);
+  });
+
+  it("returns null for anything that is not a song, like a proxy's page parsed as text", () => {
+    expect(songFromBody(null)).toBeNull();
+    expect(songFromBody("<html>Bad gateway</html>")).toBeNull();
+    expect(songFromBody({ error: "locked" })).toBeNull();
+    expect(readSong({ title: "No sections" })).toBeNull();
+    expect(readSong({ title: "Bad sections", sections: ["ok", 4] })).toBeNull();
+    expect(readSong({ sections: ["no title"] })).toBeNull();
+  });
+
+  it("sets only the keys the response carried, so spreading it over the open song keeps the rest", () => {
+    const open: SearchableSong = { ...song, editedAt: "2026-09-01" };
+    const saved = readSong({ id: 7, title: "El Roi (edited)", author: null, sections: ["x"] });
+    expect(saved).not.toHaveProperty("editedAt");
+    // An author cleared in the editor comes back as null and must replace the old one.
+    expect({ ...open, ...saved }).toEqual({ ...open, title: "El Roi (edited)", author: null, sections: ["x"] });
   });
 });
