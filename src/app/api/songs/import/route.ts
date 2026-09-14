@@ -23,14 +23,16 @@ export const maxDuration = 60;
  */
 export async function POST(req: Request) {
   const role = await roleFromToken((await cookies()).get(SESSION_COOKIE)?.value);
-  if (role !== "admin") return NextResponse.json({ error: "Admin PIN required to import" }, { status: 403 });
+  if (role !== "admin") return NextResponse.json({ error: "Importing a songbook needs the admin PIN" }, { status: 403 });
   const bytes = new Uint8Array(await req.arrayBuffer());
   if (bytes.length > 20_000_000) return NextResponse.json({ error: "File too large" }, { status: 413 });
   let parsed;
   try {
     parsed = parseVideoPsalmSongbook(readSongbookFile(bytes));
   } catch (e) {
-    return NextResponse.json({ error: `Could not read this file as a VideoPsalm songbook: ${e instanceof Error ? e.message : e}` }, { status: 400 });
+    // The parser's own words help whoever debugs a bad export, not the admin choosing a file.
+    console.warn("songbook import: unreadable file", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "Couldn't read that as a VideoPsalm songbook — choose the .json or .vpc file VideoPsalm exported" }, { status: 400 });
   }
 
   await ensureSchema();

@@ -6,8 +6,8 @@ import { isAdmin } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
-const DENIED = "Admin PIN required to edit the message library";
-const MISSING = "No such section";
+const DENIED = "Editing the message library needs the admin PIN";
+const MISSING = "That section is gone — reload the page";
 
 /** Route params arrive as a promise in this version of Next. */
 async function sectionId(params: Promise<{ id: string }>): Promise<number | null> {
@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   await ensureSchema();
   const result = await updateSection(id, parsed);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
-  if (result === "duplicate") return NextResponse.json({ error: `There is already a section called "${parsed.name}"` }, { status: 409 });
+  if (result === "duplicate") return NextResponse.json({ error: `There's already a section called "${parsed.name}" — choose another name` }, { status: 409 });
   return NextResponse.json({ ok: true, section: result });
 }
 
@@ -44,6 +44,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   await ensureSchema();
   const result = await deleteSection(id);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
-  if (result === "not-empty") return NextResponse.json({ error: "Move or delete its messages first" }, { status: 409 });
+  if (result === "not-empty") return NextResponse.json({ error: "Move or delete this section's messages first" }, { status: 409 });
   return NextResponse.json({ ok: true });
 }

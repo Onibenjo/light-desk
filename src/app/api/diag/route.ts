@@ -51,7 +51,7 @@ export async function GET(req: Request) {
       return (data.data ?? []).map((b) => ({ id: b.id, abbreviation: b.abbreviation, title: b.title ?? b.local_title ?? "" }));
     });
     yvBibles = r.v ?? [];
-    checks.push({ name: "YouVersion: list bibles", ok: !r.e, detail: r.e ?? `${yvBibles.length} English bibles visible to this key`, ms: r.ms });
+    checks.push({ name: "YouVersion: list Bibles", ok: !r.e, detail: r.e ?? `${yvBibles.length} English Bibles this key can use`, ms: r.ms });
     for (const t of TRANSLATIONS) {
       if (!t.youversionId) continue;
       const hit = yvBibles.find((b) => b.id === t.youversionId);
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
             ? `id ${t.youversionId} not visible, but "${t.code}" exists as id ${sameAbbr.map((b) => b.id).join("/")} → set YOUVERSION_IDS=${t.code}=${sameAbbr[0].id}`
             : yvBibles.length
               ? "not available to this key (needs publisher approval in the YouVersion Platform dashboard)"
-              : "could not list bibles",
+              : "couldn't list Bibles",
       });
     }
   } else {
@@ -86,5 +86,5 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ env, checks, youversionBibles: yvBibles.map((b) => `${b.id} ${b.abbreviation} ${b.title}`), hint: deep ? undefined : "add ?deep=1 to run a live lookup for every translation" });
+  return NextResponse.json({ env, checks, youversionBibles: yvBibles.map((b) => `${b.id} ${b.abbreviation} ${b.title}`) });
 }

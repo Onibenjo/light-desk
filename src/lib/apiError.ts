@@ -16,26 +16,31 @@ export interface Failure {
   message: string;
 }
 
-const LOCKED = "This device is locked — enter the church PIN again";
+/*
+ * Every sentence below stands alone in a toast and also follows a lead-in
+ * ("Couldn't load the log.", "Not added."), so none of them opens with
+ * "Couldn't" or ends with a full stop: the caller adds the punctuation.
+ */
+const LOCKED = "This device is locked — enter the PIN again";
 
 /** fetch() threw: nothing reached the server, so there is no status to read. */
 export const OFFLINE: Failure = {
   kind: "offline",
-  message: "Could not reach Lightdesk — check the connection and try again",
+  message: "Can't reach Lightdesk — check the connection and try again",
 };
 
 function sentence(error: unknown): string | null {
   return typeof error === "string" && error.trim() ? error.trim() : null;
 }
 
-export function describeFailure(status: number, error?: string | null, fallback = "That did not work — try again"): Failure {
+export function describeFailure(status: number, error?: string | null, fallback = "That didn't work — try again"): Failure {
   const said = sentence(error);
   // The gate's 401 body is the single word "locked"; it is never worth showing.
   if (status === 401) return { kind: "locked", message: LOCKED };
-  if (status === 403) return { kind: "denied", message: said ?? "Admin PIN required for that" };
-  if (status === 429) return { kind: "limited", message: said ?? "Too many requests — wait a few seconds and try again" };
+  if (status === 403) return { kind: "denied", message: said ?? "That needs the admin PIN" };
+  if (status === 429) return { kind: "limited", message: said ?? "Too many attempts — wait a few seconds and try again" };
   if (status === 409) return { kind: "conflict", message: said ?? "Someone else changed this first — reload and try again" };
-  if (status >= 500) return { kind: "server", message: said ?? "Lightdesk had a problem on its side — try again" };
+  if (status >= 500) return { kind: "server", message: said ?? "Lightdesk hit a problem — try again" };
   if (status >= 400) return { kind: "refused", message: said ?? fallback };
   return { kind: "unknown", message: said ?? fallback };
 }

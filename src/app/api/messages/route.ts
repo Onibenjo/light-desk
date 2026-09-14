@@ -6,7 +6,7 @@ import { isAdmin } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
-const DENIED = "Admin PIN required to edit the message library";
+const DENIED = "Editing the message library needs the admin PIN";
 
 /** GET — the whole library. Church PIN: it is what the operator copies from. */
 export async function GET() {
@@ -22,6 +22,6 @@ export async function POST(req: Request) {
 
   await ensureSchema();
   const result = await createMessage(parsed);
-  if (result === "no-section") return NextResponse.json({ error: "No such section" }, { status: 400 });
+  if (result === "no-section") return NextResponse.json({ error: "That section is gone — reload the page" }, { status: 400 });
   return NextResponse.json({ ok: true, message: result });
 }

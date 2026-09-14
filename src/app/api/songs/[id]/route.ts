@@ -9,7 +9,7 @@ import { roleFromToken, SESSION_COOKIE } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-const DENIED = "Admin PIN required to edit songs";
+const DENIED = "Editing songs needs the admin PIN";
 
 async function admin(): Promise<boolean> {
   return (await roleFromToken((await cookies()).get(SESSION_COOKIE)?.value)) === "admin";
@@ -28,11 +28,11 @@ async function songId(params: Promise<{ id: string }>): Promise<number | null> {
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const id = await songId(params);
-  if (id === null) return NextResponse.json({ error: "No such song" }, { status: 404 });
+  if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
   await ensureSchema();
   const [song] = await loadSongs(eq(songs.id, id), 1);
-  if (!song) return NextResponse.json({ error: "No such song" }, { status: 404 });
+  if (!song) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
   return NextResponse.json({ song });
 }
 
@@ -44,7 +44,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await admin())) return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await songId(params);
-  if (id === null) return NextResponse.json({ error: "No such song" }, { status: 404 });
+  if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
   const parsed = parseSongEdit(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
@@ -56,7 +56,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .set({ title: parsed.title, author: parsed.author, sections: JSON.stringify(parsed.sections), updatedAt: now, editedAt: now })
     .where(eq(songs.id, id))
     .returning({ id: songs.id, guid: songs.guid, source: songs.source });
-  if (!row) return NextResponse.json({ error: "No such song" }, { status: 404 });
+  if (!row) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
   return NextResponse.json({ ok: true, song: { ...row, title: parsed.title, author: parsed.author, sections: parsed.sections } });
 }
@@ -65,10 +65,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await admin())) return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await songId(params);
-  if (id === null) return NextResponse.json({ error: "No such song" }, { status: 404 });
+  if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
   await ensureSchema();
   const [row] = await db.delete(songs).where(eq(songs.id, id)).returning({ id: songs.id });
-  if (!row) return NextResponse.json({ error: "No such song" }, { status: 404 });
+  if (!row) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
