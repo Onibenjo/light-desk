@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { matchesChord, formatChord, filterActions, isTypingTarget, type Action, type Chord } from "@/lib/shortcuts";
+import { matchesChord, formatChord, filterActions, opensGuide, type Action, type Chord } from "@/lib/shortcuts";
 
 export type ShortcutGuide = { group: string; items: { keys: string; label: string }[] };
 
@@ -26,15 +26,19 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
     setIsMac(/Mac|iPhone|iPad/.test(navigator.platform) || /Mac/.test(navigator.userAgent));
   }, []);
 
-  const results = useMemo(() => filterActions(actions, query), [actions, query]);
   const chord = useCallback((c: Chord) => formatChord(c, isMac), [isMac]);
 
-  const open = useCallback((v: View) => {
-    restoreTo.current = document.activeElement as HTMLElement | null;
-    setQuery("");
-    setActive(0);
-    setView(v);
-  }, []);
+  const open = useCallback(
+    (v: View) => {
+      // Going from the palette to the guide keeps the original spot: the
+      // palette's own input is about to unmount.
+      if (!view) restoreTo.current = document.activeElement as HTMLElement | null;
+      setQuery("");
+      setActive(0);
+      setView(v);
+    },
+    [view],
+  );
 
   const close = useCallback(() => {
     setView(null);
@@ -42,7 +46,19 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
     restoreTo.current?.focus?.();
   }, []);
 
-  // Global openers. Bare "?" is ignored while typing so it can still be typed.
+  // The palette offers the guide itself, for anyone who searches rather than presses "?".
+  // Running it closes the palette first, which already put focus back, so only the view changes.
+  const results = useMemo(() => {
+    const showGuideView = () => {
+      setQuery("");
+      setActive(0);
+      setView("guide");
+    };
+    const showGuide: Action = { id: "shortcuts", title: "Keyboard shortcuts", group: "Help", keywords: ["help", "?", "keys"], chord: OPEN_GUIDE, run: showGuideView };
+    return filterActions([...actions, showGuide], query);
+  }, [actions, query]);
+
+  // Global openers. "?" types as usual in a text field that already has text in it.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (matchesChord(e, OPEN_PALETTE)) {
@@ -51,7 +67,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
         else open("palette");
         return;
       }
-      if (matchesChord(e, OPEN_GUIDE) && !isTypingTarget(e.target as HTMLElement)) {
+      if (opensGuide(e, e.target instanceof HTMLElement ? e.target : null)) {
         e.preventDefault();
         open("guide");
       }
@@ -125,7 +141,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               aria-expanded="true"
               aria-controls={listId}
               aria-activedescendant={results[active] ? `${listId}-${results[active].id}` : undefined}
-              aria-label="Search commands"
+              aria-label="Search commands and messages"
               autoComplete="off"
               value={query}
               onChange={(e) => {
@@ -133,7 +149,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
                 setActive(0);
               }}
               onKeyDown={onPaletteKey}
-              placeholder="Type a command…"
+              placeholder="Search commands and messages…"
               className="w-full border-b border-zinc-800 bg-transparent px-4 py-3 text-base outline-none placeholder:text-[var(--muted)]"
             />
             <ul id={listId} role="listbox" aria-label="Commands" className="max-h-[45dvh] overflow-y-auto py-1">
@@ -157,10 +173,10 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
                   {a.chord && <span className="kbd shrink-0">{chord(a.chord)}</span>}
                 </li>
               ))}
-              {results.length === 0 && <li className="px-4 py-6 text-center text-sm text-[var(--muted)]">No matching command.</li>}
+              {results.length === 0 && <li className="px-4 py-6 text-center text-sm text-[var(--muted)]">Nothing matches.</li>}
             </ul>
             <p role="status" aria-live="polite" className="border-t border-zinc-800 px-4 py-2 text-xs text-[var(--muted)]">
-              {results.length} {results.length === 1 ? "command" : "commands"} · <span className="kbd">↑</span> <span className="kbd">↓</span> move ·{" "}
+              {results.length} {results.length === 1 ? "result" : "results"} · <span className="kbd">↑</span> <span className="kbd">↓</span> move ·{" "}
               <span className="kbd">↵</span> run · <span className="kbd">?</span> all shortcuts
             </p>
           </>

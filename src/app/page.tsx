@@ -44,16 +44,16 @@ const SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "youversion", label: "YouVersion" },
   { value: "apibible", label: "API.Bible" },
   { value: "gateway", label: "BibleGateway" },
-  { value: "llm", label: "AI (unverified)" },
+  { value: "llm", label: "AI-quoted" },
 ];
 
 const SOURCE_LABEL: Record<Passage["source"], string> = {
   local: "bundled KJV",
-  cache: "cached",
+  cache: "saved copy",
   youversion: "YouVersion",
   apibible: "API.Bible",
   gateway: "BibleGateway fallback",
-  llm: "AI-quoted - VERIFY before sending",
+  llm: "AI-quoted, may be wrong — read it before you copy",
 };
 
 function refToQuery(r: Ref): string {
@@ -118,7 +118,19 @@ function isPassageResult(data: unknown): data is PassageResult {
 /** A 200 whose body could not be read, such as a wifi login page answering in the server's place. */
 const UNREADABLE: Failure = describeFailure(500);
 
-const TOO_LONG: Failure = { kind: "refused", message: "That is too long to look up — shorten it and try again" };
+const TOO_LONG: Failure = { kind: "refused", message: "That's too long to look up — shorten it and try again" };
+
+/** The glossary's one line for a refused clipboard. */
+const COPY_FAILED = "Couldn't copy — try again";
+
+/** How many suggestions came back, and how to pick one on this device. Only keys that exist are named. */
+function candidatesToast(count: number, keyboard: boolean): string {
+  const what = `${count} possible ${count === 1 ? "verse" : "verses"}`;
+  if (!keyboard) return `${what} — choose ${count === 1 ? "it" : "one"} to copy`;
+  const keys = Array.from({ length: count }, (_, i) => String(i + 1));
+  const said = keys.length === 1 ? keys[0] : `${keys.slice(0, -1).join(", ")} or ${keys.at(-1)}`;
+  return `${what} — press ${said}`;
+}
 
 export default function Desk() {
   const router = useRouter();
@@ -332,12 +344,12 @@ export default function Desk() {
           // handed to failureFrom.
           const body: unknown = await res.json().catch(() => null);
           if (isRecord(body) && body.kind === "description") return await describe(q);
-          return fail(describeFailure(400, isRecord(body) && typeof body.error === "string" ? body.error : null, "Lookup failed — try again"));
+          return fail(describeFailure(400, isRecord(body) && typeof body.error === "string" ? body.error : null, "Couldn't look that up — try again"));
         }
         // The reference travels in the URL, and the web server refuses a URL
         // past its size limit before the route sees it; trying again won't help.
         if (res.status === 414 || res.status === 431) return fail(TOO_LONG);
-        if (!res.ok) return fail(await failureFrom(res, "Lookup failed — try again"));
+        if (!res.ok) return fail(await failureFrom(res, "Couldn't look that up — try again"));
         const r: unknown = await res.json().catch(() => null);
         if (!isPassageResult(r)) return fail(UNREADABLE);
         setLocked(false);
@@ -346,8 +358,8 @@ export default function Desk() {
         const tag = `${r.passage.reference} (${r.passage.translationCode})`;
         if (r.passage.source === "llm") {
           // Every real source failed; this text came from the AI's memory.
-          // Show it, but make a human read it and click Copy deliberately.
-          showToast("Every Bible source failed - this text is AI-quoted from memory. READ IT, then click Copy.", "err");
+          // Show it, but make a human read it and press Copy deliberately.
+          showToast("AI-quoted, may be wrong — read it, then choose Copy", "err");
           logSend("verse", tag, r.chunks[0], { source: "llm", ms: r.ms, copied: "manual" });
           if (opts?.select !== false) setInput("");
           return;
@@ -355,12 +367,12 @@ export default function Desk() {
         const ok = await copyText(r.chunks[0]);
         if (ok) {
           showToast(
-            r.chunks.length > 1 ? `Copied part 1 of ${r.chunks.length} — ${tag}. Paste in Mixlr, then copy part 2.` : `Copied ${tag} — paste in Mixlr`,
+            r.chunks.length > 1 ? `Copied ${tag} part 1 of ${r.chunks.length} — paste in Mixlr, then copy part 2` : `Copied ${tag} — paste in Mixlr`,
             r.passage.source === "gateway" ? "warn" : "ok",
           );
           logSend("verse", tag, r.chunks[0], { source: r.passage.source, ms: r.ms });
         } else {
-          showToast("Couldn't reach the clipboard — use the Copy button", "err");
+          showToast(COPY_FAILED, "err");
         }
         if (opts?.select !== false) setInput("");
       } finally {
@@ -384,7 +396,7 @@ export default function Desk() {
         } catch {
           return fail(OFFLINE);
         }
-        if (!res.ok) return fail(await failureFrom(res, "Search failed — try other words"));
+        if (!res.ok) return fail(await failureFrom(res, "Couldn't search for that — try again"));
         const data: unknown = await res.json().catch(() => null);
         if (!isRecord(data) || !Array.isArray(data.candidates)) return fail(UNREADABLE);
         setLocked(false);
@@ -394,8 +406,11 @@ export default function Desk() {
           return;
         }
         setCandidates(list);
+        // The number keys pick a candidate only from an empty box, so the phrase
+        // has to go or "press 1" types a 1. The log keeps what was searched.
+        setInput("");
         logSend("search", phrase, "", { candidates: list.map((c) => c.label), ms: data.ms });
-        showToast(`${list.length} possible verse${list.length > 1 ? "s" : ""} — press 1, 2 or 3`, "ok");
+        showToast(candidatesToast(list.length, hasFinePointer()), "ok");
       } finally {
         setBusy(null);
         refocus();
@@ -404,7 +419,7 @@ export default function Desk() {
     [showToast, fail, logSend, refocus],
   );
 
-  /** Set the translation, and re-send whatever verse is already on screen in it. */
+  /** Set the translation, and copy whatever verse is already on screen again in it. */
   const switchTranslation = useCallback(
     (code: string) => {
       setTranslation(code);
@@ -488,14 +503,18 @@ export default function Desk() {
     if (!result) return;
     const ok = await copyText(result.chunks[i]);
     setCopiedChunk(i);
-    showToast(ok ? `Copied part ${i + 1} of ${result.chunks.length}` : "Clipboard blocked", ok ? "ok" : "err");
+    const n = result.chunks.length;
+    const tag = `${result.passage.reference} (${result.passage.translationCode})`;
+    const copied = n === 1 ? `Copied ${tag} — paste in Mixlr` : `Copied ${tag} part ${i + 1} of ${n}${i + 1 < n ? ` — paste in Mixlr, then copy part ${i + 2}` : " — paste in Mixlr"}`;
+    showToast(ok ? copied : COPY_FAILED, ok ? "ok" : "err");
     refocus();
   }
 
   async function copyWhole() {
     if (!result) return;
     const ok = await copyText(result.text);
-    showToast(ok ? `Copied the whole passage (${result.text.length} chars)` : "Clipboard blocked", ok ? "ok" : "err");
+    const chars = result.text.length;
+    showToast(ok ? `Copied the whole passage (${chars.toLocaleString("en")} ${chars === 1 ? "character" : "characters"})` : COPY_FAILED, ok ? "ok" : "err");
     logSend("verse", `${result.passage.reference} (${result.passage.translationCode}) whole`, result.text);
     refocus();
   }
@@ -526,23 +545,26 @@ export default function Desk() {
   const actions: Action[] = (() => {
     const list: Action[] = [];
     if (result) {
-      list.push({ id: "next-verse", title: "Next verse", group: "Verse", keywords: ["following"], chord: { key: "+" }, run: nextVerse });
-      list.push({ id: "copy-again", title: `Copy “${result.passage.reference}” again`, group: "Verse", keywords: ["clipboard"], run: () => copyChunk(copiedChunk) });
-      list.push({ id: "copy-whole", title: "Copy the whole passage", group: "Verse", keywords: ["clipboard", "all"], run: copyWhole });
-      list.push({ id: "chapter", title: "Open the whole chapter", group: "Verse", keywords: ["context"], run: openChapter });
+      // Grouped under the reference, so each title reads once after it and still stands alone in the guide.
+      const ref = result.passage.reference;
+      list.push({ id: "next-verse", title: "Copy the next verse", group: ref, keywords: ["next verse", "following"], chord: { key: "+" }, run: nextVerse });
+      list.push({ id: "copy-again", title: "Copy again", group: ref, keywords: [`copy ${ref} again`, "clipboard"], run: () => copyChunk(copiedChunk) });
+      list.push({ id: "copy-whole", title: "Copy the whole passage", group: ref, keywords: ["clipboard", "all"], run: copyWhole });
+      list.push({ id: "chapter", title: "Open the chapter", group: ref, keywords: ["open the whole chapter", "context"], run: openChapter });
     }
-    list.push({ id: "tab-verses", title: "Go to Verses", group: "Go to", keywords: ["bible", "scripture"], run: () => { setTab("verses"); refocus(); } });
-    list.push({ id: "tab-songs", title: "Go to Songs", group: "Go to", keywords: ["lyrics", "songbook", "worship"], run: () => setTab("songs") });
-    list.push({ id: "tab-messages", title: "Go to Messages", group: "Go to", keywords: ["apology", "greeting", "prayer", "announcement"], run: () => setTab("messages") });
-    list.push({ id: "messages-edit", title: "Edit message library", group: "Go to", keywords: ["engagement", "document"], run: () => router.push("/messages") });
-    list.push({ id: "log", title: "Open the log", group: "Go to", keywords: ["history", "sunday", "sent"], run: () => router.push("/log") });
-    list.push({ id: "sources", title: "Check verse sources", group: "Go to", keywords: ["diagnostics", "health"], run: () => router.push("/diag") });
+    // The palette prints the group before the title, so "Go to" is said once, there.
+    list.push({ id: "tab-verses", title: "Verses", group: "Go to", keywords: ["go to verses", "bible", "scripture"], run: () => { setTab("verses"); refocus(); } });
+    list.push({ id: "tab-songs", title: "Songs", group: "Go to", keywords: ["go to songs", "lyrics", "songbook", "worship"], run: () => setTab("songs") });
+    list.push({ id: "tab-messages", title: "Messages", group: "Go to", keywords: ["go to messages", "apology", "greeting", "prayer", "announcement"], run: () => setTab("messages") });
+    list.push({ id: "messages-edit", title: "Message library", group: "Go to", keywords: ["edit message library", "engagement", "document"], run: () => router.push("/messages") });
+    list.push({ id: "log", title: "Log", group: "Go to", keywords: ["open the log", "history", "sunday", "sent", "copied"], run: () => router.push("/log") });
+    list.push({ id: "sources", title: "Verse sources", group: "Go to", keywords: ["check verse sources", "diagnostics", "health"], run: () => router.push("/diag") });
     list.push({ id: "import", title: "Import a songbook", group: "Go to", keywords: ["videopsalm", "upload"], run: () => router.push("/songs/import") });
     for (const t of TRANSLATIONS) {
-      list.push({ id: `t-${t.code}`, title: `Translation: ${t.code}`, group: "Switch", keywords: [t.name, "version"], run: () => switchTranslation(t.code) });
+      list.push({ id: `t-${t.code}`, title: t.code, group: "Translation", keywords: [`translation: ${t.code}`, t.name, "switch", "version"], run: () => switchTranslation(t.code) });
     }
     for (const o of SOURCE_OPTIONS) {
-      list.push({ id: `s-${o.value}`, title: `Source: ${o.label}`, group: "Switch", keywords: ["provider", "fetch"], run: () => { setSourceChoice(o.value); refocus(); } });
+      list.push({ id: `s-${o.value}`, title: o.label, group: "Source", keywords: [`source: ${o.label}`, "switch", "provider", "fetch"], run: () => { setSourceChoice(o.value); refocus(); } });
     }
     list.push(...messageActions(library, onPaletteMessage));
     return list;
@@ -552,30 +574,30 @@ export default function Desk() {
     {
       group: "Looking up a verse",
       items: [
-        { keys: "↵", label: "Copy the verse to the clipboard" },
-        { keys: "+", label: "Next verse" },
-        { keys: "1 2 3", label: "Pick a suggestion" },
-        { keys: "Esc", label: "Clear the box and close panels" },
+        { keys: "↵", label: "Copy the verse" },
+        { keys: "+", label: "Copy the next verse" },
+        { keys: "1 2 3", label: "Copy a possible verse" },
+        { keys: "Esc", label: "Clear the box and close the lists" },
       ],
     },
     {
-      group: "Sending a song",
+      group: "Copying a song",
       items: [
-        { keys: "↑ ↓", label: "Pick a song in the search results" },
-        { keys: "↵", label: "Open the song · then send a section and move on" },
-        { keys: "1–9", label: "Jump straight to that section and send it" },
+        { keys: "↑ ↓", label: "Pick a song in the results" },
+        { keys: "↵", label: "Open the song, then copy each section in turn" },
+        { keys: "1–9", label: "Copy that section" },
         { keys: "P", label: "Pin the section you're on (the chorus)" },
-        { keys: "C", label: "Re-send the pinned section" },
+        { keys: "C", label: "Copy the pinned section again" },
         { keys: "Esc", label: "Back to the song list" },
       ],
     },
     {
-      group: "Sending a message",
+      group: "Copying a message",
       items: [
-        { keys: "⌘K", label: "Find any message from any tab — Enter copies it" },
-        { keys: "↑ ↓", label: "Pick a message in the search results" },
-        { keys: "↵", label: "Copy it · a long one opens to send part by part" },
-        { keys: "1–9", label: "Send that part" },
+        { keys: "⌘K", label: "Find a message from any tab" },
+        { keys: "↑ ↓", label: "Pick a message in the results" },
+        { keys: "↵", label: "Copy it, or open a long one to copy part by part" },
+        { keys: "1–9", label: "Copy that part" },
         { keys: "Esc", label: "Back to the library" },
       ],
     },
@@ -635,7 +657,7 @@ export default function Desk() {
                 setSourceChoice(e.target.value);
                 refocus();
               }}
-              title="Auto tries YouVersion, then API.Bible, then BibleGateway, then AI. Pick one to force it."
+              title="Auto tries saved verses, YouVersion, API.Bible, BibleGateway, then AI-quoted text. Choose one to use only that source."
               className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11 ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
             >
               {SOURCE_OPTIONS.map((o) => (
@@ -660,7 +682,7 @@ export default function Desk() {
         <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
           This device is locked, so nothing can be looked up or logged.{" "}
           <Link href={unlockHref("/")} className="font-medium underline underline-offset-2 hover:text-amber-200">
-            Enter the church PIN
+            Enter the PIN
           </Link>
         </p>
       )}
@@ -716,7 +738,7 @@ export default function Desk() {
       </div>
       {showBusy && busy && (
         <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
-          Looking up “{busy}”…
+          {busy === "chapter" ? "Loading the chapter…" : `Looking up “${busy}”…`}
         </p>
       )}
 
@@ -794,20 +816,19 @@ export default function Desk() {
             the first screen — but "describe it" and the translation suffix are
             features, not shortcuts, so those survive the swap. */}
         <p className="text-xs text-[var(--muted)] pointer-fine:hidden">
-          Describe a verse instead (<span className="font-mono">walk on snakes</span>) · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · type just{" "}
-          <span className="font-mono">tpt</span> to re-send in another
+          Describe it (<span className="whitespace-nowrap font-mono">walk on snakes</span>) · add a translation (<span className="whitespace-nowrap font-mono">john 3 16 amp</span>) · type only{" "}
+          <span className="font-mono">tpt</span> for the same verse in TPT
         </p>
         <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-          <span className="kbd">Enter</span> copies to clipboard · add a translation at the end (<span className="font-mono">john 3 16 amp</span>) · type just <span className="font-mono">tpt</span> to re-send in another · <span className="kbd">+</span> next verse ·{" "}
-          <span className="kbd">Esc</span> clear ·{" "}
-          <span className="kbd">?</span> all shortcuts
+          <span className="kbd">Enter</span> copies · add a translation (<span className="whitespace-nowrap font-mono">john 3 16 amp</span>) · type only <span className="font-mono">tpt</span> for the same verse in TPT ·{" "}
+          <span className="kbd">+</span> next verse · <span className="kbd">Esc</span> clear · <span className="kbd">?</span> all shortcuts
         </p>
       </form>
 
 
       {candidates && (
         <section className="space-y-2">
-          <h2 className="text-xs uppercase tracking-wide text-[var(--muted)]">Did they mean…</h2>
+          <h2 className="text-xs uppercase tracking-wide text-[var(--muted)]">Possible verses</h2>
           {candidates.map((c, i) => (
             <button
               // By position: the model can suggest the same label twice, and
@@ -836,22 +857,23 @@ export default function Desk() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => copyChunk(0)} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black pointer-coarse:min-h-11">
-                Copy again
+                {/* An AI-quoted verse was never copied, so there is nothing to copy "again"; the warning names this button. */}
+                {result.passage.source === "llm" ? "Copy" : "Copy again"}
               </button>
               <button onClick={nextVerse} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
-                + Next verse
+                Next verse
               </button>
               <button onClick={copyWhole} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
-                Whole passage
+                Copy whole passage
               </button>
               <button onClick={openChapter} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
-                Chapter
+                Open chapter
               </button>
             </div>
           </div>
 
-          {/* "Let's see it in TPT" — one click re-sends this same reference. */}
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Show ${result.passage.reference} in another translation`}>
+          {/* "Let's see it in TPT" — one press copies this same reference in it. */}
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Copy ${result.passage.reference} in another translation`}>
             {TRANSLATIONS.map((t) => {
               const current = t.code === result.passage.translationCode;
               return (
@@ -872,7 +894,7 @@ export default function Desk() {
           </div>
           {result.passage.attempts && result.passage.attempts.length > 0 && (result.passage.source === "llm" || result.passage.source === "gateway") && (
             <p className="text-xs text-[var(--muted)]">
-              Skipped: {result.passage.attempts.join(" · ")}
+              Failed first: {result.passage.attempts.join(" · ")}
             </p>
           )}
           {result.chunks.length > 1 && (
@@ -902,7 +924,7 @@ export default function Desk() {
               Close
             </button>
           </div>
-          <p className="text-xs text-[var(--muted)]">Click a verse to copy it on its own.</p>
+          <p className="text-xs text-[var(--muted)]">Choose a verse to copy just that one.</p>
           <div className="max-h-[50dvh] space-y-1 overflow-y-auto pr-1">
             {chapter.verses.map((v) => (
               <button
@@ -920,7 +942,7 @@ export default function Desk() {
 
       </div>
 
-      <footer className="mt-auto pt-6 text-center text-xs text-[var(--muted)]">Lightdesk · verses come from licensed sources, never from the AI</footer>
+      <footer className="mt-auto pt-6 text-center text-xs text-[var(--muted)]">Verse text comes from Bible sources. AI-quoted text is marked in red and never copied for you.</footer>
     </main>
   );
 }

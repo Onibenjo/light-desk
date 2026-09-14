@@ -59,3 +59,21 @@ export function isTypingTarget(el: { tagName?: string; isContentEditable?: boole
   if (el.isContentEditable) return true;
   return ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName ?? "");
 }
+
+type Target = { tagName?: string; isContentEditable?: boolean; value?: string; textContent?: string | null };
+
+/**
+ * True when a key press should open the shortcut guide rather than type.
+ *
+ * The desk keeps the cursor in the reference box, so "?" has to work from a
+ * text field or the hint beneath the box is a lie. It does, but only while the
+ * field is empty: no reference or search starts with "?", and once there is
+ * text in the box the key types as usual. A select is left alone.
+ */
+export function opensGuide(e: KeyPress, target: Target | null | undefined): boolean {
+  if (!matchesChord(e, { key: "?" })) return false;
+  if (!isTypingTarget(target)) return true;
+  if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return !target.value;
+  if (target?.isContentEditable) return !target.textContent;
+  return false;
+}
