@@ -45,8 +45,9 @@ export const MAX_ITEMS = 50;
 export const MAX_NAME = 80;
 const MAX_TITLE = 200;
 
-const NAME_ERROR = `A setlist needs a name of 1 to ${MAX_NAME} characters`;
-const ITEM_ERROR = "Every song or message in a setlist needs an id and a title";
+const NAME_ERROR = `Give the setlist a name of ${MAX_NAME} characters or fewer`;
+const ITEM_ERROR = "A song or message in this setlist couldn't be read — reload the page and add it again";
+const NOTHING = "Nothing to save — change something first";
 
 /** One line, trimmed. Null when there is nothing usable there. */
 function cleanName(value: unknown): string | null {
@@ -78,10 +79,10 @@ function cleanItems(value: unknown): SetlistItem[] | string {
       continue;
     }
     const edited = cleanParts(parts);
-    if (typeof edited === "string") return `Edited text: ${edited}`;
+    if (typeof edited === "string") return `Text edited for this service: ${edited}`;
     items.push({ kind, id, title: label, parts: edited });
   }
-  return items.length > MAX_ITEMS ? `A setlist holds at most ${MAX_ITEMS} items` : items;
+  return items.length > MAX_ITEMS ? `A setlist can have at most ${MAX_ITEMS} songs and messages — remove one to add another` : items;
 }
 
 export function parseSetlistCreate(body: unknown): SetlistCreate | string {
@@ -91,7 +92,7 @@ export function parseSetlistCreate(body: unknown): SetlistCreate | string {
 }
 
 export function parseSetlistPatch(body: unknown): SetlistPatch | string {
-  if (typeof body !== "object" || body === null) return "Nothing to change";
+  if (typeof body !== "object" || body === null) return NOTHING;
   const patch: SetlistPatch = {};
 
   if ("name" in body && body.name !== undefined) {
@@ -107,17 +108,17 @@ export function parseSetlistPatch(body: unknown): SetlistPatch | string {
     // started from, two people preparing at once lose each other's additions
     // with nothing to show for it.
     const updatedAt = "updatedAt" in body ? body.updatedAt : undefined;
-    if (typeof updatedAt !== "string" || !updatedAt) return "Changing the songs needs the setlist you last read";
+    if (typeof updatedAt !== "string" || !updatedAt) return "Couldn't tell which version of the setlist you last read — reload the page and try again";
     patch.items = items;
     patch.updatedAt = updatedAt;
   }
 
   if ("active" in body && body.active !== undefined) {
-    if (typeof body.active !== "boolean") return "Active is true or false";
+    if (typeof body.active !== "boolean") return "Active must be true or false";
     patch.active = body.active;
   }
 
-  return Object.keys(patch).length ? patch : "Nothing to change";
+  return Object.keys(patch).length ? patch : NOTHING;
 }
 
 /**
@@ -143,7 +144,7 @@ export function addedMessageIds(before: SetlistItem[], after: SetlistItem[]): nu
 export function refusedMessage(ids: number[], facts: Map<number, { inService: boolean; sectionName: string }>): string | null {
   for (const id of ids) {
     const fact = facts.get(id);
-    if (!fact) return "That message is no longer in the library";
+    if (!fact) return "That message is no longer in the library — reload the page";
     if (!fact.inService) return `${fact.sectionName} can't go in a setlist`;
   }
   return null;

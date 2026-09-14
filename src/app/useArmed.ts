@@ -27,14 +27,14 @@ export function pressOutcome<K>(armed: Armed<K> | null, key: K, what: string, no
   return { kind: "confirm" };
 }
 
-/** The sentence a screen reader hears when a Delete arms. */
+/** The sentence a screen reader hears when a Delete arms. It names the button's armed label, "Confirm delete". */
 export function armedAnnouncement(what: string): string {
-  return `Press again to delete ${what}`;
+  return `Choose Confirm delete to delete ${what}`;
 }
 
 /**
  * Two-press Delete for a list of rows. The first press arms one row's button
- * ("Sure?") and announces what a second press will delete; it disarms by
+ * ("Confirm delete") and announces what a second press will delete; it disarms by
  * itself after ARMED_MS, or as soon as focus leaves that button. The page
  * renders `announcement` in a live region with id `regionId` that stays
  * mounted, so the arming is heard.

@@ -32,6 +32,6 @@ describe("pressOutcome", () => {
 
 describe("armedAnnouncement", () => {
   it("names what a second press deletes, kept verbatim", () => {
-    expect(armedAnnouncement("the message Pastor’s welcome 🙏 é")).toBe("Press again to delete the message Pastor’s welcome 🙏 é");
+    expect(armedAnnouncement("the message Pastor’s welcome 🙏 é")).toBe("Choose Confirm delete to delete the message Pastor’s welcome 🙏 é");
   });
 });
