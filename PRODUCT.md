@@ -18,7 +18,7 @@ No pastor or non-technical lead uses the desk directly (confirmed 2026-09-14).
 
 ## Product Purpose
 
-Lightdesk replaces a Google Doc, a Bible website and a lot of alt-tabbing with one text box. Type a reference the way you would say it, press Enter, and the verse is on the clipboard formatted exactly as the CLC chat already posts it. Songs, greetings, prayers and apologies are one tap away in the same window. Success is a chat where the verse appears seconds after the pastor says it, every song section lands in order, and nothing is ever posted with the wrong wording.
+Lightdesk replaces a Google Doc, a Bible website and a lot of alt-tabbing with one text box. Type a reference the way you would say it, press Enter, and the verse is on the clipboard formatted exactly as the CLC chat already posts it. Songs, greetings, prayers and apologies are one press away in the same window. Success is a chat where the verse appears seconds after the pastor says it, every song section lands in order, and nothing is ever posted with the wrong wording.
 
 It exists because the previous workflow (find the verse on BibleGateway, copy, reformat, paste; scroll a long engagement document for the right greeting) was too slow for a live service and easy to get wrong.
 
@@ -26,13 +26,13 @@ It exists because the previous workflow (find the verse on BibleGateway, copy, r
 
 A single-church tool, not a product for the market: it is built around CLC's exact chat format, CLC's engagement document, CLC's songbook (2,222 songs imported from VideoPsalm) and the Mixlr paste loop. What a generic Bible app could not truthfully copy:
 
-- Verse text comes only from licensed or public-domain sources, never from an AI. The AI is used only to turn a description ("walk on snakes and not be bitten") into a reference, and an AI-quoted verse is the last-last resort, shown with a red warning and never auto-copied.
+- Verse text comes from Bible sources: bundled public-domain KJV, a cache, YouVersion, API.Bible, and a BibleGateway fallback. The AI's job is to turn a description ("walk on snakes and not be bitten") into a reference. Only when every source fails does it quote a verse from memory, and that text is shown with a red warning and never copied automatically.
 - The output format is the church's own: reference on line 1, full translation name on line 2, then one numbered verse per line, split into parts at the Mixlr message limit.
 - The message library is the engagement document, section by section, with the church's own voice intact.
 
 ## Operating Context
 
-- **Live service**: Wednesday evenings and Sunday mornings. The operator hears a reference, types it, pastes into Mixlr, and is already listening for the next one. Every send is logged with a timestamp for handover and re-sends.
+- **Live service**: Wednesday evenings and Sunday mornings. The operator hears a reference, types it, pastes into Mixlr, and is already listening for the next one. Everything copied is logged with a timestamp, for handover and for copying again.
 - **Prepared order**: the active setlist sits at the top of the Songs and Messages tabs so the operator taps instead of searching. A setlist can carry its own text for one service (the date in a next-service line) without changing the library.
 - **Tools beside it**: Mixlr (the chat), VideoPsalm (the songbook source, exported as `.json` or `.vpc`), the church's engagement document (now the message library).
 - **Network**: the venue wifi is unreliable. The whole songbook is loaded once and searched locally; verses are cached so nothing is fetched twice; the database is warmed when the desk opens.
@@ -43,15 +43,15 @@ A single-church tool, not a product for the market: it is built around CLC's exa
 ## Capabilities and Constraints
 
 - Sloppy reference parsing, local and instant (`rom 8 28`, `1cor13v4`, `jude 24`, `john 3 16 amp`); anything else goes to the description search.
-- Thirteen translations (NKJV default; KJV bundled offline). One click re-sends the verse on screen in another translation; typing just `tpt` does the same.
+- Thirteen translations (NKJV default; KJV bundled offline). One press copies the verse on screen again in another translation; typing just `tpt` does the same.
 - Verse sources in order: bundled KJV, cache, YouVersion, API.Bible, BibleGateway scrape (against its terms; amber-labelled; to be removed before the repo is ever public), AI-quoted from memory (red warning, manual copy only, can be disabled).
 - Passages longer than the Mixlr limit (`MAX_MESSAGE_CHARS`, default 1000, not yet calibrated) split into parts with the header repeated; `+` copies the next verse; the whole chapter can be opened and any verse clicked.
-- Songs: whole-book local search with fuzzy matching and the matched line shown; sections sent one per message; a pinned section (the chorus) re-sent with one key; quick-add from pasted lyrics; edit and tidy; import from VideoPsalm with a preview before anything is written and songs edited here left alone.
-- Messages: the library by section; one-post messages copy on tap, long ones (the Confession) send part by part like a song; searchable from any tab through the command palette.
+- Songs: whole-book local search with fuzzy matching and the matched line shown; each section copied as one Mixlr post; a pinned section (the chorus) copied again with one key; quick-add from pasted lyrics; edit and tidy; import from VideoPsalm with a preview before anything is written and songs edited here left alone.
+- Messages: the library by section; one-part messages copy straight away, long ones (the Confession) are copied part by part like a song; searchable from any tab through the command palette.
 - Setlists: songs and messages in service order, one active at a time, editable for one service without touching the library; concurrent edits are detected and reloaded rather than merged.
 - Log: everything copied, by day, searchable, with a jump to the last Sunday.
 - Keyboard-first on the laptop: Enter, `+`, 1 to 9, P, C, Esc, `?`, ⌘K. Touch-first on the phone: no automatic focus stealing, a Go button, 44px targets where they have been added.
-- Terminology: "desk" (the main screen), "send" (copy to clipboard for pasting), "section" (one song message), "part" (one message post), "setlist" (the service order), "library" (the message document), "Sources" (the verse-source diagnostics page).
+- Terminology: the glossary and interface voice live in `docs/ui-copy.md` and are binding for interface copy. In short: "desk" (the main screen), "copy" (what the app does; the operator pastes in Mixlr), "section" (one numbered part of a song), "part" (one Mixlr post of a message or passage), "setlist" (the service order), "library" (the message library), "verse sources" (the diagnostics page).
 - Constraints: Next.js 16 App Router, Tailwind 4, Turso/libSQL, deployed standalone in Docker (Coolify) or on Vercel. The tree is small: seven pages, no component library.
 - Undecided: the Mixlr message limit (to be calibrated by pasting a long block); YouVersion and API.Bible translation ids once keys are approved.
 
