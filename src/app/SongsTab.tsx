@@ -98,7 +98,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, libraryById) : []), [setlist, byId, libraryById]);
   // Results from the server, used only until the local book has arrived.
   const [remote, setRemote] = useState<ServerSearch | null>(null);
-  // Bumped by "Search again" after a failed server search, to run the same query once more.
+  // Bumped by "Try again" after a failed server search, to run the same query once more.
   const [retry, setRetry] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
   const [song, setSong] = useState<SearchableSong | null>(null);
@@ -183,7 +183,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           // A 200 that is not our answer is a captive portal or a proxy, not Lightdesk.
           failure = OFFLINE;
         } else {
-          failure = await failureFrom(res, "The search did not run");
+          failure = await failureFrom(res, "Lightdesk didn't accept that search");
         }
       } catch {
         failure = OFFLINE;
@@ -235,7 +235,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       if (row.missing) return;
       if (row.song) return openSong(row.song);
       const seq = ++openSeq.current;
-      const fallback = "Could not open that song — search for it";
+      const fallback = "Couldn't open that song — search for it";
       let message: string;
       try {
         const res = await fetch(`/api/songs/${row.id}`, { signal: AbortSignal.timeout(OPEN_TIMEOUT_MS) });
@@ -289,7 +289,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       focusSection(advance ? moveCursor(i, 1, song.sections.length) : i);
     } else {
       // Don't move on: they need to retry this same section.
-      showToast("Clipboard blocked — tap again", "err");
+      showToast("Couldn't copy — try again", "err");
     }
   }
 
@@ -311,10 +311,10 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
         body: JSON.stringify({ title: sentTitle, lyrics: sentLyrics }),
         signal: AbortSignal.timeout(QUICK_ADD_TIMEOUT_MS),
       });
-      if (!res.ok) return showToast((await failureFrom(res, "Could not add the song")).message, "err");
+      if (!res.ok) return showToast((await failureFrom(res, "Couldn't add the song")).message, "err");
       const saved = songFromBody(await res.json());
       if (!saved) return showToast(OFFLINE.message, "err");
-      showToast(`Saved "${saved.title}" — tap a section to send`);
+      showToast(`Saved "${saved.title}"`);
       // Only what was sent: text typed into a reopened panel meanwhile is not this song.
       setAddTitle((t) => (t === sentTitle ? "" : t));
       setAddLyrics((l) => (l === sentLyrics ? "" : l));
@@ -338,7 +338,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     if (!song || i < 0 || i >= song.sections.length) return;
     const next = togglePin(pinned, i);
     setPinned(next);
-    showToast(next === null ? `Unpinned section ${i + 1}` : `Pinned section ${i + 1} — press C to re-send it`);
+    showToast(next === null ? `Unpinned section ${i + 1}` : `Pinned section ${i + 1} — press C to copy it again`);
   }
 
   // Resolved after mount so the server and the first client render agree; the
@@ -393,7 +393,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
         if (pinned !== null) copySection(pinned);
-        else showToast("Pin a section first (P), then C re-sends it", "warn");
+        else showToast("Nothing pinned — press P on a section first", "warn");
         return;
       }
       const jump = digitToIndex(e.key, count);
@@ -447,7 +447,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
           />
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
-            <span className="whitespace-nowrap">{total !== null && `${total} songs in the book`}</span>
+            <span className="whitespace-nowrap">{total !== null && `${total.toLocaleString("en-GB")} ${total === 1 ? "song" : "songs"} in the songbook`}</span>
             <span className="flex flex-wrap items-center gap-x-3">
               <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 Setlists
@@ -456,7 +456,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                 + Quick add a song
               </button>
               <Link href="/songs/import" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
-                Import songbook
+                Import a songbook
               </Link>
             </span>
           </div>
@@ -474,10 +474,10 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                       <span className="min-w-0 font-medium wrap-break-word">{m.song.title}</span>
                       <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
                         {m.matched < m.words && <span className="text-amber-400/80">{m.matched} of {m.words} words · </span>}
-                        {m.fuzzy && <span className="text-amber-400/80">spelling · </span>}
+                        {m.fuzzy && <span className="whitespace-nowrap text-amber-400/80">close spelling · </span>}
                         {m.song.author ? `${m.song.author} · ` : ""}
                         {m.song.sections.length} section{m.song.sections.length === 1 ? "" : "s"}
-                        {m.song.source === "manual" ? " · added here" : ""}
+                        {m.song.source === "manual" ? " · quick-added" : ""}
                       </span>
                     </span>
                     {m.snippet && (
@@ -508,10 +508,10 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           )}
           {answered?.kind === "failed" && (
             <p role="status" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-              <span className="text-amber-400">The search did not run. {answered.failure.message.replace(/[.!]$/, "")}.</span>
+              <span className="text-amber-400">Couldn&rsquo;t search. {answered.failure.message.replace(/[.!]$/, "")}.</span>
               {answered.failure.kind === "locked" && (
                 <Link href={unlockHref("/")} className="-my-1 inline-flex items-center py-1 underline pointer-coarse:my-0 pointer-coarse:min-h-11">
-                  Unlock
+                  Enter the PIN
                 </Link>
               )}
               <button
@@ -521,16 +521,16 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                 }}
                 className="-my-1 inline-flex items-center py-1 underline pointer-coarse:my-0 pointer-coarse:min-h-11"
               >
-                Search again
+                Try again
               </button>
             </p>
           )}
           {serverQ && !answered && hits.length === 0 && <p className="text-sm text-[var(--muted)]">Searching the songbook…</p>}
           {q.trim() && hits.length === 0 && (local !== null || answered?.kind === "done") && (
             <p className="text-sm text-[var(--muted)]">
-              Nothing matched — even part of it. Check a word, or{" "}
+              No song matches — check the spelling, or{" "}
               <button onClick={() => setAdding(true)} className="underline">
-                quick add it
+                quick add a song
               </button>
               .
             </p>
@@ -558,12 +558,12 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             value={addLyrics}
             onChange={(e) => setAddLyrics(e.target.value)}
             aria-label="Song lyrics"
-            placeholder="Paste the lyrics from anywhere — messy is fine, they'll be cleaned and split into sections"
+            placeholder="Paste the lyrics as they are — they'll be tidied and split into sections"
             rows={10}
             className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
           />
           <button onClick={quickAdd} disabled={busy || !addTitle.trim() || !addLyrics.trim()} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">
-            {busy ? "Cleaning up…" : "Save and open"}
+            {busy ? "Splitting and saving…" : "Save and open"}
           </button>
         </div>
       )}
@@ -595,7 +595,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-break-word sm:basis-auto">{song.title}</h2>
             <span className="flex flex-wrap gap-2 sm:shrink-0">
               <button onClick={() => addToSetlist(song)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
-                {setlist ? "+ Setlist" : "Start a setlist"}
+                {setlist ? "Add to the setlist" : "Start a setlist"}
               </button>
               <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 Edit
@@ -609,16 +609,16 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2">
               <span className="px-1 text-xs uppercase tracking-wide text-[var(--muted)]">Pinned</span>
               <button onClick={() => copySection(pinned)} className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm font-medium text-black pointer-coarse:min-h-11">
-                <span className="sr-only">Re-send </span>↻ {pinned + 1} · {Array.from(song.sections[pinned].split("\n")[0]).slice(0, 28).join("")}
+                <span className="sr-only">Copy again: </span>↻ {pinned + 1} · {Array.from(song.sections[pinned].split("\n")[0]).slice(0, 28).join("")}
               </button>
               <span className="kbd">C</span>
             </div>
           )}
           <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-            <span className="kbd">↵</span> send and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> jump ·{" "}
-            <span className="kbd">P</span> pin this one · <span className="kbd">C</span> re-send the pinned one · <span className="kbd">Esc</span> back
+            <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that section ·{" "}
+            <span className="kbd">P</span> pin · <span className="kbd">C</span> copy the pinned one · <span className="kbd">Esc</span> back
           </p>
-          {song.sections.length === 0 && <p className="text-sm text-[var(--muted)]">This song has no sections to send. Edit it to add the lyrics.</p>}
+          {song.sections.length === 0 && <p className="text-sm text-[var(--muted)]">This song has no sections. Edit it to add the lyrics.</p>}
           <ol className="space-y-2">
             {song.sections.map((sec, i) => (
               <li
@@ -654,7 +654,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                   {pinned === i && <span className="mr-2 rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-black">Pinned</span>}
                   {found === i && (
                     <span className="mr-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
-                      Your line
+                      Matched
                     </span>
                   )}
                   <span className="whitespace-pre-wrap text-[15px] leading-relaxed wrap-break-word">{sec}</span>
@@ -662,8 +662,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                 <button
                   onClick={() => pin(i)}
                   aria-pressed={pinned === i}
-                  aria-label={`${pinned === i ? "Unpin" : "Pin"} section ${i + 1} for quick re-send`}
-                  title="Pin for quick re-send (the chorus)"
+                  aria-label={`Pin section ${i + 1}`}
+                  title="Pin to copy again quickly (the chorus)"
                   className={`grid min-h-11 min-w-11 shrink-0 place-items-center self-start rounded-md text-sm ${pinned === i ? "bg-[var(--accent)]" : "hover:bg-zinc-800"}`}
                 >
                   📌

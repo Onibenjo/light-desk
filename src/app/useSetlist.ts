@@ -39,8 +39,8 @@ type Saved =
   | { kind: "gone" }
   | { kind: "failed"; failure: Failure };
 
-const UNREADABLE = "Lightdesk sent back something it could not read — try again";
-const NOT_SAVED = "Could not add to the setlist";
+const UNREADABLE = "Lightdesk's answer couldn't be read — try again";
+const NOT_SAVED = "Lightdesk didn't accept the change";
 
 async function patch(id: number, body: unknown): Promise<Saved> {
   let res: Response;
@@ -87,10 +87,10 @@ export function notStarted({ step, name, title, failure }: { step: StartStep; na
       return { refused: failure.kind === "refused" ? failure.message : `Setlist not started. ${failure.message}` };
     case "activate":
       // Retrying from the desk would make a second setlist with the same name.
-      return { refused: `${name} was created but is not active, and "${title}" is not in it. Finish it on the Setlists page.`, created: name };
+      return { refused: `Created ${name}, but it isn't active and "${title}" isn't in it — finish it on the Setlists page.`, created: name };
     case "add":
       // It is active and on screen, so + works from here.
-      return { refused: `Started ${name}, but "${title}" is not in it. ${failure.message}`, created: name };
+      return { refused: `Started ${name}, but "${title}" isn't in it. ${failure.message}`, created: name };
     default: {
       const exhaustive: never = step;
       return exhaustive;
@@ -168,7 +168,7 @@ export function useSetlist() {
               // Deleted elsewhere. Reloading drops the bar (or shows whichever
               // setlist is active now), so the next + does the right thing.
               void reload();
-              return { refused: `Not added — ${target.name} was deleted. Try adding it again.` };
+              return { refused: `Not added. ${target.name} was deleted — try again.` };
             case "failed":
               return notAdded(saved.failure);
             default: {
@@ -230,7 +230,7 @@ export type SetlistApi = ReturnType<typeof useSetlist>;
 /** The toast for adding something to the setlist, the same from both tabs. */
 export function addToast(result: AddResult, what: string, setlistName: string): { text: string; tone: "ok" | "warn" | "err" } {
   if (result === "added") return { text: `Added "${what}" to ${setlistName}`, tone: "ok" };
-  if (result === "duplicate") return { text: "Already in the setlist", tone: "warn" };
+  if (result === "duplicate") return { text: `"${what}" is already in ${setlistName}`, tone: "warn" };
   if (typeof result === "object") return { text: result.refused, tone: "err" };
-  return { text: "Could not add to the setlist", tone: "err" };
+  return { text: "Couldn't add to the setlist — try again", tone: "err" };
 }

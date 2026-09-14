@@ -39,15 +39,15 @@ describe("starting a setlist fails part way", () => {
     const result = notStarted({ ...base, step: "activate", failure: locked });
     expect(result).toMatchObject({ created: "Sunday 20 Sep" });
     const text = toast(result).text;
-    expect(text).toContain("Sunday 20 Sep was created");
-    expect(text).toContain("not active");
-    expect(text).toContain('"Greetings · Sunday" is not in it');
+    expect(text).toContain("Created Sunday 20 Sep");
+    expect(text).toContain("isn't active");
+    expect(text).toContain('"Greetings · Sunday" isn\'t in it');
     expect(text).toContain("Setlists page");
   });
 
   it("active but the first item missing: says it started, what is missing, and why", () => {
     const result = notStarted({ ...base, step: "add", failure: OFFLINE });
-    expect(result).toEqual({ refused: `Started Sunday 20 Sep, but "Greetings · Sunday" is not in it. ${OFFLINE.message}`, created: "Sunday 20 Sep" });
+    expect(result).toEqual({ refused: `Started Sunday 20 Sep, but "Greetings · Sunday" isn't in it. ${OFFLINE.message}`, created: "Sunday 20 Sep" });
   });
 
   it("leaves long names, diacritics and emoji exactly as typed", () => {

@@ -44,12 +44,12 @@ describe("the setlist the operator sees", () => {
   });
 
   it("says nothing about age when the setlist is fresh", () => {
-    expect(render([row({ id: 1, title: "Way Maker" })])).not.toContain("days old");
+    expect(render([row({ id: 1, title: "Way Maker" })])).not.toContain("days ago");
   });
 
   it("warns in amber when it is last week's list", () => {
-    const html = render([row({ id: 1, title: "Way Maker" })], "8 days old");
-    expect(html).toContain("8 days old");
+    const html = render([row({ id: 1, title: "Way Maker" })], "last changed 8 days ago");
+    expect(html).toContain("last changed 8 days ago");
     expect(html).toContain("amber");
   });
 
@@ -78,8 +78,8 @@ describe("messages in the setlist bar", () => {
   });
 
   it("says when a message's text was edited for this service", () => {
-    expect(render([note({ id: 2, title: "Next Service · Midweek", edited: true })])).toContain("edited");
-    expect(render([note({ id: 2, title: "Next Service · Midweek" })])).not.toContain("edited");
+    expect(render([note({ id: 2, title: "Next Service · Midweek", edited: true })])).toContain("edited<span class=\"sr-only\"> for this service</span>");
+    expect(render([note({ id: 2, title: "Next Service · Midweek" })])).not.toContain("for this service");
   });
 
   it("ticks what has been copied this session, and nothing else", () => {
@@ -101,7 +101,7 @@ describe("messages in the setlist bar", () => {
 
   it("keeps a removed message with edited text working, with a quiet note", () => {
     const html = render([note({ id: 7, title: "Kept", parts: ["mine"], edited: true, removed: true })]);
-    expect(html).toContain("removed from library");
+    expect(html).toContain("no longer in the library");
     expect(html).not.toContain('disabled=""');
   });
 });

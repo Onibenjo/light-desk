@@ -204,7 +204,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         sent={sent}
         cursor={cursor}
         flash={flash}
-        addLabel={open.inService ? (setlist ? "+ Setlist" : "Start a setlist") : null}
+        addLabel={open.inService ? (setlist ? "Add to the setlist" : "Start a setlist") : null}
         onCopy={(i, advance) => void copyOpenPart(i, advance)}
         onFocusPart={setCursor}
         onAdd={() => void add(open)}
@@ -249,41 +249,41 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
           }
         }}
         aria-label="Search messages"
-        placeholder={wide ? "Search messages — sound restored, sermon queen…" : "Search messages"}
+        placeholder={wide ? "Search messages — e.g. sound restored, tithe" : "Search messages"}
         className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
       />
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
-        <span className="whitespace-nowrap">{library && `${library.messages.length} messages`}</span>
+        <span className="whitespace-nowrap">{library && `${library.messages.length} ${library.messages.length === 1 ? "message" : "messages"} in the library`}</span>
         <span className="flex flex-wrap items-center gap-x-3">
           <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
             Setlists
           </Link>
           <Link href="/messages" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
-            Edit library
+            Edit the library
           </Link>
         </span>
       </div>
       {failed && (
         <p role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
           <span className="min-w-0">
-            Couldn&rsquo;t load messages. {sentence(failed.message)}
+            Couldn&rsquo;t load the library. {sentence(failed.message)}
           </span>
-          {/* Retry cannot get past the PIN gate; only unlocking again can. */}
+          {/* Try again cannot get past the PIN gate; only unlocking again can. */}
           {failed.kind === "locked" ? (
             <Link href={unlockHref("/")} className="inline-flex shrink-0 items-center rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
-              Unlock
+              Enter the PIN
             </Link>
           ) : (
             <button onClick={onRetry} className="shrink-0 rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
-              Retry
+              Try again
             </button>
           )}
         </p>
       )}
-      {!library && !failed && <p className="text-sm text-[var(--muted)]">Loading messages…</p>}
+      {!library && !failed && <p className="text-sm text-[var(--muted)]">Loading the library…</p>}
       {library && library.messages.length === 0 && (
         <p className="text-sm text-[var(--muted)]">
-          The library is empty. <Link href="/messages" className="underline">Load the starter messages</Link> (admin PIN).
+          The library is empty. <Link href="/messages" className="underline">Load the starter messages</Link> with the admin PIN.
         </p>
       )}
       {library && deferredQ.trim() && hits.length === 0 && <p className="text-sm text-[var(--muted)]">No message has all of those words.</p>}

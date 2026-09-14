@@ -47,8 +47,8 @@ describe("telling the operator a setlist is stale", () => {
 
   it(`says nothing until ${STALE_AFTER_DAYS} days, then says how old it is`, () => {
     expect(staleNote(daysAgo(STALE_AFTER_DAYS - 1), now)).toBe(null);
-    expect(staleNote(daysAgo(STALE_AFTER_DAYS), now)).toBe(`${STALE_AFTER_DAYS} days old`);
-    expect(staleNote(daysAgo(8), now)).toBe("8 days old");
+    expect(staleNote(daysAgo(STALE_AFTER_DAYS), now)).toBe(`last changed ${STALE_AFTER_DAYS} days ago`);
+    expect(staleNote(daysAgo(8), now)).toBe("last changed 8 days ago");
   });
 });
 

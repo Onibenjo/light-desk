@@ -17,7 +17,7 @@ interface Props {
 
 function messageNote(row: MessageRow): string | null {
   if (row.waiting) return "library not loaded";
-  if (row.removed) return row.parts ? "removed from library" : "no longer in the library";
+  if (row.removed) return "no longer in the library";
   return null;
 }
 
@@ -32,7 +32,7 @@ function messageNote(row: MessageRow): string | null {
  */
 export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMessage }: Props) {
   return (
-    <section aria-label="Setlist for this service" className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5">
+    <section aria-label="Active setlist" className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5">
       <h2 className="flex flex-wrap items-baseline gap-x-2 border-b border-zinc-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
         <span className="min-w-0 wrap-anywhere">{name}</span>
         {staleNote && <span className="font-medium normal-case tracking-normal text-amber-400">· {staleNote}</span>}
@@ -67,7 +67,9 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
                     <span className="mr-2" aria-label="Message">💬</span>
                     <span className="font-medium">{row.title}</span>
                     {row.edited && (
-                      <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">edited</span>
+                      <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap text-[var(--accent)]">
+                        edited<span className="sr-only"> for this service</span>
+                      </span>
                     )}
                   </span>
                   <span className="shrink-0 text-xs text-[var(--muted)]">

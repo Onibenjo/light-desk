@@ -11,7 +11,7 @@ const render = (over: Partial<Parameters<typeof MessageView>[0]> = {}) =>
       sent={new Set()}
       cursor={0}
       flash={null}
-      addLabel="+ Setlist"
+      addLabel="Add to the setlist"
       onCopy={() => {}}
       onFocusPart={() => {}}
       onAdd={() => {}}
@@ -38,11 +38,11 @@ describe("sending a long message part by part", () => {
   });
 
   it("says when this is text edited for the service", () => {
-    expect(render({ edited: true })).toContain("edited");
+    expect(render({ edited: true })).toContain("edited<span class=\"sr-only\"> for this service</span>");
   });
 
   it("hides the setlist button for a message that cannot go in one", () => {
-    expect(render()).toContain("+ Setlist");
-    expect(render({ addLabel: null })).not.toContain("Setlist");
+    expect(render()).toContain("Add to the setlist");
+    expect(render({ addLabel: null })).not.toContain("setlist");
   });
 });
