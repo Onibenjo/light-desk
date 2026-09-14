@@ -1,22 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 
 type Check = { name: string; ok: boolean; detail: string; ms?: number };
 type Diag = { env: Record<string, string | boolean>; checks: Check[]; youversionBibles: string[]; hint?: string };
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+function isCheck(v: unknown): v is Check {
+  return isRecord(v) && typeof v.name === "string" && typeof v.ok === "boolean" && typeof v.detail === "string" && (v.ms === undefined || typeof v.ms === "number");
+}
+
+/** The report as the page draws it, or null when the body is not one (a proxy page, a half-deployed route). */
+function parseDiag(body: unknown): Diag | null {
+  if (!isRecord(body) || !isRecord(body.env) || !Array.isArray(body.checks) || !body.checks.every(isCheck)) return null;
+  const env: Record<string, string | boolean> = {};
+  for (const [k, v] of Object.entries(body.env)) if (typeof v === "string" || typeof v === "boolean") env[k] = v;
+  const bibles = Array.isArray(body.youversionBibles) ? body.youversionBibles.filter((b): b is string => typeof b === "string") : [];
+  return { env, checks: body.checks, youversionBibles: bibles, hint: typeof body.hint === "string" ? body.hint : undefined };
+}
+
 export default function DiagPage() {
   const [data, setData] = useState<Diag | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [deep, setDeep] = useState(false);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
 
   async function run(d: boolean) {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setDeep(d);
-    const res = await fetch(`/api/diag${d ? "?deep=1" : ""}`);
-    setData(await res.json());
-    setBusy(false);
+    setFailure(null);
+    try {
+      const res = await fetch(`/api/diag${d ? "?deep=1" : ""}`);
+      if (!res.ok) {
+        setFailure(await failureFrom(res, "The source check did not run — try again"));
+        setData(null);
+        return;
+      }
+      const report = parseDiag(await res.json().catch(() => null));
+      // A result from an earlier run would read as this one's, so it goes too.
+      setData(report);
+      if (!report) setFailure(describeFailure(500));
+    } catch {
+      setFailure(OFFLINE);
+      setData(null);
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
   }
   useEffect(() => {
     const id = setTimeout(() => run(false), 0); // kick off the first check after mount
@@ -39,7 +75,23 @@ export default function DiagPage() {
           </button>
         </div>
       </header>
-      {!data && <p className="text-sm text-zinc-400 animate-pulse">Checking…</p>}
+      {failure && (
+        <div role="alert" className="space-y-2 rounded-lg border border-red-500/40 bg-red-600/20 px-4 py-3 text-sm text-red-200">
+          <p>{failure.message}</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {failure.kind === "locked" ? (
+              <Link href={unlockHref("/diag")} className="inline-flex items-center py-1.5 font-medium underline pointer-coarse:min-h-11">
+                Enter the PIN
+              </Link>
+            ) : (
+              <button onClick={() => run(deep)} className="inline-flex items-center py-1.5 font-medium underline pointer-coarse:min-h-11">
+                Run the check again
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {!data && !failure && <p className="text-sm text-zinc-400 animate-pulse">Checking…</p>}
       {data && (
         <>
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
