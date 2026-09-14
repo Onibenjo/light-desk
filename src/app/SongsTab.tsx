@@ -7,31 +7,42 @@ import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
-import { comingSundayName, resolveSetlist, songsById, staleNote } from "@/lib/setlist";
+import { resolveSetlist, songsById, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
+import { messagesById, type Library } from "@/lib/messageLibrary";
 import { MatchedLine } from "./MatchedLine";
 import SongEditor from "./SongEditor";
 import SongList from "./SongList";
 import SetlistBar from "./SetlistBar";
-import { useSetlist } from "./useSetlist";
+import StartSetlist from "./StartSetlist";
+import { addToast, type SetlistApi } from "./useSetlist";
 
 interface Props {
   copyText: (t: string) => Promise<boolean>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   logSend: (kind: string, label: string, body: string, meta?: unknown) => void;
+  /** Owned by the desk, so the Songs and Messages tabs show one setlist. */
+  setlistApi: SetlistApi;
+  library: Library | null;
+  copied: ReadonlySet<string>;
+  /** A message row in the bar: the desk copies it, or switches to Messages to send it in parts. */
+  onMessageRow: (row: MessageRow) => void;
+  /** A song row tapped on the Messages tab, to open on arrival. */
+  pendingSong: SongRow | null;
+  onPendingSongDone: () => void;
 }
 
-export default function SongsTab({ copyText, showToast, logSend }: Props) {
+export default function SongsTab({ copyText, showToast, logSend, setlistApi, library, copied, onMessageRow, pendingSong, onPendingSongDone }: Props) {
   const [q, setQ] = useState("");
-  const { setlist, addSong, startSetlist } = useSetlist();
-  // The song waiting for a setlist to exist, and the name being typed for it.
+  const { setlist, addItem, startSetlist } = setlistApi;
+  // The song waiting for a setlist to exist.
   const [starting, setStarting] = useState<SearchableSong | null>(null);
-  const [startName, setStartName] = useState("");
   // Searching the local copy is fast but not free; deferring it keeps the
   // keystrokes themselves instant on a phone.
   const deferredQ = useDeferredValue(q);
   const [book, setBook] = useState<IndexedSong[] | null>(null);
   const byId = useMemo(() => songsById(book), [book]);
-  const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId) : []), [setlist, byId]);
+  const libraryById = useMemo(() => messagesById(library), [library]);
+  const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, libraryById) : []), [setlist, byId, libraryById]);
   // Results from the server, used only until the local book has arrived.
   const [remote, setRemote] = useState<SongMatch[]>([]);
   const [total, setTotal] = useState<number | null>(null);
@@ -99,29 +110,40 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
     return () => window.clearTimeout(debounce.current);
   }, [q, book]);
 
+  // Once a song is open its section buttons are already mounted, so a direct
+  // focus (no rAF) always lands — the race is only ever on the *first* render
+  // of a freshly opened song, handled below by the effect keyed on `song`.
   const focusSection = useCallback((i: number) => {
     setCursor(i);
-    requestAnimationFrame(() => sectionRefs.current[i]?.focus());
+    sectionRefs.current[i]?.focus();
   }, []);
 
-  const openSong = useCallback(
-    (s: SearchableSong, matchedSection: number | null = null) => {
-      setEditing(false);
-      setSong(s);
-      setFound(matchedSection);
-      setSent(new Set());
-      setPinned(null);
-      sectionRefs.current = [];
-      // Land on section 1 so the first Enter sends it, with no click needed —
-      // a song is nearly always sent from the top, whichever line found it.
-      focusSection(0);
-    },
-    [focusSection],
-  );
+  const openSong = useCallback((s: SearchableSong, matchedSection: number | null = null) => {
+    setEditing(false);
+    setSong(s);
+    setFound(matchedSection);
+    setSent(new Set());
+    setPinned(null);
+    sectionRefs.current = [];
+    // Land on section 1 so the first Enter sends it, with no click needed — a
+    // song is nearly always sent from the top, whichever line found it. The
+    // actual DOM focus happens in the effect below, once the section buttons
+    // have committed.
+    setCursor(0);
+  }, []);
+
+  // Focuses the opened song's current section once React has committed its
+  // buttons, instead of racing requestAnimationFrame against that commit.
+  // Keyed on `song` itself, not `cursor`, so a mouse click that deliberately
+  // stays put does not steal focus back.
+  useEffect(() => {
+    if (song) sectionRefs.current[cursor]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the opened song only, see comment above
+  }, [song]);
 
   /** A setlist row: open the song from the book, or fetch that one song if the book is still loading. */
   const openSetlistRow = useCallback(
-    async (row: { id: number; song: SearchableSong | null; missing: boolean }) => {
+    async (row: SongRow) => {
       if (row.missing) return;
       if (row.song) return openSong(row.song);
       const res = await fetch(`/api/songs/${row.id}`);
@@ -132,19 +154,24 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
     [openSong, showToast],
   );
 
+  // A song row tapped on the Messages tab: the desk switched here to open it.
+  useEffect(() => {
+    if (!pendingSong) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opening a song handed over by the desk is the effect's whole job
+    void openSetlistRow(pendingSong);
+    onPendingSongDone();
+  }, [pendingSong, openSetlistRow, onPendingSongDone]);
+
   /** + on a search row or in the song header. With no setlist yet, ask for a name first. */
   const addToSetlist = useCallback(
     async (song: SearchableSong) => {
-      if (!setlist) {
-        setStartName(comingSundayName(new Date()));
-        return setStarting(song);
-      }
-      const result = await addSong(song);
-      if (result === "added") showToast(`Added "${song.title}" to ${setlist.name}`);
-      else if (result === "duplicate") showToast("Already in the setlist", "warn");
-      else showToast("Could not add to the setlist", "err");
+      if (!setlist) return setStarting(song);
+      if (song.id === undefined) return showToast("Save the song before adding it to a setlist", "err");
+      const result = await addItem({ kind: "song", id: song.id, title: song.title });
+      const toast = addToast(result, song.title, setlist.name);
+      showToast(toast.text, toast.tone);
     },
-    [setlist, addSong, showToast],
+    [setlist, addItem, showToast],
   );
 
   async function copySection(i: number, advance = false) {
@@ -215,7 +242,11 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
   }, [focusSearch]);
 
   useEffect(() => {
-    focusSearch();
+    // A song is about to be handed over from the Messages tab: it wins the
+    // focus once it opens, rather than the search box briefly grabbing it
+    // just before that view replaces it.
+    if (!pendingSong) focusSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; `pendingSong` is only checked, not tracked
   }, [focusSearch]);
 
   // Song-view keys. Safe on the document because this view renders no text field.
@@ -261,7 +292,9 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
               name={setlist.name}
               staleNote={staleNote(setlist.updatedAt, new Date())}
               rows={setlistRows}
+              copied={copied}
               onOpen={openSetlistRow}
+              onMessage={onMessageRow}
             />
           )}
           <input
@@ -391,36 +424,17 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
       )}
 
       {starting && (
-        <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">Start a setlist</h2>
-            <button onClick={() => setStarting(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
-              Cancel
-            </button>
-          </div>
-          <p className="text-sm text-[var(--muted)]">&ldquo;{starting.title}&rdquo; will be the first song.</p>
-          <input
-            autoFocus
-            value={startName}
-            onChange={(e) => setStartName(e.target.value)}
-            aria-label="Setlist name"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
-          />
-          <button
-            onClick={async () => {
-              const song = starting;
-              const name = startName.trim();
-              if (!song || !name) return;
-              setStarting(null);
-              const result = await startSetlist(name, song);
-              showToast(result === "added" ? `Started ${name} with "${song.title}"` : "Could not start the setlist", result === "added" ? "ok" : "err");
-            }}
-            disabled={!startName.trim()}
-            className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50"
-          >
-            Start it
-          </button>
-        </div>
+        <StartSetlist
+          what={starting.title}
+          onCancel={() => setStarting(null)}
+          onStart={async (name) => {
+            const song = starting;
+            setStarting(null);
+            if (song.id === undefined) return;
+            const result = await startSetlist(name, { kind: "song", id: song.id, title: song.title });
+            showToast(result === "added" ? `Started ${name} with "${song.title}"` : addToast(result, song.title, name).text, result === "added" ? "ok" : "err");
+          }}
+        />
       )}
 
       {song && !editing && (
@@ -524,7 +538,9 @@ export default function SongsTab({ copyText, showToast, logSend }: Props) {
             // The local index is the search: without this the old lyrics keep
             // answering searches until the page is reloaded.
             setBook((b) => (b ? [...b.filter((i) => i.song.id !== saved.id), ...buildIndex([saved])] : b));
-            focusSection(0);
+            // The section buttons remount for the saved song; the effect keyed
+            // on `song` focuses section 0 once they have.
+            setCursor(0);
           }}
           onDeleted={() => {
             setEditing(false);

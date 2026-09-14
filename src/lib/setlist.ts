@@ -1,16 +1,21 @@
 // Turning a stored setlist into rows the operator can act on.
 //
-// A stored item is `{ id, title }`. The id is the truth — lyrics are always read
-// from the live song, so a typo fixed on Saturday reaches the operator on
-// Sunday. The cached title exists only so the list can paint before the 323KB
-// songbook has landed, which on venue wifi is exactly when the operator needs
-// it. Once the book is here the live title wins, and an id the book does not
-// have is a song deleted since the setlist was prepared.
+// A stored item is a song `{ kind, id, title }` or a message `{ kind, id, title, parts? }`.
+// The id is the truth — lyrics are always read from the live song, so a typo
+// fixed on Saturday reaches the operator on Sunday. The cached title exists
+// only so the list can paint before the 323KB songbook has landed, which on
+// venue wifi is exactly when the operator needs it. Once the book is here the
+// live title wins, and an id the book does not have is a song deleted since
+// the setlist was prepared. A message's text is read from the library unless
+// it was edited for this service.
 
 import type { IndexedSong, SearchableSong } from "./songSearch";
-import type { SetlistItem } from "./setlistEdit";
+import { itemKey, type MessageItem, type SetlistItem } from "./setlistEdit";
+import { messageLabel, type LibraryEntry, type OpenMessage } from "./messageLibrary";
 
-export interface SetlistRow {
+export interface SongRow {
+  kind: "song";
+  key: string;
   id: number;
   title: string;
   author: string | null;
@@ -20,6 +25,23 @@ export interface SetlistRow {
   missing: boolean;
 }
 
+export interface MessageRow {
+  kind: "message";
+  key: string;
+  id: number;
+  title: string;
+  /** What a tap copies: the edited text, else the library's. Null when there is nothing to copy yet. */
+  parts: string[] | null;
+  /** The text was edited for this service, so library fixes no longer reach it. */
+  edited: boolean;
+  /** The library has loaded and this message is not in it. */
+  removed: boolean;
+  /** The library is still loading and there is no edited text to fall back on. */
+  waiting: boolean;
+}
+
+export type SetlistRow = SongRow | MessageRow;
+
 /** Song lookup for the rows, or null while the book is still loading. */
 export function songsById(book: IndexedSong[] | null): Map<number, SearchableSong> | null {
   if (!book) return null;
@@ -28,17 +50,72 @@ export function songsById(book: IndexedSong[] | null): Map<number, SearchableSon
   return byId;
 }
 
-export function resolveSetlist(items: SetlistItem[], byId: Map<number, SearchableSong> | null): SetlistRow[] {
-  return items.map((item) => {
-    const song = byId?.get(item.id) ?? null;
+export function resolveSetlist(
+  items: SetlistItem[],
+  songs: Map<number, SearchableSong> | null,
+  library: Map<number, LibraryEntry> | null,
+): SetlistRow[] {
+  return items.map((item): SetlistRow => {
+    if (item.kind === "message") {
+      const entry = library?.get(item.id);
+      const parts = item.parts ?? entry?.message.parts ?? null;
+      return {
+        kind: "message",
+        key: itemKey(item),
+        id: item.id,
+        title: entry ? messageLabel(entry.section, entry.message) : item.title,
+        parts,
+        edited: item.parts !== undefined,
+        // Not knowing yet is not the same as knowing it is gone.
+        removed: library !== null && !entry,
+        waiting: library === null && parts === null,
+      };
+    }
+    const song = songs?.get(item.id) ?? null;
     return {
+      kind: "song",
+      key: itemKey(item),
       id: item.id,
       title: song?.title ?? item.title,
       author: song?.author ?? null,
       song,
-      // Not knowing yet is not the same as knowing it is gone.
-      missing: byId !== null && song === null,
+      missing: songs !== null && song === null,
     };
+  });
+}
+
+function sameParts(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((part, i) => part === b[i]);
+}
+
+export type EditSaveDecision = { kind: "skip" } | { kind: "reset" } | { kind: "save"; parts: string[] };
+
+/**
+ * What "Save for this service" on /setlists should do with the parts just
+ * typed, given the library message's own parts (undefined when it is gone or
+ * not loaded yet) and whether the item already carries text edited for this
+ * service.
+ *
+ * Typing back the library's own words is not an edit: saving it anyway would
+ * mark the item edited and cut it off from future library fixes. So text that
+ * matches the library either does nothing (nothing was edited yet — `skip`)
+ * or clears the edit (one was there before — `reset`) instead of being stored
+ * as a redundant copy.
+ */
+export function planMessageEdit(parts: string[], libraryParts: string[] | undefined, alreadyEdited: boolean): EditSaveDecision {
+  if (libraryParts !== undefined && sameParts(parts, libraryParts)) {
+    return alreadyEdited ? { kind: "reset" } : { kind: "skip" };
+  }
+  return { kind: "save", parts };
+}
+
+/** Set (or, with undefined, remove) the text edited for this service on one message item. */
+export function withParts(items: SetlistItem[], index: number, parts: string[] | undefined): SetlistItem[] {
+  return items.map((item, i) => {
+    if (i !== index || item.kind !== "message") return item;
+    const next: MessageItem = { kind: "message", id: item.id, title: item.title };
+    if (parts) next.parts = parts;
+    return next;
   });
 }
 
@@ -73,4 +150,17 @@ export function comingSundayName(now: Date): string {
   const d = new Date(now);
   d.setDate(d.getDate() + ((7 - d.getDay()) % 7));
   return `Sunday ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** What tapping a message row opens or copies. Null when the row has no text to offer. */
+export function openMessageFromRow(row: MessageRow, library: Map<number, LibraryEntry> | null): OpenMessage | null {
+  if (!row.parts) return null;
+  return {
+    key: row.key,
+    id: row.id,
+    label: row.title,
+    parts: row.parts,
+    edited: row.edited,
+    inService: library?.get(row.id)?.section.inService ?? false,
+  };
 }

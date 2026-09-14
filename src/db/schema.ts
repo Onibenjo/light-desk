@@ -25,13 +25,32 @@ export const sentLog = sqliteTable("sent_log", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** Canned messages (M2) — table exists now so the schema doesn't churn later. */
+/**
+ * The engagement document, one section per heading (Apologies, Welcoming
+ * Ambience Jewel, …). `inService` says whether its messages may be added to a
+ * setlist: apologies happen whenever the sound drops, so that section is off.
+ * Names are unique regardless of case — `COLLATE NOCASE` in schemaSql.ts, which
+ * drizzle's builder cannot express.
+ */
+export const messageSections = sqliteTable("message_sections", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  sort: integer("sort").notNull(),
+  inService: integer("in_service", { mode: "boolean" }).notNull().default(true),
+});
+
+/**
+ * One message per variant: "Sunday · Worship", "Pastor Queen Okoye". `parts` is
+ * a JSON array of strings, one Mixlr post each, like `songs.sections`.
+ */
 export const messages = sqliteTable("messages", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  section: text("section").notNull(), // runsheet section or "scenario"
+  sectionId: integer("section_id").notNull().references(() => messageSections.id),
   title: text("title").notNull(),
-  body: text("body").notNull(),
-  sort: integer("sort").notNull().default(0),
+  parts: text("parts").notNull(), // JSON string[]
+  sort: integer("sort").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
 /** The songbook. sections is a JSON array of strings (one 🎵 chunk each). */

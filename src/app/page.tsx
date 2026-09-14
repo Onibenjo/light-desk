@@ -10,6 +10,13 @@ import { hasFinePointer } from "@/lib/pointer";
 import { TRANSLATIONS, DEFAULT_TRANSLATION, translationFromInput } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
 import SongsTab from "./SongsTab";
+import MessagesTab from "./MessagesTab";
+import { useSetlist } from "./useSetlist";
+import { useMessages } from "./useMessages";
+import { useMessageCopy } from "./useMessageCopy";
+import { messageActions } from "@/lib/messageActions";
+import { messagesById, openMessageFor, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
+import { openMessageFromRow, type MessageRow, type SongRow } from "@/lib/setlist";
 
 type Ref = { book: number; chapter: number; verseStart: number; verseEnd: number };
 type Passage = {
@@ -66,7 +73,7 @@ async function copyText(text: string): Promise<boolean> {
 
 export default function Desk() {
   const router = useRouter();
-  const [tab, setTab] = useState<"verses" | "songs">("verses");
+  const [tab, setTab] = useState<"verses" | "songs" | "messages">("verses");
   const [input, setInput] = useState("");
   const [translation, setTranslation] = useState(DEFAULT_TRANSLATION);
   const [sourceChoice, setSourceChoice] = useState("auto");
@@ -132,6 +139,43 @@ export default function Desk() {
   const logSend = useCallback((kind: string, label: string, body: string, meta?: unknown) => {
     fetch("/api/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, label, body, meta }) }).catch(() => {});
   }, []);
+
+  // Owned here rather than in a tab: both tabs show the same setlist, and the
+  // palette copies messages from any tab.
+  const setlistApi = useSetlist();
+  const { reload: reloadSetlist } = setlistApi;
+  // Someone else can prepare the setlist — reorder it, "Edit for this
+  // service" — while this desk sits open elsewhere; refetch it on every visit
+  // to a tab that shows it, rather than only once when the desk first opened.
+  useEffect(() => {
+    if (tab === "songs" || tab === "messages") void reloadSetlist();
+  }, [tab, reloadSetlist]);
+  const { library, failed: libraryFailed, reload: reloadLibrary } = useMessages();
+  const { copied, copyPart } = useMessageCopy({ copyText, showToast, logSend });
+  const [pendingSong, setPendingSong] = useState<SongRow | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<OpenMessage | null>(null);
+  const clearPendingSong = useCallback(() => setPendingSong(null), []);
+  const clearPendingMessage = useCallback(() => setPendingMessage(null), []);
+
+  /** One part copies where the operator is; several need the Messages tab to send in turn. */
+  const sendMessage = useCallback(
+    (m: OpenMessage) => {
+      if (m.parts.length === 1) return void copyPart(m, 0);
+      setPendingMessage(m);
+      setTab("messages");
+    },
+    [copyPart],
+  );
+
+  const onMessageRow = useCallback(
+    (row: MessageRow) => {
+      const m = openMessageFromRow(row, messagesById(library));
+      if (m) sendMessage(m);
+    },
+    [library, sendMessage],
+  );
+
+  const onPaletteMessage = useCallback((entry: LibraryEntry) => sendMessage(openMessageFor(entry)), [sendMessage]);
 
   // Puts the cursor back for the next reference. Skipped on a touchscreen, where
   // it would answer every send by covering the verse with the on-screen keyboard.
@@ -342,6 +386,8 @@ export default function Desk() {
     }
     list.push({ id: "tab-verses", title: "Go to Verses", group: "Go to", keywords: ["bible", "scripture"], run: () => { setTab("verses"); refocus(); } });
     list.push({ id: "tab-songs", title: "Go to Songs", group: "Go to", keywords: ["lyrics", "songbook", "worship"], run: () => setTab("songs") });
+    list.push({ id: "tab-messages", title: "Go to Messages", group: "Go to", keywords: ["apology", "greeting", "prayer", "announcement"], run: () => setTab("messages") });
+    list.push({ id: "messages-edit", title: "Edit message library", group: "Go to", keywords: ["engagement", "document"], run: () => router.push("/messages") });
     list.push({ id: "log", title: "Open the log", group: "Go to", keywords: ["history", "sunday", "sent"], run: () => router.push("/log") });
     list.push({ id: "sources", title: "Check verse sources", group: "Go to", keywords: ["diagnostics", "health"], run: () => router.push("/diag") });
     list.push({ id: "import", title: "Import a songbook", group: "Go to", keywords: ["videopsalm", "upload"], run: () => router.push("/songs/import") });
@@ -351,6 +397,7 @@ export default function Desk() {
     for (const o of SOURCE_OPTIONS) {
       list.push({ id: `s-${o.value}`, title: `Source: ${o.label}`, group: "Switch", keywords: ["provider", "fetch"], run: () => { setSourceChoice(o.value); refocus(); } });
     }
+    list.push(...messageActions(library, onPaletteMessage));
     return list;
   })();
 
@@ -373,6 +420,16 @@ export default function Desk() {
         { keys: "P", label: "Pin the section you're on (the chorus)" },
         { keys: "C", label: "Re-send the pinned section" },
         { keys: "Esc", label: "Back to the song list" },
+      ],
+    },
+    {
+      group: "Sending a message",
+      items: [
+        { keys: "⌘K", label: "Find any message from any tab — Enter copies it" },
+        { keys: "↑ ↓", label: "Pick a message in the search results" },
+        { keys: "↵", label: "Copy it · a long one opens to send part by part" },
+        { keys: "1–9", label: "Send that part" },
+        { keys: "Esc", label: "Back to the library" },
       ],
     },
   ];
@@ -449,7 +506,7 @@ export default function Desk() {
       </header>
 
       <nav className="flex gap-1 rounded-lg bg-zinc-900 p-1 text-sm">
-        {(["verses", "songs"] as const).map((t) => (
+        {(["verses", "songs", "messages"] as const).map((t) => (
           <button
             key={t}
             onClick={() => {
@@ -458,7 +515,7 @@ export default function Desk() {
             }}
             className={`flex-1 rounded-md px-3 py-2 font-medium capitalize ${tab === t ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
           >
-            {t === "verses" ? "📖 Verses" : "🎵 Songs"}
+            {t === "verses" ? "📖 Verses" : t === "songs" ? "🎵 Songs" : "💬 Messages"}
           </button>
         ))}
       </nav>
@@ -489,7 +546,36 @@ export default function Desk() {
         </p>
       )}
 
-      {tab === "songs" && <SongsTab copyText={copyText} showToast={showToast} logSend={logSend} />}
+      {tab === "songs" && (
+        <SongsTab
+          copyText={copyText}
+          showToast={showToast}
+          logSend={logSend}
+          setlistApi={setlistApi}
+          library={library}
+          copied={copied}
+          onMessageRow={onMessageRow}
+          pendingSong={pendingSong}
+          onPendingSongDone={clearPendingSong}
+        />
+      )}
+      {tab === "messages" && (
+        <MessagesTab
+          library={library}
+          failed={libraryFailed}
+          onRetry={reloadLibrary}
+          setlistApi={setlistApi}
+          copied={copied}
+          copyPart={copyPart}
+          showToast={showToast}
+          pending={pendingMessage}
+          onPendingDone={clearPendingMessage}
+          onOpenSong={(row) => {
+            setPendingSong(row);
+            setTab("songs");
+          }}
+        />
+      )}
 
       <div className={tab === "verses" ? "contents" : "hidden"}>
       <form onSubmit={onSubmit} className="space-y-2">

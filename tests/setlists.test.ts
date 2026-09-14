@@ -53,20 +53,29 @@ describe("updateSetlist", () => {
     const created = await setlists.createSetlist("Sunday");
 
     const first = await setlists.updateSetlist(created.id, {
-      items: [{ id: 1, title: "Way Maker" }],
+      items: [{ kind: "song", id: 1, title: "Way Maker" }],
       updatedAt: created.updatedAt,
     });
     expect(first).not.toBe("gone");
     expect(first).not.toBe("stale");
 
     const replay = await setlists.updateSetlist(created.id, {
-      items: [{ id: 2, title: "Goodness of God" }],
+      items: [{ kind: "song", id: 2, title: "Goodness of God" }],
       updatedAt: created.updatedAt,
     });
     expect(replay).toBe("stale");
 
     const current = await setlists.findSetlist(created.id);
-    expect(current?.items).toEqual([{ id: 1, title: "Way Maker" }]);
+    expect(current?.items).toEqual([{ kind: "song", id: 1, title: "Way Maker" }]);
+  });
+
+  it("reads a setlist saved before messages existed, its items without a kind, as songs", async () => {
+    const created = await setlists.createSetlist("Last month");
+    const { db } = await import("../src/db");
+    const { setlists: table } = await import("../src/db/schema");
+    const { eq } = await import("drizzle-orm");
+    await db.update(table).set({ items: '[{"id":1,"title":"Way Maker"}]' }).where(eq(table.id, created.id));
+    expect((await setlists.findSetlist(created.id))?.items).toEqual([{ kind: "song", id: 1, title: "Way Maker" }]);
   });
 
   it("changing the songs needs the version the client read, but a rename does not", async () => {

@@ -48,6 +48,7 @@ describe("exportAll", () => {
     expect(dump.tables.songs).toHaveLength(1);
     expect(dump.tables.verse_cache).toEqual([]);
     expect(dump.tables.messages).toEqual([]);
+    expect(dump.tables.message_sections).toEqual([]);
     expect(dump.tables.setlists).toHaveLength(1);
     expect(dump.tables.setlists[0]).toMatchObject({
       name: "Sunday",
@@ -118,5 +119,17 @@ describe("importAll", () => {
     expect(rows.rows.map((r) => ({ ...r }))).toEqual([
       { name: "Sunday", items: '[{"id":1,"title":"Way Maker"}]', active: 1, created_at: 1788288361, updated_at: 1788288361 },
     ]);
+  });
+
+  it("restores the message library, sections before the messages that point at them", async () => {
+    await source.execute({ sql: "INSERT INTO message_sections (name, sort, in_service) VALUES (?,?,?)", args: ["Apologies", 0, 0] });
+    await source.execute({
+      sql: "INSERT INTO messages (section_id, title, parts, sort, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+      args: [1, "Sound restored", '["Sirs and Mas, the sound has been restored."]', 0, 1788288361, 1788288361],
+    });
+    const written = await importAll(target, await exportAll(source));
+    expect(written.map((w) => w.table)).toEqual(["verse_cache", "sent_log", "songs", "message_sections", "messages", "setlists"]);
+    const rows = await target.execute("SELECT s.name, m.title FROM messages m JOIN message_sections s ON s.id = m.section_id");
+    expect(rows.rows.map((r) => ({ ...r }))).toEqual([{ name: "Apologies", title: "Sound restored" }]);
   });
 });

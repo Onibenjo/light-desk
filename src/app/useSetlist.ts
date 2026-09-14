@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { SetlistItem } from "@/lib/setlistEdit";
-import type { SearchableSong } from "@/lib/songSearch";
+import { itemKey, type SetlistItem } from "@/lib/setlistEdit";
 
 export interface Setlist {
   id: number;
@@ -13,16 +12,16 @@ export interface Setlist {
   updatedAt: string;
 }
 
-export type AddResult = "added" | "duplicate" | "failed";
+export type AddResult = "added" | "duplicate" | "failed" | { refused: string };
 
-async function patch(id: number, body: unknown): Promise<{ status: number; setlist?: Setlist }> {
+async function patch(id: number, body: unknown): Promise<{ status: number; setlist?: Setlist; error?: string }> {
   const res = await fetch(`/api/setlists/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = (await res.json().catch(() => null)) as { setlist?: Setlist } | null;
-  return { status: res.status, setlist: data?.setlist };
+  const data = (await res.json().catch(() => null)) as { setlist?: Setlist; error?: string } | null;
+  return { status: res.status, setlist: data?.setlist, error: data?.error };
 }
 
 /**
@@ -35,35 +34,41 @@ async function patch(id: number, body: unknown): Promise<{ status: number; setli
 export function useSetlist() {
   const [setlist, setSetlist] = useState<Setlist | null>(null);
 
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/setlists");
-        // A 401 from an expired PIN parses cleanly; taking it would leave the
-        // bar hidden for the rest of the service with no way to notice.
-        if (!res.ok) return;
-        const data = (await res.json()) as { setlists?: Setlist[] };
-        if (live) setSetlist(data.setlists?.find((s) => s.active) ?? null);
-      } catch {
-        // No bar. Search and browse are untouched, which is the point.
-      }
-    })();
-    return () => {
-      live = false;
-    };
+  /**
+   * Loads the active setlist. Someone else can prepare it — reorder it, edit a
+   * message for the service — on another device or the /setlists page while
+   * this desk sits open on Songs or Messages, so callers reload it on every
+   * visit to either tab rather than trusting the one fetch from mount.
+   */
+  const reload = useCallback(async () => {
+    try {
+      const res = await fetch("/api/setlists");
+      // A 401 from an expired PIN parses cleanly; taking it would leave the
+      // bar hidden, or stuck on stale data, for the rest of the service with
+      // no way to notice — so a failure here just keeps whatever is showing.
+      if (!res.ok) return;
+      const data = (await res.json()) as { setlists?: Setlist[] };
+      setSetlist(data.setlists?.find((s) => s.active) ?? null);
+    } catch {
+      // Keep the current setlist. Search and browse are untouched, which is the point.
+    }
   }, []);
 
-  const addSong = useCallback(
-    async (song: SearchableSong): Promise<AddResult> => {
-      if (!setlist || song.id === undefined) return "failed";
-      const item = { id: song.id, title: song.title };
-      if (setlist.items.some((i) => i.id === item.id)) return "duplicate";
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetching the setlist on mount is the effect's whole job, same as useMessages's initial load
+    void reload();
+  }, [reload]);
+
+  const addItem = useCallback(
+    async (item: SetlistItem): Promise<AddResult> => {
+      if (!setlist) return "failed";
+      const key = itemKey(item);
+      if (setlist.items.some((i) => itemKey(i) === key)) return "duplicate";
 
       // Two goes: ours, and one more on top of whatever the other person saved.
       let target = setlist;
       for (let attempt = 0; attempt < 2; attempt++) {
-        const { status, setlist: saved } = await patch(target.id, {
+        const { status, setlist: saved, error } = await patch(target.id, {
           items: [...target.items, item],
           updatedAt: target.updatedAt,
         });
@@ -72,14 +77,15 @@ export function useSetlist() {
           return "added";
         }
         if (status === 409 && saved) {
-          // They may have added the very song we are adding.
-          if (saved.items.some((i) => i.id === item.id)) {
+          // They may have added the very thing we are adding.
+          if (saved.items.some((i) => itemKey(i) === key)) {
             setSetlist(saved);
             return "duplicate";
           }
           target = saved;
           continue;
         }
+        if (status === 400 && error) return { refused: error };
         return "failed";
       }
       return "failed";
@@ -87,9 +93,8 @@ export function useSetlist() {
     [setlist],
   );
 
-  /** Create a setlist, make it the active one, and put this song in it. */
-  const startSetlist = useCallback(async (name: string, song: SearchableSong): Promise<AddResult> => {
-    if (song.id === undefined) return "failed";
+  /** Create a setlist, make it the active one, and put this item in it. */
+  const startSetlist = useCallback(async (name: string, item: SetlistItem): Promise<AddResult> => {
     const res = await fetch("/api/setlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -101,15 +106,26 @@ export function useSetlist() {
     const activated = await patch(created.id, { active: true });
     if (!activated.setlist) return "failed";
 
-    const added = await patch(activated.setlist.id, {
-      items: [{ id: song.id, title: song.title }],
-      updatedAt: activated.setlist.updatedAt,
-    });
+    const added = await patch(activated.setlist.id, { items: [item], updatedAt: activated.setlist.updatedAt });
+    if (added.status === 400 && added.error) {
+      setSetlist(activated.setlist);
+      return { refused: added.error };
+    }
     if (!added.setlist) return "failed";
 
     setSetlist(added.setlist);
     return "added";
   }, []);
 
-  return { setlist, addSong, startSetlist };
+  return { setlist, addItem, startSetlist, reload };
+}
+
+export type SetlistApi = ReturnType<typeof useSetlist>;
+
+/** The toast for adding something to the setlist, the same from both tabs. */
+export function addToast(result: AddResult, what: string, setlistName: string): { text: string; tone: "ok" | "warn" | "err" } {
+  if (result === "added") return { text: `Added "${what}" to ${setlistName}`, tone: "ok" };
+  if (result === "duplicate") return { text: "Already in the setlist", tone: "warn" };
+  if (typeof result === "object") return { text: result.refused, tone: "err" };
+  return { text: "Could not add to the setlist", tone: "err" };
 }

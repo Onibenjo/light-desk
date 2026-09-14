@@ -1,7 +1,7 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "./index";
 import { setlists } from "./schema";
-import type { SetlistItem, SetlistPatch } from "@/lib/setlistEdit";
+import { storedItems, type SetlistItem, type SetlistPatch } from "@/lib/setlistEdit";
 
 /**
  * A setlist as it goes over the wire. Timestamps are ISO strings rather than
@@ -24,7 +24,7 @@ function toRecord(row: Row): SetlistRecord {
   return {
     id: row.id,
     name: row.name,
-    items: JSON.parse(row.items) as SetlistItem[],
+    items: storedItems(JSON.parse(row.items)),
     active: row.active,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
