@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Footnotes, type Summary } from "../src/app/songs/import/Footnotes";
+import { Footnotes, LISTS, TitleList, type Summary } from "../src/app/songs/import/Footnotes";
 
 const summary = (over: Partial<Summary> = {}): Summary => ({
   totalEntries: 1966,
@@ -14,24 +14,37 @@ const summary = (over: Partial<Summary> = {}): Summary => ({
   ...over,
 });
 
-const text = (s: Summary) => renderToStaticMarkup(<Footnotes s={s} />).replace(/<[^>]+>/g, "");
+const strip = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'");
+const text = (s: Summary) => strip(renderToStaticMarkup(<Footnotes s={s} />));
 
 describe("what the import reports", () => {
   it("says nothing when there is nothing to report", () => {
     expect(renderToStaticMarkup(<Footnotes s={summary()} />)).toBe("");
   });
 
-  it("says how many songs it left alone because they were edited here", () => {
-    expect(text(summary({ skippedEdited: ["El Roi", "Army Arise"] }))).toContain("2 songs were edited here and are left alone");
+  it("heads the list of songs it left alone with their count, in the plural", () => {
+    const out = strip(renderToStaticMarkup(<TitleList noun={LISTS.editedHere} titles={["El Roi", "Army Arise"]} />));
+    expect(out).toContain("2 songs edited here, kept as they are");
+    expect(out).toContain("El Roi");
   });
 
-  it("counts one skipped song in the singular", () => {
-    expect(text(summary({ skippedEdited: ["El Roi"] }))).toContain("1 song was edited here and is left alone");
+  it("counts one song in the singular", () => {
+    expect(strip(renderToStaticMarkup(<TitleList noun={LISTS.editedHere} titles={["El Roi"]} />))).toContain("1 song edited here, kept as it is");
+    expect(strip(renderToStaticMarkup(<TitleList noun={LISTS.new} titles={["El Roi"]} />))).toMatch(/^1 new song(?!s)/);
   });
 
-  it("still reports the older outcomes alongside it", () => {
-    const out = text(summary({ skippedEmpty: 3, skippedEdited: ["El Roi"] }));
-    expect(out).toContain("3 entries");
-    expect(out).toContain("left alone");
+  it("draws no heading for an empty list", () => {
+    expect(renderToStaticMarkup(<TitleList noun={LISTS.editedHere} titles={[]} />)).toBe("");
+  });
+
+  it("does not repeat the edited-here count that its list already shows", () => {
+    expect(renderToStaticMarkup(<Footnotes s={summary({ skippedEdited: ["El Roi"] })} />)).toBe("");
+  });
+
+  it("reports the other outcomes with correct plurals", () => {
+    expect(text(summary({ skippedEmpty: 3, repeatedGuids: 2 }))).toBe("3 entries without lyrics skipped · 2 entries reuse another entry's ID — only the last is kept.");
+    expect(text(summary({ skippedEmpty: 1, collapsedDuplicates: 1, repeatedGuids: 1 }))).toBe(
+      "1 entry without lyrics skipped · 1 exact duplicate counted once · 1 entry reuses another entry's ID — only the last is kept.",
+    );
   });
 });

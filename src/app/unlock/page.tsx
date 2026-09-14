@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { failureFrom, OFFLINE } from "@/lib/apiError";
 
 const ERROR_ID = "unlock-error";
+const FIELD_ID = "unlock-pin";
+const WRONG_PIN = "Wrong PIN — check it and try again";
 
 /** Only a path on this site: `next=//evil.example` or a full URL would send the operator elsewhere. */
 function safeNext(raw: string | null): string {
@@ -37,7 +39,7 @@ function UnlockForm() {
         return;
       }
       // Here, and only here, a 401 is the answer to the PIN itself rather than the gate.
-      message = res.status === 401 ? "Wrong PIN" : (await failureFrom(res, "Wrong PIN")).message;
+      message = res.status === 401 ? WRONG_PIN : (await failureFrom(res, WRONG_PIN)).message;
     } catch {
       message = OFFLINE.message;
     }
@@ -55,28 +57,32 @@ function UnlockForm() {
         <h1 className="text-2xl font-semibold">Lightdesk</h1>
         <p className="text-sm text-zinc-400">Citizens of Light Church · Mixlr chat desk</p>
       </div>
-      <input
-        ref={field}
-        autoFocus
-        inputMode="numeric"
-        type="password"
-        aria-label="Church PIN"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? ERROR_ID : undefined}
-        value={pin}
-        onChange={(e) => setPin(e.target.value)}
-        placeholder="Church PIN"
-        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-lg outline-none focus:border-[var(--accent)] aria-invalid:border-red-500/60"
-      />
-      {error && (
-        <p id={ERROR_ID} role="alert" className="text-sm text-red-400">
-          {error}
-        </p>
-      )}
+      <div className="space-y-1.5">
+        <label htmlFor={FIELD_ID} className="block text-sm text-zinc-300">
+          Church or admin PIN
+        </label>
+        <input
+          id={FIELD_ID}
+          ref={field}
+          autoFocus
+          inputMode="numeric"
+          type="password"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? ERROR_ID : undefined}
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
+          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-lg outline-none focus:border-[var(--accent)] aria-invalid:border-red-500/60"
+        />
+        {error && (
+          <p id={ERROR_ID} role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
+      </div>
       <button disabled={busy || !pin} className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 font-medium text-black disabled:opacity-50">
-        {busy ? "Checking…" : "Unlock this laptop"}
+        {busy ? "Checking the PIN…" : "Unlock this device"}
       </button>
-      <p className="text-xs text-[var(--muted)]">You only do this once per device. Ask the media lead for the PIN.</p>
+      <p className="text-xs text-[var(--muted)]">Ask the media lead for the PIN. This device stays unlocked for a year.</p>
     </form>
   );
 }
