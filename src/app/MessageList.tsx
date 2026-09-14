@@ -41,7 +41,7 @@ function MessageList({ groups, active, copied, onPick, onAdd, onHover }: Props) 
                       className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-zinc-800/60 ${active === message.id ? "bg-zinc-800/60" : ""}`}
                     >
                       <span className="flex items-baseline justify-between gap-3">
-                        <span className="min-w-0 font-medium">{message.title}</span>
+                        <span className="min-w-0 font-medium wrap-anywhere">{message.title}</span>
                         <span className="shrink-0 text-xs text-[var(--muted)]">
                           {message.parts.length > 1 ? `${message.parts.length} parts` : ""}
                           {copied.has(itemKey({ kind: "message", id: message.id })) && <span className="ml-2 text-emerald-400">✓</span>}

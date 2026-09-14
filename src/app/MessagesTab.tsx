@@ -7,6 +7,7 @@ import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
 import { groupEntries, groupLibrary, messagesById, openMessageFor, type Library, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
 import { searchMessages } from "@/lib/messageSearch";
+import { unlockHref, type Failure } from "@/lib/apiError";
 import { openMessageFromRow, resolveSetlist, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
 import MessageList from "./MessageList";
 import MessageView from "./MessageView";
@@ -14,11 +15,15 @@ import SetlistBar from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
 
+/** A server's own words may already end in a full stop; ours do not. */
+const sentence = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`);
+
 type Copy = (message: Pick<OpenMessage, "key" | "label" | "parts">, index: number) => Promise<boolean>;
 
 interface Props {
   library: Library | null;
-  failed: boolean;
+  /** Why the library did not load; null while loading or once it has. */
+  failed: Failure | null;
   onRetry: () => void;
   setlistApi: SetlistApi;
   copied: ReadonlySet<string>;
@@ -178,8 +183,12 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         onCancel={() => setStarting(null)}
         onStart={async (name) => {
           const m = starting;
-          setStarting(null);
           const result = await startSetlist(name, { kind: "message", id: m.id, title: m.label });
+          // The form stays up, with the name as typed, only when nothing was
+          // created: Start again is then safe. Otherwise it closes, or a second
+          // try would make a second setlist of the same name.
+          const nothingMade = typeof result === "object" && result.created === undefined;
+          if (!nothingMade) setStarting((s) => (s === m ? null : s));
           showToast(result === "added" ? `Started ${name} with "${m.label}"` : addToast(result, m.label, name).text, result === "added" ? "ok" : "err");
         }}
       />
@@ -255,11 +264,20 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         </span>
       </div>
       {failed && (
-        <p className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-          Couldn&rsquo;t load messages.
-          <button onClick={onRetry} className="shrink-0 rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
-            Retry
-          </button>
+        <p role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          <span className="min-w-0">
+            Couldn&rsquo;t load messages. {sentence(failed.message)}
+          </span>
+          {/* Retry cannot get past the PIN gate; only unlocking again can. */}
+          {failed.kind === "locked" ? (
+            <Link href={unlockHref("/")} className="inline-flex shrink-0 items-center rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
+              Unlock
+            </Link>
+          ) : (
+            <button onClick={onRetry} className="shrink-0 rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
+              Retry
+            </button>
+          )}
         </p>
       )}
       {!library && !failed && <p className="text-sm text-[var(--muted)]">Loading messages…</p>}

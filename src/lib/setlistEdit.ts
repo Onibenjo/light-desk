@@ -42,7 +42,7 @@ export interface SetlistPatch {
 }
 
 export const MAX_ITEMS = 50;
-const MAX_NAME = 80;
+export const MAX_NAME = 80;
 const MAX_TITLE = 200;
 
 const NAME_ERROR = `A setlist needs a name of 1 to ${MAX_NAME} characters`;

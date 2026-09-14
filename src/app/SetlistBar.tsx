@@ -34,7 +34,7 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
   return (
     <section aria-label="Setlist for this service" className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5">
       <h2 className="flex flex-wrap items-baseline gap-x-2 border-b border-zinc-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
-        {name}
+        <span className="min-w-0 wrap-anywhere">{name}</span>
         {staleNote && <span className="font-medium normal-case tracking-normal text-amber-400">· {staleNote}</span>}
       </h2>
       {rows.length === 0 ? (
@@ -49,7 +49,7 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
                   disabled={row.missing}
                   className="flex min-h-11 w-full items-baseline justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-800/60 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
                 >
-                  <span className="min-w-0">
+                  <span className="min-w-0 wrap-break-word">
                     <span className="mr-3 text-xs text-[var(--muted)]">{i + 1}</span>
                     <span className="mr-2" aria-label="Song">🎵</span>
                     <span className="font-medium">{row.title}</span>
@@ -62,7 +62,7 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
                   disabled={row.parts === null}
                   className="flex min-h-11 w-full items-baseline justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-800/60 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
                 >
-                  <span className="min-w-0">
+                  <span className="min-w-0 wrap-break-word">
                     <span className="mr-3 text-xs text-[var(--muted)]">{i + 1}</span>
                     <span className="mr-2" aria-label="Message">💬</span>
                     <span className="font-medium">{row.title}</span>
