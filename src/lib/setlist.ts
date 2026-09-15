@@ -130,7 +130,7 @@ export function ageInDays(updatedAt: string, now: Date): number {
 /** The note beside the name warning that this is last week's list, or null. */
 export function staleNote(updatedAt: string, now: Date): string | null {
   const days = ageInDays(updatedAt, now);
-  return days >= STALE_AFTER_DAYS ? `${days} days old` : null;
+  return days >= STALE_AFTER_DAYS ? `last changed ${days} days ago` : null;
 }
 
 /** Move one song by `delta`. Out of range is a no-op, so the end buttons are safe. */

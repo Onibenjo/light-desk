@@ -10,8 +10,9 @@ export interface Candidate {
 
 /**
  * Turn "a verse that says they will walk on snakes and not be bitten" into up
- * to three candidate references. The model only returns references; the text
- * itself always comes from the licensed sources, never from the model.
+ * to three candidate references. The model only returns references here; the
+ * text is then fetched from the Bible sources in sources.ts, whose AI-quoted
+ * last resort is marked in the UI and never copied automatically.
  * Provider/model are chosen in src/lib/llm.ts via env.
  */
 export async function findVerseCandidates(description: string): Promise<Candidate[]> {
@@ -28,7 +29,7 @@ export async function findVerseCandidates(description: string): Promise<Candidat
   try {
     items = JSON.parse(json);
   } catch {
-    throw new Error("Could not read the model's answer");
+    throw new Error("The verse search gave an answer it couldn't read — try again");
   }
 
   const out: Candidate[] = [];

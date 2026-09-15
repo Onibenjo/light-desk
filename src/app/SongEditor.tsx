@@ -60,11 +60,11 @@ export function songFromBody(body: unknown): SearchableSong | null {
 export function DeniedHint() {
   return (
     <p className="text-sm text-amber-400">
-      This browser is unlocked with the church PIN.{" "}
+      This device is unlocked with the church PIN.{" "}
       <a href="/unlock?next=/" target="_blank" rel="noopener noreferrer" className="underline">
-        Enter the admin PIN here
-      </a>{" "}
-      in a new tab, then come back and try again.
+        Enter the admin PIN in a new tab
+      </a>
+      , then try again here.
     </p>
   );
 }
@@ -75,9 +75,9 @@ function LockedHint() {
     <p className="text-sm text-amber-400">
       This device is locked.{" "}
       <a href={unlockHref("/")} target="_blank" rel="noopener noreferrer" className="underline">
-        Enter the admin PIN here
-      </a>{" "}
-      in a new tab, then come back and try again.
+        Enter the admin PIN in a new tab
+      </a>
+      , then try again here.
     </p>
   );
 }
@@ -112,7 +112,7 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
       });
       if (!res.ok) {
         if (res.status === 403) setDenied(true);
-        const failure = await failureFrom(res, "Could not save the song");
+        const failure = await failureFrom(res, "Couldn't save the song");
         if (failure.kind === "locked") setLocked(true);
         return showToast(failure.message, "err");
       }
@@ -139,7 +139,7 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
       const res = await fetch(`/api/songs/${song.id}`, { method: "DELETE", signal: AbortSignal.timeout(WRITE_TIMEOUT_MS) });
       if (!res.ok) {
         if (res.status === 403) setDenied(true);
-        const failure = await failureFrom(res, "Could not delete the song");
+        const failure = await failureFrom(res, "Couldn't delete the song");
         if (failure.kind === "locked") setLocked(true);
         return showToast(failure.message, "err");
       }
@@ -177,7 +177,7 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
         className={`${field} text-sm leading-relaxed`}
       />
       <p className="text-xs text-[var(--muted)]">
-        A blank line starts a new section — one section is one message in the chat. Tidy drops <span className="whitespace-nowrap">[Chorus]</span>-style labels and splits anything longer than six lines; Save keeps exactly what you see.
+        A blank line starts a new section, and each section is copied on its own. Tidy removes labels like <span className="whitespace-nowrap">[Chorus]</span> and splits sections over six lines. Save keeps exactly what you see.
       </p>
 
       {denied && <DeniedHint />}
@@ -195,10 +195,10 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
           <>
             <span className="text-sm text-[var(--muted)]">Delete this song?</span>
             <button onClick={remove} disabled={busy} className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">
-              Yes, delete
+              Confirm delete
             </button>
             <button onClick={() => setConfirmDelete(false)} disabled={busy} className="rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-800 disabled:opacity-50">
-              Keep it
+              Don&rsquo;t delete
             </button>
           </>
         ) : (

@@ -23,7 +23,7 @@ describe("browsing the whole songbook", () => {
   });
 
   it("marks a song added at the desk, as the search results do", () => {
-    expect(render([{ ...song("Quick One"), source: "manual" }])).toContain("added here");
+    expect(render([{ ...song("Quick One"), source: "manual" }])).toContain("quick-added");
   });
 
   it("stays memoised, or every keystroke reconciles ~8,900 elements", () => {

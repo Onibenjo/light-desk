@@ -6,8 +6,8 @@ import { isAdmin } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
-const DENIED = "Admin PIN required to edit the message library";
-const MISSING = "No such message";
+const DENIED = "Editing the message library needs the admin PIN";
+const MISSING = "That message is gone — reload the page";
 
 /** Route params arrive as a promise in this version of Next. */
 async function messageId(params: Promise<{ id: string }>): Promise<number | null> {
@@ -27,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   await ensureSchema();
   const result = await updateMessage(id, parsed);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
-  if (result === "no-section") return NextResponse.json({ error: "No such section" }, { status: 400 });
+  if (result === "no-section") return NextResponse.json({ error: "That section is gone — reload the page" }, { status: 400 });
   return NextResponse.json({ ok: true, message: result });
 }
 

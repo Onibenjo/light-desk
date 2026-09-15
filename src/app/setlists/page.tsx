@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { comingSundayName, moveItem, planMessageEdit, withParts } from "@/lib/setlist";
@@ -14,10 +14,12 @@ import type { Setlist } from "../useSetlist";
 
 type SetlistsState = { kind: "loading" } | { kind: "loaded"; setlists: Setlist[] } | { kind: "failed"; failure: Failure };
 
-/** A failure to show above the setlists. `saved` when the write went through and only the reload after it failed. */
-type Notice = { failure: Failure; saved: boolean };
+/** A failure to show above the setlists, after `lead` ("Not saved."). `saved` when the write went through and only the reload after it failed. */
+type Notice = { failure: Failure; lead: string; saved: boolean };
 
-const RELOADED: Failure = { kind: "conflict", message: "Someone else changed this setlist — reloaded it for you" };
+const RELOAD_LEAD = "Saved, but couldn't reload the setlists.";
+
+const RELOADED: Failure = { kind: "conflict", message: "Someone else changed this setlist — it has reloaded, so make your change again" };
 
 async function fetchSetlists(): Promise<{ ok: true; setlists: Setlist[] } | { ok: false; failure: Failure }> {
   let res: Response;
@@ -26,7 +28,7 @@ async function fetchSetlists(): Promise<{ ok: true; setlists: Setlist[] } | { ok
   } catch {
     return { ok: false, failure: OFFLINE };
   }
-  if (!res.ok) return { ok: false, failure: await failureFrom(res, "Could not load the setlists") };
+  if (!res.ok) return { ok: false, failure: await failureFrom(res) };
   try {
     const data = (await res.json()) as { setlists: Setlist[] };
     return { ok: true, setlists: data.setlists };
@@ -37,14 +39,14 @@ async function fetchSetlists(): Promise<{ ok: true; setlists: Setlist[] } | { ok
 }
 
 /**
- * What went wrong, and the one thing to do about it: Retry, or unlock when the
- * device's PIN has gone. After a write, the unlock link opens a new tab so text
- * typed on this page survives.
+ * What did not happen, why, and the one thing to do about it: try again, or
+ * unlock when the device's PIN has gone. After a write, the unlock link opens a new tab so
+ * text typed on this page survives. Setlists need the church PIN, not the admin PIN.
  */
-function Problem({ failure, saved = false, onRetry, next, newTab }: { failure: Failure; saved?: boolean; onRetry?: () => void; next: string; newTab: boolean }) {
+function Problem({ failure, lead, onRetry, next, newTab }: { failure: Failure; lead: string; onRetry?: () => void; next: string; newTab: boolean }) {
   return (
     <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-      <p className="min-w-0 wrap-anywhere">{saved ? `Saved, but the setlists did not reload. ${failure.message}` : failure.message}</p>
+      <p className="min-w-0 wrap-anywhere">{`${lead} ${failure.message}${/[.?!]$/.test(failure.message) ? "" : "."}`}</p>
       {failure.kind === "locked" ? (
         <a
           href={unlockHref(next)}
@@ -52,17 +54,67 @@ function Problem({ failure, saved = false, onRetry, next, newTab }: { failure: F
           rel={newTab ? "noopener noreferrer" : undefined}
           className="inline-flex items-center underline pointer-coarse:min-h-11"
         >
-          {newTab ? "Unlock in a new tab, then come back and try again" : "Unlock this device"}
+          {newTab ? "Enter the PIN in a new tab" : "Enter the PIN"}
         </a>
       ) : (
         onRetry && (
           <button onClick={onRetry} className="rounded-md border border-amber-500/40 px-3 py-1 text-sm hover:bg-amber-500/10 pointer-coarse:min-h-11">
-            Retry
+            Try again
           </button>
         )
       )}
     </div>
   );
+}
+
+/**
+ * A name that saves where it is shown. Visibly a field at rest (a dashed
+ * underline), because a phone has no hover to reveal it. Enter or leaving the
+ * field saves; Escape puts back the saved name. A refused or unsent name snaps
+ * back to the saved one, so the screen never shows a name that is not saved.
+ * The same field as on /messages; a page file can export only its page.
+ */
+function RenameField({ saved, label, maxLength, onRename }: { saved: string; label: string; maxLength: number; onRename: (name: string) => Promise<boolean> }) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  // A reload brought a new saved name. Shown unless someone is typing a different one.
+  useEffect(() => {
+    const input = ref.current;
+    if (input && (document.activeElement !== input || tidy(input.value) === saved)) input.value = saved;
+  }, [saved]);
+
+  async function commit(input: HTMLInputElement) {
+    if (tidy(input.value) === saved) return;
+    if (!(await onRename(input.value))) input.value = saved;
+  }
+
+  return (
+    <input
+      ref={ref}
+      defaultValue={saved}
+      maxLength={maxLength}
+      onBlur={(e) => void commit(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return;
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void commit(e.currentTarget);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.currentTarget.value = saved;
+          e.currentTarget.blur();
+        }
+      }}
+      enterKeyHint="done"
+      aria-label={label}
+      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-zinc-600 bg-transparent px-2 py-1 font-medium hover:border-solid hover:border-zinc-400 focus:border-solid focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
+    />
+  );
+}
+
+/** The name as the server will store it: one line, trimmed. */
+function tidy(name: string): string {
+  return name.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -111,7 +163,7 @@ export default function SetlistsPage() {
 
   const retryReload = async () => {
     const failure = await refresh();
-    setNotice(failure ? { failure, saved: true } : null);
+    setNotice(failure ? { failure, lead: RELOAD_LEAD, saved: true } : null);
   };
 
   /**
@@ -119,7 +171,7 @@ export default function SetlistsPage() {
    * it saved, so a caller that closes an editor on success does not lose the
    * operator's text on a 409, a 400 or a dropped connection.
    */
-  async function request(url: string, init: RequestInit, fallback: string): Promise<boolean> {
+  async function request(url: string, init: RequestInit, lead: string): Promise<boolean> {
     if (busy) return false;
     setBusy(true);
     setNotice(null);
@@ -129,21 +181,21 @@ export default function SetlistsPage() {
       try {
         res = await fetch(url, init);
       } catch {
-        setNotice({ failure: OFFLINE, saved: false });
+        setNotice({ failure: OFFLINE, lead, saved: false });
         return false;
       }
       if (res.ok) {
         const failure = await refresh();
-        if (failure) setNotice({ failure, saved: true });
+        if (failure) setNotice({ failure, lead: RELOAD_LEAD, saved: true });
         return true;
       }
-      const failure = await failureFrom(res, fallback);
+      const failure = await failureFrom(res);
       if (failure.kind === "conflict" || res.status === 404) {
         // The page is behind the server: show what is there now.
         const reloadFailure = await refresh();
-        setNotice({ failure: failure.kind === "conflict" && !reloadFailure ? RELOADED : failure, saved: false });
+        setNotice({ failure: failure.kind === "conflict" && !reloadFailure ? RELOADED : failure, lead, saved: false });
       } else {
-        setNotice({ failure, saved: false });
+        setNotice({ failure, lead, saved: false });
       }
       return false;
     } finally {
@@ -152,17 +204,17 @@ export default function SetlistsPage() {
   }
 
   const send = (id: number, body: unknown) =>
-    request(`/api/setlists/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, "That did not save");
+    request(`/api/setlists/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, "Not saved.");
 
   async function create() {
     const sent = name;
     if (!sent.trim()) return;
-    const ok = await request("/api/setlists", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: sent }) }, "Could not create it");
+    const ok = await request("/api/setlists", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: sent }) }, "Setlist not created.");
     // A refused name stays in the box to fix; a saved one makes way for the next, unless more was typed meanwhile.
     if (ok) setName((now) => (now === sent ? comingSundayName(new Date()) : now));
   }
 
-  const remove = (id: number) => request(`/api/setlists/${id}`, { method: "DELETE" }, "Could not delete it");
+  const remove = (id: number) => request(`/api/setlists/${id}`, { method: "DELETE" }, "Not deleted.");
 
   const setlists = state.kind === "loaded" ? state.setlists : [];
 
@@ -171,20 +223,19 @@ export default function SetlistsPage() {
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-xl font-semibold">Setlists</h1>
         <Link href="/" className="inline-flex items-center text-sm underline text-[var(--muted)] hover:text-zinc-300 pointer-coarse:min-h-11">
-          ← Back to the desk
+          ← Desk
         </Link>
       </div>
 
       <p className="text-sm text-[var(--muted)]">
-        The active setlist is the one the operator sees at the top of the Songs and Messages tabs. Add songs and messages
-        to it from there, with the + beside a search result or a message.
+        The active setlist sits at the top of the desk&apos;s Songs and Messages tabs. Add to it there, with the + beside a song or a message.
       </p>
 
       <p id={armed.regionId} role="status" className="sr-only">
         {armed.announcement}
       </p>
 
-      {notice && <Problem failure={notice.failure} saved={notice.saved} onRetry={notice.saved ? retryReload : undefined} next={pathname} newTab />}
+      {notice && <Problem failure={notice.failure} lead={notice.lead} onRetry={notice.saved ? retryReload : undefined} next={pathname} newTab />}
 
       <div className="flex gap-2">
         <input
@@ -192,7 +243,7 @@ export default function SetlistsPage() {
           onChange={(e) => setName(e.target.value)}
           maxLength={MAX_NAME}
           aria-label="New setlist name"
-          placeholder="Sunday 14 Sept — 1st service"
+          placeholder="e.g. Sunday 14 Sept, 1st service"
           className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
         />
         <button onClick={create} disabled={busy || !name.trim()} className="shrink-0 rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
@@ -200,27 +251,14 @@ export default function SetlistsPage() {
         </button>
       </div>
 
-      {state.kind === "loading" && <p className="text-sm text-[var(--muted)]">Loading…</p>}
-      {state.kind === "failed" && <Problem failure={state.failure} onRetry={retryLoad} next={pathname} newTab={false} />}
-      {state.kind === "loaded" && setlists.length === 0 && <p className="text-sm text-[var(--muted)]">No setlists yet.</p>}
+      {state.kind === "loading" && <p className="text-sm text-[var(--muted)]">Loading the setlists…</p>}
+      {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the setlists." onRetry={retryLoad} next={pathname} newTab={false} />}
+      {state.kind === "loaded" && setlists.length === 0 && <p className="text-sm text-[var(--muted)]">No setlists yet — name one above and choose New setlist.</p>}
 
       {setlists.map((s) => (
         <section key={s.id} className={`space-y-2 rounded-xl border p-4 ${s.active ? "border-[var(--accent)]/60 bg-[var(--accent)]/5" : "border-zinc-800 bg-zinc-900/60"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <input
-              key={`${s.id}:${s.name}`}
-              defaultValue={s.name}
-              maxLength={MAX_NAME}
-              onBlur={async (e) => {
-                const input = e.currentTarget;
-                if (input.value.trim() === s.name) return;
-                const ok = await send(s.id, { name: input.value });
-                // Refused, or never sent: show the name that is saved, not the one typed.
-                if (!ok) input.value = s.name;
-              }}
-              aria-label={`Name of ${s.name}`}
-              className="min-w-48 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 font-medium hover:border-zinc-700 focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
-            />
+            <RenameField saved={s.name} label={`Rename setlist ${s.name}`} maxLength={MAX_NAME} onRename={(next) => send(s.id, { name: next })} />
             <span className="flex flex-wrap items-center gap-2">
               {s.active ? (
                 <span className="rounded bg-[var(--accent)] px-2 py-1 text-xs font-semibold uppercase text-black">Active</span>
@@ -234,13 +272,15 @@ export default function SetlistsPage() {
                 disabled={busy}
                 className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 disabled:opacity-50 pointer-coarse:min-h-11"
               >
-                {armed.isArmed(s.id) ? "Sure?" : "Delete"}
+                {armed.isArmed(s.id) ? "Confirm delete" : "Delete"}
               </button>
             </span>
           </div>
 
           {s.items.length === 0 ? (
-            <p className="px-2 text-sm text-[var(--muted)]">Nothing in it yet — add songs and messages from the desk.</p>
+            <p className="px-2 text-sm text-[var(--muted)]">
+              {s.active ? "Nothing in it yet — add songs and messages from the desk with +." : "Nothing in it yet — make it active, then add songs and messages from the desk."}
+            </p>
           ) : (
             <ol className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
               {s.items.map((item, i) => {
@@ -259,7 +299,9 @@ export default function SetlistsPage() {
                         <span className="min-w-0 flex-1 text-sm wrap-anywhere sm:truncate">
                           {label}
                           {item.kind === "message" && item.parts && (
-                            <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">edited</span>
+                            <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
+                              edited<span className="sr-only"> for this service</span>
+                            </span>
                           )}
                         </span>
                       </span>
@@ -294,12 +336,14 @@ export default function SetlistsPage() {
                           rows={6}
                           className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                         />
-                        <p className="text-xs text-[var(--muted)]">Only this setlist changes. A blank line starts a new post. Once edited, fixes to the library no longer reach this item.</p>
+                        <p className="text-xs text-[var(--muted)]">
+                          Changes only this setlist, and later fixes to the library won&apos;t reach it. A blank line starts a new part.
+                        </p>
                         <div className="flex flex-wrap gap-2">
                           <button
                             onClick={async () => {
                               const parts = partsFromText(editing.text);
-                              if (typeof parts === "string") return setNotice({ failure: { kind: "refused", message: parts }, saved: false });
+                              if (typeof parts === "string") return setNotice({ failure: { kind: "refused", message: parts }, lead: "Not saved.", saved: false });
                               const alreadyEdited = item.kind === "message" && item.parts !== undefined;
                               const plan = planMessageEdit(parts, entry?.message.parts, alreadyEdited);
                               // Typed back the library's own words: nothing to

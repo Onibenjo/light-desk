@@ -10,7 +10,7 @@ interface Props {
   what: string;
   onCancel: () => void;
   /**
-   * May return a promise: the button then reads "Starting…" until it settles,
+   * May return a promise: the button then reads "Starting the setlist…" until it settles,
    * and a second Enter or tap in the meantime does nothing.
    */
   onStart: (name: string) => unknown;
@@ -32,7 +32,7 @@ export default function StartSetlist({ what, onCancel, onStart }: Props) {
     try {
       await onStart(trimmed);
     } catch {
-      // The caller owns the toast; all this form must do is never stay stuck on "Starting…".
+      // The caller owns the toast; all this form must do is never stay stuck on "Starting the setlist…".
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -47,7 +47,7 @@ export default function StartSetlist({ what, onCancel, onStart }: Props) {
           Cancel
         </button>
       </div>
-      <p className="text-sm wrap-break-word text-[var(--muted)]">&ldquo;{what}&rdquo; will be first.</p>
+      <p className="text-sm wrap-break-word text-[var(--muted)]">&ldquo;{what}&rdquo; goes first.</p>
       <input
         autoFocus
         value={name}
@@ -55,10 +55,11 @@ export default function StartSetlist({ what, onCancel, onStart }: Props) {
         maxLength={MAX_NAME}
         enterKeyHint="go"
         aria-label="Setlist name"
+        placeholder="Setlist name"
         className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
       />
       <button type="submit" disabled={!trimmed || busy} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
-        {busy ? "Starting…" : "Start it"}
+        {busy ? "Starting the setlist…" : "Start the setlist"}
       </button>
     </form>
   );

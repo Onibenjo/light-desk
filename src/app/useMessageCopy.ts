@@ -28,7 +28,7 @@ export function useMessageCopy({ copyText, showToast, logSend }: Deps) {
         ok = await copyText(text);
       } catch {}
       if (!ok) {
-        showToast("Clipboard blocked — tap again", "err");
+        showToast("Couldn't copy — try again", "err");
         return false;
       }
       const count = message.parts.length;

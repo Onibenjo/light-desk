@@ -90,8 +90,8 @@ describe("messages in a setlist", () => {
   });
 
   it("refuses edited text that breaks the library's rules", () => {
-    expect(parseSetlistPatch({ items: [message(12, "x", [])], updatedAt: "t" })).toMatch(/edited text/i);
-    expect(parseSetlistPatch({ items: [message(12, "x", ["a".repeat(4001)])], updatedAt: "t" })).toMatch(/edited text/i);
+    expect(parseSetlistPatch({ items: [message(12, "x", [])], updatedAt: "t" })).toMatch(/text edited for this service/i);
+    expect(parseSetlistPatch({ items: [message(12, "x", ["a".repeat(4001)])], updatedAt: "t" })).toMatch(/text edited for this service/i);
   });
 
   it("tells a song from a message with the same id, but not a message from itself", () => {

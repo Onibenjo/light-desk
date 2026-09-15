@@ -4,7 +4,7 @@ import { clientKey, rateLimit } from "@/lib/ratelimit";
 
 export async function POST(req: Request) {
   if (!rateLimit(`unlock:${clientKey(req)}`, 10, 60_000)) {
-    return NextResponse.json({ error: "Too many attempts, wait a minute." }, { status: 429 });
+    return NextResponse.json({ error: "Too many attempts — wait a minute and try again" }, { status: 429 });
   }
   const { pin } = (await req.json().catch(() => ({}))) as { pin?: string };
   const role = await checkPin(String(pin ?? ""));

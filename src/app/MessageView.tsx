@@ -9,7 +9,7 @@ interface Props {
   cursor: number;
   /** The part just copied, briefly highlighted where the operator is looking. */
   flash: number | null;
-  /** "+ Setlist" or "Start a setlist"; null when the section cannot go in a setlist. */
+  /** "Add to the setlist" or "Start a setlist"; null when the section cannot go in a setlist. */
   addLabel: string | null;
   onCopy: (index: number, advance: boolean) => void;
   onFocusPart: (index: number) => void;
@@ -31,7 +31,9 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
         <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-anywhere sm:basis-auto">
           {label}
           {edited && (
-            <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">edited</span>
+            <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap text-[var(--accent)]">
+              edited<span className="sr-only"> for this service</span>
+            </span>
           )}
         </h2>
         <span className="flex flex-wrap gap-2 sm:shrink-0">
@@ -46,7 +48,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
         </span>
       </div>
       <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-        <span className="kbd">↵</span> send and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> jump · <span className="kbd">Esc</span> back
+        <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part · <span className="kbd">Esc</span> back
       </p>
       <ol className="space-y-2">
         {parts.map((part, i) => (

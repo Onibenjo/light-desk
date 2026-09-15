@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchesChord, formatChord, filterActions, isTypingTarget, type Action } from "../src/lib/shortcuts";
+import { matchesChord, formatChord, filterActions, isTypingTarget, opensGuide, type Action } from "../src/lib/shortcuts";
 
 const press = (key: string, mods: Partial<{ metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }> = {}) => ({
   key,
@@ -103,5 +103,34 @@ describe("isTypingTarget", () => {
     expect(isTypingTarget({ tagName: "BUTTON" })).toBe(false);
     expect(isTypingTarget({ tagName: "DIV" })).toBe(false);
     expect(isTypingTarget(null)).toBe(false);
+  });
+});
+
+describe("opensGuide", () => {
+  it("opens the guide from outside a text field", () => {
+    expect(opensGuide(press("?", { shiftKey: true }), { tagName: "BUTTON" })).toBe(true);
+    expect(opensGuide(press("?"), null)).toBe(true);
+  });
+
+  it("opens the guide from an empty text field, where the desk keeps the cursor", () => {
+    expect(opensGuide(press("?", { shiftKey: true }), { tagName: "INPUT", value: "" })).toBe(true);
+    expect(opensGuide(press("?"), { tagName: "TEXTAREA", value: "" })).toBe(true);
+    expect(opensGuide(press("?"), { tagName: "DIV", isContentEditable: true, textContent: "" })).toBe(true);
+  });
+
+  it("types the question mark once the field has text in it", () => {
+    expect(opensGuide(press("?", { shiftKey: true }), { tagName: "INPUT", value: "rom 8" })).toBe(false);
+    expect(opensGuide(press("?"), { tagName: "TEXTAREA", value: "Sirs and Mas" })).toBe(false);
+    expect(opensGuide(press("?"), { tagName: "DIV", isContentEditable: true, textContent: "x" })).toBe(false);
+  });
+
+  it("leaves a select alone", () => {
+    expect(opensGuide(press("?"), { tagName: "SELECT", value: "" })).toBe(false);
+  });
+
+  it("ignores other keys, and a question mark with a modifier held", () => {
+    expect(opensGuide(press("/"), { tagName: "INPUT", value: "" })).toBe(false);
+    expect(opensGuide(press("?", { metaKey: true }), { tagName: "INPUT", value: "" })).toBe(false);
+    expect(opensGuide(press("?", { altKey: true }), null)).toBe(false);
   });
 });

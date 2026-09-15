@@ -36,15 +36,15 @@ export interface MessagePatch {
   move?: -1 | 1;
 }
 
-const NAME_ERROR = `A section needs a name of 1 to ${MAX_SECTION_NAME} characters`;
-const TITLE_ERROR = `A message needs a title of 1 to ${MAX_MESSAGE_TITLE} characters`;
-const TEXT_ERROR = "A message needs some text";
-const COUNT_ERROR = `A message holds at most ${MAX_PARTS} parts`;
-const LENGTH_ERROR = `A part can be at most ${MAX_PART_CHARS} characters`;
-const SECTION_ERROR = "Pick a section for the message";
-const FLAG_ERROR = "In service is true or false";
-const MOVE_ERROR = "Move is -1 or 1";
-const NOTHING = "Nothing to change";
+const NAME_ERROR = `Give the section a name of ${MAX_SECTION_NAME} characters or fewer`;
+const TITLE_ERROR = `Give the message a title of ${MAX_MESSAGE_TITLE} characters or fewer`;
+const TEXT_ERROR = "A message can't be empty — type its text";
+const COUNT_ERROR = `A message can have at most ${MAX_PARTS} parts — remove some blank lines`;
+const LENGTH_ERROR = `A part can be at most ${MAX_PART_CHARS} characters — split it with a blank line`;
+const SECTION_ERROR = "Choose a section for the message";
+const FLAG_ERROR = "“Can go in a setlist” must be true or false";
+const MOVE_ERROR = "Move a message or section one place up or down at a time";
+const NOTHING = "Nothing to save — change something first";
 
 function oneLine(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;

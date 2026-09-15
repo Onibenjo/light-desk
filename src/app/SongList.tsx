@@ -46,7 +46,7 @@ function SongList({ book, onOpen }: Props) {
                   <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
                     {song.author ? `${song.author} · ` : ""}
                     {song.sections.length} section{song.sections.length === 1 ? "" : "s"}
-                    {song.source === "manual" ? " · added here" : ""}
+                    {song.source === "manual" ? " · quick-added" : ""}
                   </span>
                 </button>
               </li>

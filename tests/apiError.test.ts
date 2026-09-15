@@ -25,17 +25,30 @@ describe("describeFailure", () => {
     expect(describeFailure(404, undefined, "That song is gone")).toEqual({ kind: "refused", message: "That song is gone" });
   });
 
+  it("reads after a lead-in like \"Couldn't load the log.\" without repeating it or doubling the full stop", () => {
+    const generic = [describeFailure(401), describeFailure(403), describeFailure(429), describeFailure(409), describeFailure(500), describeFailure(400), OFFLINE];
+    for (const f of generic) {
+      expect(f.message).not.toMatch(/^(couldn.t|could not)/i);
+      expect(f.message).not.toMatch(/[.!]$/);
+    }
+  });
+
+  it("uses contractions, as the rest of the interface does", () => {
+    const generic = [describeFailure(401), describeFailure(403), describeFailure(429), describeFailure(409), describeFailure(500), describeFailure(400), OFFLINE];
+    for (const f of generic) expect(f.message).not.toMatch(/\b(could not|did not|cannot|is not)\b/i);
+  });
+
   it("ignores an error field that is not a usable sentence", () => {
     expect(describeFailure(500, "").message).toMatch(/try again/i);
     expect(describeFailure(500, "   ").message).toMatch(/try again/i);
-    expect(describeFailure(400, { nested: true } as unknown as string, "Could not save").message).toBe("Could not save");
+    expect(describeFailure(400, { nested: true } as unknown as string, "Couldn't save").message).toBe("Couldn't save");
   });
 });
 
 describe("failureFrom", () => {
   it("reads the error from a JSON body", async () => {
     const res = new Response(JSON.stringify({ error: "No such setlist" }), { status: 404 });
-    expect(await failureFrom(res, "Could not load")).toEqual({ kind: "refused", message: "No such setlist" });
+    expect(await failureFrom(res, "Couldn't load")).toEqual({ kind: "refused", message: "No such setlist" });
   });
 
   it("survives a body that is not JSON, like a proxy's HTML error page", async () => {
@@ -47,7 +60,7 @@ describe("failureFrom", () => {
 
   it("recognises the PIN gate's 401 from its body", async () => {
     const res = new Response(JSON.stringify({ error: "locked" }), { status: 401 });
-    expect((await failureFrom(res, "Could not load")).kind).toBe("locked");
+    expect((await failureFrom(res, "Couldn't load")).kind).toBe("locked");
   });
 });
 
