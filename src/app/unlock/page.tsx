@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, Suspense, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { failureFrom, OFFLINE } from "@/lib/apiError";
 
@@ -53,12 +54,15 @@ function UnlockForm() {
 
   return (
     <form onSubmit={submit} className="w-full max-w-sm space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Lightdesk</h1>
-        <p className="text-sm text-zinc-400">Citizens of Light Church · Mixlr chat desk</p>
+      <div className="flex items-center gap-3">
+        <Image src="/brand/clc-logo.png" alt="" width={48} height={48} priority className="h-12 w-12 shrink-0 rounded-full" />
+        <div>
+          <h1 className="text-2xl font-semibold leading-tight tracking-wide uppercase">Lightdesk</h1>
+          <p className="text-sm text-ink-400">Citizens of Light Church · Mixlr chat desk</p>
+        </div>
       </div>
       <div className="space-y-1.5">
-        <label htmlFor={FIELD_ID} className="block text-sm text-zinc-300">
+        <label htmlFor={FIELD_ID} className="block text-sm text-ink-300">
           Church or admin PIN
         </label>
         <input
@@ -71,7 +75,7 @@ function UnlockForm() {
           aria-describedby={error ? ERROR_ID : undefined}
           value={pin}
           onChange={(e) => setPin(e.target.value)}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-lg outline-none focus:border-[var(--accent)] aria-invalid:border-red-500/60"
+          className="w-full rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-lg outline-none focus:border-[var(--accent)] aria-invalid:border-red-500/60"
         />
         {error && (
           <p id={ERROR_ID} role="alert" className="text-sm text-red-400">
@@ -79,7 +83,7 @@ function UnlockForm() {
           </p>
         )}
       </div>
-      <button disabled={busy || !pin} className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 font-medium text-black disabled:opacity-50">
+      <button disabled={busy || !pin} className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-lg font-semibold text-black disabled:opacity-50">
         {busy ? "Checking the PIN…" : "Unlock this device"}
       </button>
       <p className="text-xs text-[var(--muted)]">Ask the media lead for the PIN. This device stays unlocked for a year.</p>

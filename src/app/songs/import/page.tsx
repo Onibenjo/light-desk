@@ -106,13 +106,13 @@ export default function ImportPage() {
 
       {!preview && !result && (
         <>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-ink-400">
             Choose a songbook exported from VideoPsalm. You&rsquo;ll see what would change before anything is saved. Import adds new songs and updates changed ones; it never deletes a song or
             overwrites one edited here. Needs the admin PIN.
           </p>
           {/* The input stays in the tab order (sr-only, not display:none) so Enter or
               Space opens the picker; the dashed box draws the focus ring for it. */}
-          <label className="block cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-10 text-center text-zinc-400 hover:border-[var(--accent)] has-focus-visible:border-[var(--accent)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-[var(--accent)]">
+          <label className="block cursor-pointer rounded-xl border-2 border-dashed border-ink-700 p-10 text-center text-ink-400 hover:border-[var(--accent)] has-focus-visible:border-[var(--accent)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-[var(--accent)]">
             <span aria-live="polite">{busy === "preview" ? "Reading the file…" : "Choose a .json or .vpc file"}</span>
             <input
               type="file"
@@ -162,7 +162,7 @@ export default function ImportPage() {
       )}
 
       {preview && file && (
-        <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <div className="space-y-4 rounded-xl border border-ink-800 bg-ink-900/60 p-4">
           <div>
             <h2 className="font-medium wrap-anywhere">{file.name}</h2>
             <p className="text-xs text-[var(--muted)]">
@@ -179,7 +179,7 @@ export default function ImportPage() {
             <button onClick={commit} disabled={busy !== null || changes === 0} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">
               {busy === "import" ? "Importing…" : changes === 0 ? "Nothing to import" : `Import ${count(changes, SONG)}`}
             </button>
-            <button onClick={reset} disabled={busy !== null} className="rounded-md border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800 disabled:opacity-50">
+            <button onClick={reset} disabled={busy !== null} className="rounded-md border border-ink-700 px-4 py-2 text-sm hover:bg-ink-800 disabled:opacity-50">
               Choose a different file
             </button>
           </div>
@@ -195,7 +195,7 @@ export default function ImportPage() {
           <TitleList noun={LISTS.updated} titles={result.updated} />
           <TitleList noun={LISTS.editedHere} titles={result.skippedEdited} />
           <Footnotes s={result} />
-          <button onClick={reset} className="rounded-md border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800">
+          <button onClick={reset} className="rounded-md border border-ink-700 px-4 py-2 text-sm hover:bg-ink-800">
             Import another file
           </button>
         </div>

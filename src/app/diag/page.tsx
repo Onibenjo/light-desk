@@ -70,7 +70,7 @@ export default function DiagPage() {
           <p className="text-xs text-[var(--muted)]">Which verse sources are working, and what is set up.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => run(false)} disabled={busy} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm disabled:opacity-50 pointer-coarse:min-h-11">
+          <button onClick={() => run(false)} disabled={busy} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm disabled:opacity-50 pointer-coarse:min-h-11">
             Check again
           </button>
           <button onClick={() => run(true)} disabled={busy} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
@@ -94,30 +94,30 @@ export default function DiagPage() {
           </div>
         </div>
       )}
-      {!data && !failure && <p className="text-sm text-zinc-400 animate-pulse">Checking the verse sources…</p>}
+      {!data && !failure && <p className="text-sm text-ink-400 animate-pulse">Checking the verse sources…</p>}
       {data && (
         <>
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <section className="rounded-xl border border-ink-800 bg-ink-900/60 p-4">
             <h2 className="mb-2 text-xs uppercase tracking-wide text-[var(--muted)]">Settings</h2>
             {/* Two columns at most so a key like LLM_MODEL is never cut to "LLM_…";
                 a value that will not fit beside its key wraps under it, right-aligned. */}
             <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
               {Object.entries(data.env).map(([k, v]) => (
-                <div key={k} className="flex min-w-0 flex-wrap justify-between gap-x-3 gap-y-0.5 border-b border-zinc-800/60 py-1">
-                  <dt className="break-all text-zinc-400">{k}</dt>
-                  <dd className={`ml-auto min-w-0 wrap-anywhere text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-[var(--muted)]") : "text-zinc-200"}`}>{typeof v === "boolean" ? (v ? "set" : "not set") : v}</dd>
+                <div key={k} className="flex min-w-0 flex-wrap justify-between gap-x-3 gap-y-0.5 border-b border-ink-800/60 py-1">
+                  <dt className="break-all text-ink-400">{k}</dt>
+                  <dd className={`ml-auto min-w-0 wrap-anywhere text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-[var(--muted)]") : "text-ink-200"}`}>{typeof v === "boolean" ? (v ? "set" : "not set") : v}</dd>
                 </div>
               ))}
             </dl>
           </section>
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <section className="rounded-xl border border-ink-800 bg-ink-900/60 p-4">
             <h2 className="mb-2 text-xs uppercase tracking-wide text-[var(--muted)]">Results</h2>
-            <ul className="divide-y divide-zinc-800 text-sm">
+            <ul className="divide-y divide-ink-800 text-sm">
               {data.checks.map((c) => (
                 <li key={c.name} className="flex flex-wrap gap-x-3 gap-y-1 py-2">
                   <span className={`shrink-0 ${c.ok ? "text-emerald-400" : "text-red-400"}`}>{c.ok ? "✓" : "✗"}</span>
-                  <span className="min-w-0 flex-1 break-words text-zinc-200 sm:w-56 sm:flex-none">{c.name}</span>
-                  <span className="min-w-0 basis-full wrap-anywhere text-zinc-400 sm:basis-0 sm:flex-1">
+                  <span className="min-w-0 flex-1 break-words text-ink-200 sm:w-56 sm:flex-none">{c.name}</span>
+                  <span className="min-w-0 basis-full wrap-anywhere text-ink-400 sm:basis-0 sm:flex-1">
                     {c.detail}
                     {c.ms !== undefined && <span className="ml-2 text-[var(--muted)]">{c.ms} ms</span>}
                   </span>
@@ -127,9 +127,9 @@ export default function DiagPage() {
             {data.hint && <p className="mt-3 text-xs text-[var(--muted)]">{data.hint}</p>}
           </section>
           {data.youversionBibles.length > 0 && (
-            <details className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm">
-              <summary className="cursor-pointer text-zinc-300">English Bibles your YouVersion key can use ({data.youversionBibles.length})</summary>
-              <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs text-zinc-400">{data.youversionBibles.join("\n")}</pre>
+            <details className="rounded-xl border border-ink-800 bg-ink-900/60 p-4 text-sm">
+              <summary className="cursor-pointer text-ink-300">English Bibles your YouVersion key can use ({data.youversionBibles.length})</summary>
+              <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs text-ink-400">{data.youversionBibles.join("\n")}</pre>
             </details>
           )}
         </>

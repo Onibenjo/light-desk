@@ -32,16 +32,16 @@ function SongList({ book, onOpen }: Props) {
   if (!groups.length) return null;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
+    <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900/60">
       {groups.map((group) => (
         <section key={group.letter} aria-labelledby={groupId(group.letter)}>
-          <h3 id={groupId(group.letter)} className="sticky top-0 z-10 border-y border-zinc-800 bg-zinc-950/95 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[var(--muted)] backdrop-blur">
+          <h3 id={groupId(group.letter)} className="sticky top-0 z-10 border-y border-ink-800 bg-ink-950 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
             {group.letter}
           </h3>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-ink-800">
             {group.songs.map((song) => (
               <li key={song.guid ?? song.id}>
-                <button onClick={() => onOpen(song)} className="flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-800/60">
+                <button onClick={() => onOpen(song)} className="flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left hover:bg-ink-800/60">
                   <span className="min-w-0 font-medium wrap-break-word">{song.title}</span>
                   <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
                     {song.author ? `${song.author} · ` : ""}

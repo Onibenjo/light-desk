@@ -11,6 +11,7 @@ import { useArmed } from "../useArmed";
 import { messageLabel, messagesById } from "@/lib/messageLibrary";
 import { partsFromText, textFromParts } from "@/lib/messageEdit";
 import type { Setlist } from "../useSetlist";
+import Icon from "../Icon";
 
 type SetlistsState = { kind: "loading" } | { kind: "loaded"; setlists: Setlist[] } | { kind: "failed"; failure: Failure };
 
@@ -107,7 +108,7 @@ function RenameField({ saved, label, maxLength, onRename }: { saved: string; lab
       }}
       enterKeyHint="done"
       aria-label={label}
-      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-zinc-600 bg-transparent px-2 py-1 font-medium hover:border-solid hover:border-zinc-400 focus:border-solid focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
+      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-ink-600 bg-transparent px-2 py-1 font-medium hover:border-solid hover:border-ink-400 focus:border-solid focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
     />
   );
 }
@@ -222,7 +223,7 @@ export default function SetlistsPage() {
     <main className="mx-auto max-w-2xl space-y-6 p-4">
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-xl font-semibold">Setlists</h1>
-        <Link href="/" className="inline-flex items-center text-sm underline text-[var(--muted)] hover:text-zinc-300 pointer-coarse:min-h-11">
+        <Link href="/" className="inline-flex items-center text-sm underline text-[var(--muted)] hover:text-ink-300 pointer-coarse:min-h-11">
           ← Desk
         </Link>
       </div>
@@ -244,7 +245,7 @@ export default function SetlistsPage() {
           maxLength={MAX_NAME}
           aria-label="New setlist name"
           placeholder="e.g. Sunday 14 Sept, 1st service"
-          className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
+          className="min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
         />
         <button onClick={create} disabled={busy || !name.trim()} className="shrink-0 rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
           New setlist
@@ -256,21 +257,21 @@ export default function SetlistsPage() {
       {state.kind === "loaded" && setlists.length === 0 && <p className="text-sm text-[var(--muted)]">No setlists yet — name one above and choose New setlist.</p>}
 
       {setlists.map((s) => (
-        <section key={s.id} className={`space-y-2 rounded-xl border p-4 ${s.active ? "border-[var(--accent)]/60 bg-[var(--accent)]/5" : "border-zinc-800 bg-zinc-900/60"}`}>
+        <section key={s.id} className={`space-y-2 rounded-xl border p-4 ${s.active ? "border-[var(--accent)]/60 bg-[var(--accent)]/5" : "border-ink-800 bg-ink-900/60"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <RenameField saved={s.name} label={`Rename setlist ${s.name}`} maxLength={MAX_NAME} onRename={(next) => send(s.id, { name: next })} />
             <span className="flex flex-wrap items-center gap-2">
               {s.active ? (
                 <span className="rounded bg-[var(--accent)] px-2 py-1 text-xs font-semibold uppercase text-black">Active</span>
               ) : (
-                <button onClick={() => send(s.id, { active: true })} disabled={busy} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 disabled:opacity-50 pointer-coarse:min-h-11">
+                <button onClick={() => send(s.id, { active: true })} disabled={busy} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 disabled:opacity-50 pointer-coarse:min-h-11">
                   Make active
                 </button>
               )}
               <button
                 {...armed.buttonProps(s.id, `the setlist ${s.name}`, () => void remove(s.id))}
                 disabled={busy}
-                className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 disabled:opacity-50 pointer-coarse:min-h-11"
+                className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 disabled:opacity-50 pointer-coarse:min-h-11"
               >
                 {armed.isArmed(s.id) ? "Confirm delete" : "Delete"}
               </button>
@@ -282,7 +283,7 @@ export default function SetlistsPage() {
               {s.active ? "Nothing in it yet — add songs and messages from the desk with +." : "Nothing in it yet — make it active, then add songs and messages from the desk."}
             </p>
           ) : (
-            <ol className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+            <ol className="divide-y divide-ink-800 rounded-lg border border-ink-800">
               {s.items.map((item, i) => {
                 const entry = item.kind === "message" ? byId?.get(item.id) : undefined;
                 const label = entry ? messageLabel(entry.section, entry.message) : item.title;
@@ -293,13 +294,12 @@ export default function SetlistsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-1">
                         <span className="w-5 shrink-0 text-center text-xs text-[var(--muted)]">{i + 1}</span>
-                        <span className="shrink-0" aria-label={item.kind === "song" ? "Song" : "Message"}>
-                          {item.kind === "song" ? "🎵" : "💬"}
-                        </span>
+                        <Icon name={item.kind === "song" ? "music" : "message"} className="h-4 w-4 text-[var(--muted)]" />
+                        <span className="sr-only">{item.kind === "song" ? "Song: " : "Message: "}</span>
                         <span className="min-w-0 flex-1 text-sm wrap-anywhere sm:truncate">
                           {label}
                           {item.kind === "message" && item.parts && (
-                            <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
+                            <span className="badge ml-2">
                               edited<span className="sr-only"> for this service</span>
                             </span>
                           )}
@@ -310,18 +310,18 @@ export default function SetlistsPage() {
                           <button
                             onClick={() => setEditing({ setlistId: s.id, key, text: textFromParts(item.parts ?? entry?.message.parts ?? []) })}
                             disabled={busy || (!item.parts && !entry)}
-                            className="shrink-0 rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800 disabled:opacity-30 pointer-coarse:min-h-11"
+                            className="shrink-0 rounded-md border border-ink-700 px-2 py-1 text-xs hover:bg-ink-800 disabled:opacity-30 pointer-coarse:min-h-11"
                           >
                             Edit for this service
                           </button>
                         )}
-                        <button onClick={() => send(s.id, { items: moveItem(s.items, i, -1), updatedAt: s.updatedAt })} disabled={busy || i === 0} aria-label={`Move ${label} up`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
+                        <button onClick={() => send(s.id, { items: moveItem(s.items, i, -1), updatedAt: s.updatedAt })} disabled={busy || i === 0} aria-label={`Move ${label} up`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-ink-800 disabled:opacity-30">
                           ↑
                         </button>
-                        <button onClick={() => send(s.id, { items: moveItem(s.items, i, 1), updatedAt: s.updatedAt })} disabled={busy || i === s.items.length - 1} aria-label={`Move ${label} down`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30">
+                        <button onClick={() => send(s.id, { items: moveItem(s.items, i, 1), updatedAt: s.updatedAt })} disabled={busy || i === s.items.length - 1} aria-label={`Move ${label} down`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-ink-800 disabled:opacity-30">
                           ↓
                         </button>
-                        <button onClick={() => send(s.id, { items: s.items.filter((x) => itemKey(x) !== key), updatedAt: s.updatedAt })} disabled={busy} aria-label={`Remove ${label}`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30">
+                        <button onClick={() => send(s.id, { items: s.items.filter((x) => itemKey(x) !== key), updatedAt: s.updatedAt })} disabled={busy} aria-label={`Remove ${label}`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-ink-800 hover:text-ink-200 disabled:opacity-30">
                           ×
                         </button>
                       </span>
@@ -334,7 +334,7 @@ export default function SetlistsPage() {
                           onChange={(e) => setEditing({ ...editing, text: e.target.value })}
                           aria-label={`Text of ${label} for this service`}
                           rows={6}
-                          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                          className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                         />
                         <p className="text-xs text-[var(--muted)]">
                           Changes only this setlist, and later fixes to the library won&apos;t reach it. A blank line starts a new part.
@@ -367,12 +367,12 @@ export default function SetlistsPage() {
                                 if (await send(s.id, { items: withParts(s.items, i, undefined), updatedAt: s.updatedAt })) setEditing(null);
                               }}
                               disabled={busy}
-                              className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 disabled:opacity-50 pointer-coarse:min-h-11"
+                              className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 disabled:opacity-50 pointer-coarse:min-h-11"
                             >
                               Reset to library text
                             </button>
                           )}
-                          <button onClick={() => setEditing(null)} className="rounded-md px-3 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 pointer-coarse:min-h-11">
+                          <button onClick={() => setEditing(null)} className="rounded-md px-3 py-1.5 text-sm text-ink-400 hover:bg-ink-800 pointer-coarse:min-h-11">
                             Cancel
                           </button>
                         </div>

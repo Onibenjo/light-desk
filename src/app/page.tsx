@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CommandPalette, { type ShortcutGuide } from "./CommandPalette";
@@ -9,6 +10,7 @@ import { BUSY_DELAY_MS } from "@/lib/timing";
 import { hasFinePointer } from "@/lib/pointer";
 import { TRANSLATIONS, DEFAULT_TRANSLATION, translationFromInput } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
+import Icon from "./Icon";
 import SongsTab from "./SongsTab";
 import MessagesTab from "./MessagesTab";
 import { useSetlist } from "./useSetlist";
@@ -21,9 +23,9 @@ import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from 
 import { tabIndexForKey } from "@/lib/tabKeys";
 
 const TABS = [
-  { id: "verses", icon: "📖", label: "Verses" },
-  { id: "songs", icon: "🎵", label: "Songs" },
-  { id: "messages", icon: "💬", label: "Messages" },
+  { id: "verses", icon: "book", label: "Verses" },
+  { id: "songs", icon: "music", label: "Songs" },
+  { id: "messages", icon: "message", label: "Messages" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -55,6 +57,28 @@ const SOURCE_LABEL: Record<Passage["source"], string> = {
   gateway: "BibleGateway fallback",
   llm: "AI-quoted, may be wrong — read it before you copy",
 };
+
+/**
+ * A part as it will read in the Mixlr chat: the reference and translation lines
+ * set as its header, the verses at reading size. Styling only — the string is
+ * the one on the clipboard, and anything not starting with the header is shown
+ * whole rather than guessed at.
+ */
+function PostPreview({ text, header }: { text: string; header: string }) {
+  const hasHeader = text.startsWith(header + "\n");
+  const [reference, translation] = header.split("\n");
+  return (
+    <div className="px-4 py-4 sm:px-5 sm:py-5">
+      {hasHeader && (
+        <p className="mb-2">
+          <span className="block font-text text-lg font-bold leading-snug text-ink-50">{reference}</span>
+          <span className="block font-text text-sm text-[var(--muted)]">{translation}</span>
+        </p>
+      )}
+      <pre className="wrap-anywhere whitespace-pre-wrap font-text text-lg leading-relaxed text-ink-100 sm:text-[19px]">{hasHeader ? text.slice(header.length + 1) : text}</pre>
+    </div>
+  );
+}
 
 function refToQuery(r: Ref): string {
   const b = BOOKS[r.book];
@@ -622,9 +646,10 @@ export default function Desk() {
           stretched the layout viewport and took the toast off-screen with it. */}
       <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="order-1 flex min-w-0 items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
+          {/* The mark from the church website until CLC's own file arrives. */}
+          <Image src="/brand/clc-logo.png" alt="" width={36} height={36} priority className="h-9 w-9 shrink-0 rounded-full" />
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold leading-tight">Lightdesk</h1>
+            <h1 className="text-xl font-semibold leading-tight tracking-wide uppercase">Lightdesk</h1>
             <p className="truncate text-xs text-[var(--muted)]">CLC · Mixlr chat desk</p>
           </div>
         </div>
@@ -639,7 +664,7 @@ export default function Desk() {
               // by the in-flight guard, leaving this saying one translation while
               // the verse on screen is still in the other.
               disabled={!!busy}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm disabled:opacity-60 pointer-coarse:min-h-11"
+              className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm disabled:opacity-60 pointer-coarse:min-h-11"
             >
               {TRANSLATIONS.map((t) => (
                 <option key={t.code} value={t.code}>
@@ -658,7 +683,7 @@ export default function Desk() {
                 refocus();
               }}
               title="Auto tries saved verses, YouVersion, API.Bible, BibleGateway, then AI-quoted text. Choose one to use only that source."
-              className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11 ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
+              className={`rounded-md border bg-ink-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11 ${sourceChoice === "auto" ? "border-ink-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
             >
               {SOURCE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -669,10 +694,10 @@ export default function Desk() {
           </div>
         </div>
         <div className="order-2 flex shrink-0 items-center gap-2 sm:order-3">
-          <Link href="/log" className="inline-flex items-center rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 pointer-coarse:min-h-11" title="Search everything copied, by day">
+          <Link href="/log" className="inline-flex items-center rounded-md border border-ink-700 px-2 py-1.5 text-sm text-ink-300 hover:bg-ink-800 pointer-coarse:min-h-11" title="Search everything copied, by day">
             Log
           </Link>
-          <Link href="/diag" className="inline-flex items-center rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 pointer-coarse:min-h-11" title="Check which verse sources are working">
+          <Link href="/diag" className="inline-flex items-center rounded-md border border-ink-700 px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 pointer-coarse:min-h-11" title="Check which verse sources are working">
             Sources
           </Link>
         </div>
@@ -687,7 +712,7 @@ export default function Desk() {
         </p>
       )}
 
-      <div role="tablist" aria-label="Desk" className="flex gap-1 rounded-lg bg-zinc-900 p-1 text-sm">
+      <div role="tablist" aria-label="Desk" className="flex gap-1 rounded-lg bg-ink-900 p-1 text-sm">
         {TABS.map((t, i) => {
           const selected = tab === t.id;
           return (
@@ -707,9 +732,9 @@ export default function Desk() {
                 if (t.id === "verses") refocus();
               }}
               onKeyDown={(e) => onTabKey(e, i)}
-              className={`flex-1 rounded-md px-3 py-2 font-medium pointer-coarse:min-h-11 ${selected ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-[15px] font-semibold tracking-wide uppercase pointer-coarse:min-h-11 ${selected ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-200"}`}
             >
-              <span aria-hidden="true">{t.icon} </span>
+              <Icon name={t.icon} className={`h-4 w-4 ${selected ? "text-[var(--accent)]" : ""}`} />
               {t.label}
             </button>
           );
@@ -737,7 +762,7 @@ export default function Desk() {
         {toast && <div className={`max-w-md rounded-lg border px-4 py-3 text-sm wrap-anywhere shadow-lg ${tone[toast.tone]}`}>{toast.text}</div>}
       </div>
       {showBusy && busy && (
-        <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
+        <p role="status" aria-live="polite" className="text-sm text-ink-400 animate-pulse">
           {busy === "chapter" ? "Loading the chapter…" : `Looking up “${busy}”…`}
         </p>
       )}
@@ -799,7 +824,7 @@ export default function Desk() {
             enterKeyHint="go"
             aria-label="Bible reference or description"
             placeholder="rom 8 28  ·  or describe it"
-            className="w-full min-w-0 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-lg outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60 sm:text-xl"
+            className="w-full min-w-0 rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-lg outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60 sm:text-xl"
           />
           {/* On a laptop Enter has always done this and a button would be noise.
               A touch device has no visible way to submit at all, so it gets one. */}
@@ -828,52 +853,91 @@ export default function Desk() {
 
       {candidates && (
         <section className="space-y-2">
-          <h2 className="text-xs uppercase tracking-wide text-[var(--muted)]">Possible verses</h2>
+          <h2 className="text-xs font-semibold tracking-widest uppercase text-[var(--muted)]">Possible verses</h2>
           {candidates.map((c, i) => (
             <button
               // By position: the model can suggest the same label twice, and
               // the list is replaced whole, never reordered.
               key={i}
               onClick={() => lookup(refToQuery(c.ref))}
-              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-left font-text hover:border-ink-500 hover:bg-ink-800"
             >
               <span className="kbd shrink-0">{i + 1}</span>
               <span className="font-medium">{c.label}</span>
-              <span className="min-w-0 text-sm text-zinc-400">{c.why}</span>
+              <span className="min-w-0 text-sm text-ink-400">{c.why}</span>
             </button>
           ))}
         </section>
       )}
 
       {result && (
-        <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm text-zinc-400">
-              Source:{" "}
-              <span className={result.passage.source === "llm" ? "font-semibold text-red-300" : result.passage.source === "gateway" ? "text-amber-300" : "text-zinc-200"}>
-                {SOURCE_LABEL[result.passage.source]}
-              </span>{" "}
-              · {result.ms} ms
-            </div>
+        <section aria-label={`${result.passage.reference} (${result.passage.translationCode})`} className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
+          {/* Loud only when the text itself might be wrong. The AI-quoted banner
+              names the Copy button, because nothing was copied for you. */}
+          {result.passage.source === "llm" && (
+            <p className="border-b border-red-500/40 bg-red-950 px-4 py-2.5 text-sm font-semibold text-red-200">
+              {SOURCE_LABEL.llm}
+              {result.passage.attempts && result.passage.attempts.length > 0 && <span className="block text-xs font-normal text-red-300">Failed first: {result.passage.attempts.join(" · ")}</span>}
+            </p>
+          )}
+          {result.passage.source === "gateway" && (
+            <p className="border-b border-amber-500/30 bg-amber-950/60 px-4 py-2 text-sm text-amber-200">
+              From the {SOURCE_LABEL.gateway}
+              {result.passage.attempts && result.passage.attempts.length > 0 && <span className="text-amber-300/80"> · failed first: {result.passage.attempts.join(" · ")}</span>}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-ink-800 px-4 py-2.5">
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => copyChunk(0)} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black pointer-coarse:min-h-11">
+              {/* Copies the part on screen, the same one "Copy again" in ⌘K copies. */}
+              <button onClick={() => copyChunk(copiedChunk)} className="rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[15px] font-semibold text-black hover:brightness-110 pointer-coarse:min-h-11">
                 {/* An AI-quoted verse was never copied, so there is nothing to copy "again"; the warning names this button. */}
                 {result.passage.source === "llm" ? "Copy" : "Copy again"}
               </button>
-              <button onClick={nextVerse} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={nextVerse} className="rounded-md border border-ink-700 px-3 py-1.5 text-[15px] font-medium text-ink-200 hover:bg-ink-800 pointer-coarse:min-h-11">
                 Next verse
               </button>
-              <button onClick={copyWhole} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={copyWhole} className="rounded-md border border-ink-700 px-3 py-1.5 text-[15px] font-medium text-ink-200 hover:bg-ink-800 pointer-coarse:min-h-11">
                 Copy whole passage
               </button>
-              <button onClick={openChapter} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={openChapter} className="rounded-md border border-ink-700 px-3 py-1.5 text-[15px] font-medium text-ink-200 hover:bg-ink-800 pointer-coarse:min-h-11">
                 Open chapter
               </button>
             </div>
+            {result.passage.source !== "llm" && result.passage.source !== "gateway" && (
+              <p className="text-xs text-[var(--muted)]">
+                {SOURCE_LABEL[result.passage.source]} · {result.ms} ms
+              </p>
+            )}
           </div>
 
-          {/* "Let's see it in TPT" — one press copies this same reference in it. */}
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Copy ${result.passage.reference} in another translation`}>
+          {result.chunks.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-ink-800 px-4 py-2.5" role="group" aria-label="Parts">
+              {result.chunks.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => copyChunk(i)}
+                  aria-current={i === copiedChunk ? "true" : undefined}
+                  className={`rounded-md px-3 py-1 text-[15px] font-medium pointer-coarse:min-h-11 ${i === copiedChunk ? "bg-ink-100 text-black" : "border border-ink-700 text-ink-200 hover:bg-ink-800"}`}
+                >
+                  Part {i + 1}
+                </button>
+              ))}
+              <span className="text-xs text-[var(--muted)]">
+                of {result.chunks.length} · one post each
+              </span>
+            </div>
+          )}
+
+          <PostPreview text={result.chunks[copiedChunk]} header={`${result.passage.reference}\n${result.passage.translationName}`} />
+
+          {/* "Let's see it in TPT" — one press copies this same reference in it.
+              Below the text, not above it: the verse is what gets read, and
+              thirteen chips over it pushed it down the card. */}
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-ink-800 bg-ink-950/40 px-4 py-2.5" role="group" aria-label={`Copy ${result.passage.reference} in another translation`}>
+            <span aria-hidden="true" className="mr-1 font-ui text-xs font-semibold tracking-widest uppercase text-[var(--muted)]">
+              Copy in
+            </span>
             {TRANSLATIONS.map((t) => {
               const current = t.code === result.passage.translationCode;
               return (
@@ -883,8 +947,8 @@ export default function Desk() {
                   disabled={!!busy}
                   aria-pressed={current}
                   title={`${result.passage.reference} in ${t.name}`}
-                  className={`rounded-md border px-2.5 py-1.5 font-mono text-xs disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11 ${
-                    current ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-black" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  className={`rounded-md border px-2 py-1 text-[13px] font-semibold tracking-wide disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11 ${
+                    current ? "border-ink-300 bg-ink-100 text-black" : "border-transparent text-ink-300 hover:border-ink-700 hover:bg-ink-800"
                   }`}
                 >
                   {t.code}
@@ -892,35 +956,16 @@ export default function Desk() {
               );
             })}
           </div>
-          {result.passage.attempts && result.passage.attempts.length > 0 && (result.passage.source === "llm" || result.passage.source === "gateway") && (
-            <p className="text-xs text-[var(--muted)]">
-              Failed first: {result.passage.attempts.join(" · ")}
-            </p>
-          )}
-          {result.chunks.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              {result.chunks.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => copyChunk(i)}
-                  className={`rounded-md px-3 py-1 text-sm pointer-coarse:min-h-11 ${i === copiedChunk ? "bg-zinc-200 text-black" : "border border-zinc-700 hover:bg-zinc-800"}`}
-                >
-                  Part {i + 1}
-                </button>
-              ))}
-            </div>
-          )}
-          <pre className="wrap-anywhere whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
         </section>
       )}
 
       {chapter && (
-        <section className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <section className="space-y-2 rounded-xl border border-ink-800 bg-ink-900/60 p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">
               {chapter.reference} · {chapter.translationCode}
             </h2>
-            <button onClick={() => setChapter(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 pointer-coarse:min-h-11 pointer-coarse:min-w-11">
+            <button onClick={() => setChapter(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200 pointer-coarse:min-h-11 pointer-coarse:min-w-11">
               Close
             </button>
           </div>
@@ -930,7 +975,7 @@ export default function Desk() {
               <button
                 key={v.verse}
                 onClick={() => lookup(`${chapter.reference}:${v.verse}`)}
-                className="block w-full rounded-md px-2 py-1 text-left text-[15px] leading-relaxed hover:bg-zinc-800 pointer-coarse:min-h-11"
+                className="block w-full rounded-md px-2 py-1 text-left font-text text-base leading-relaxed hover:bg-ink-800 pointer-coarse:min-h-11"
               >
                 <span className="mr-2 text-[var(--muted)]">{v.verse}.</span>
                 {v.text}

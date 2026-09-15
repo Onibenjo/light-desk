@@ -33,8 +33,10 @@ describe("sending a long message part by part", () => {
     expect(render({ cursor: 1 }).match(/tabindex="0"/g)).toHaveLength(1);
   });
 
-  it("dims parts already sent", () => {
-    expect(render({ sent: new Set([0]) })).toContain("opacity-60");
+  it("marks parts already sent, and only those", () => {
+    // A check and the word, not dimmed text: a copied part is often copied again.
+    expect(render({ sent: new Set([0]) }).match(/<span class="sr-only">, copied<\/span>/g)).toHaveLength(1);
+    expect(render()).not.toContain(", copied");
   });
 
   it("says when this is text edited for the service", () => {

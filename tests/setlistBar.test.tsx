@@ -31,8 +31,8 @@ const text = (html: string) => html.replace(/<[^>]+>/g, "\n").replace(/\n+/g, "\
 describe("the setlist the operator sees", () => {
   it("numbers the items in the order they were prepared", () => {
     const t = text(render([row({ id: 1, title: "Way Maker" }), note({ id: 2, title: "Greetings · Sunday" })]));
-    expect(t).toContain("1\n🎵\nWay Maker");
-    expect(t).toContain("2\n💬\nGreetings · Sunday");
+    expect(t).toContain("1\nSong: \nWay Maker");
+    expect(t).toContain("2\nMessage: \nGreetings · Sunday");
   });
 
   it("credits the author on every row, which is the whole reason searching was ambiguous", () => {
@@ -73,8 +73,8 @@ describe("the setlist the operator sees", () => {
 describe("messages in the setlist bar", () => {
   it("marks songs and messages apart", () => {
     const html = render([row({ id: 1, title: "Way Maker" }), note({ id: 2, title: "Greetings · Sunday" })]);
-    expect(html).toContain("🎵");
-    expect(html).toContain("💬");
+    expect(html).toContain('<span class="sr-only">Song: </span>');
+    expect(html).toContain('<span class="sr-only">Message: </span>');
   });
 
   it("says when a message's text was edited for this service", () => {
@@ -84,7 +84,7 @@ describe("messages in the setlist bar", () => {
 
   it("ticks what has been copied this session, and nothing else", () => {
     const html = render([note({ id: 2, title: "Greetings · Sunday" }), note({ id: 3, title: "Prayer · Queen" })], null, ["message:2"]);
-    expect(html.match(/✓/g)).toHaveLength(1);
+    expect(html.match(/<span class="sr-only">copied<\/span>/g)).toHaveLength(1);
   });
 
   it("says how many posts a long message is", () => {

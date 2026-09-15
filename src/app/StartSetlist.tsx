@@ -40,10 +40,10 @@ export default function StartSetlist({ what, onCancel, onStart }: Props) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+    <form onSubmit={submit} className="space-y-3 rounded-xl border border-ink-800 bg-ink-900/60 p-4">
       <div className="flex items-center justify-between">
         <h2 className="font-medium">Start a setlist</h2>
-        <button type="button" onClick={onCancel} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 pointer-coarse:min-h-11">
+        <button type="button" onClick={onCancel} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200 pointer-coarse:min-h-11">
           Cancel
         </button>
       </div>
@@ -56,7 +56,7 @@ export default function StartSetlist({ what, onCancel, onStart }: Props) {
         enterKeyHint="go"
         aria-label="Setlist name"
         placeholder="Setlist name"
-        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
+        className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
       />
       <button type="submit" disabled={!trimmed || busy} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
         {busy ? "Starting the setlist…" : "Start the setlist"}

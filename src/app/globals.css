@@ -1,11 +1,44 @@
 @import "tailwindcss";
 
+/* Booth console. Warm charcoal rather than Tailwind's cool zinc, tinted just
+   enough toward the CLC orange that the two read as one palette. `ink-*` keeps
+   zinc's steps, so a shade swapped in for a zinc one lands at the same depth.
+   Contrast on the page (#0c0b0a): ink-100 17.5:1, muted 7.8:1, ink-500 4.1:1
+   (borders and disabled only, never text). On ink-800 panels muted is 6.5:1. */
+@theme {
+  --color-ink-50: #faf8f5;
+  --color-ink-100: #f4f1ec;
+  --color-ink-200: #e6e1da;
+  --color-ink-300: #d3cdc5;
+  --color-ink-400: #a8a29a;
+  --color-ink-500: #78716a;
+  --color-ink-600: #57504a;
+  --color-ink-700: #3a3530;
+  --color-ink-800: #221f1c;
+  --color-ink-900: #171513;
+  --color-ink-950: #0c0b0a;
+}
+
+/* Two faces, loaded by next/font in layout.tsx. `font-ui` (Barlow Semi
+   Condensed) is the console: buttons, tabs, headings, badges. `font-text`
+   (Atkinson Hyperlegible Next) is anything the operator reads before it goes
+   to Mixlr, where I/l/1 and rn/m must never be mistaken; it is also the body
+   default, so hints and prose get it without asking. */
+@theme inline {
+  --font-ui: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
+  --font-text: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-text);
+}
+
 :root {
-  --accent: #f26b3a; /* CLC orange from the Mixlr avatar */
-  /* Secondary text. zinc-500 (4.06:1) and zinc-600 (2.54:1) both fail WCAG AA on
-     the #0b0b0f background; this is the dimmest tone that still clears 4.5:1
-     (7.66:1 on the body, 6.91:1 on a zinc-900 panel). Retune here, not per-class. */
-  --muted: #a1a1aa;
+  --accent: #f26b3a; /* CLC orange from the Mixlr avatar. Reserved for "act here" and "you are here". */
+  /* Secondary text: ink-400, the dimmest tone that clears 4.5:1 on every
+     surface the desk draws (7.8:1 on the page, 6.5:1 on a raised panel).
+     Retune here, not per-class. */
+  --muted: var(--color-ink-400);
+  /* Native selects, checkboxes, scrollbars and the date picker follow this;
+     without it they opened white on the black page. */
+  color-scheme: dark;
 }
 
 /* Keyboard users need to see where they are; the dark theme swallowed the
@@ -20,10 +53,21 @@
     outline-offset: 2px;
     border-radius: 2px;
   }
+
+  /* Controls speak in the console face. A button that carries copyable text
+     (a song section, a verse in the chapter) sets `font-text` on itself, and
+     the utility wins over this layer. */
+  button,
+  select,
+  [role="tab"],
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-ui);
+  }
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* Installed to the home screen the app draws under the notch and the rounded
      corners, so the gutters come from the device, not the design. Zero on every
      phone without them, and on every laptop. */
@@ -45,5 +89,12 @@ body {
 }
 
 .kbd {
-  @apply inline-block rounded border border-zinc-600 bg-zinc-800 px-1.5 py-0.5 text-[11px] font-mono text-zinc-300;
+  @apply inline-block rounded border border-ink-600 bg-ink-800 px-1.5 py-0.5 text-[11px] font-mono text-ink-300;
+}
+
+/* State labels (Pinned, Edited, Matched). 11px caps in the console face,
+   neutral by default: the words carry the meaning, so the accent stays free
+   for the one thing on screen to act on. */
+.badge {
+  @apply inline-flex items-center gap-1 rounded border border-ink-600 px-1.5 py-px align-middle font-ui text-[11px] font-semibold tracking-wider whitespace-nowrap text-ink-200 uppercase;
 }

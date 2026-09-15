@@ -16,6 +16,8 @@ import SongList from "./SongList";
 import SetlistBar from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
+import Icon from "./Icon";
+import { SectionProgress, SectionRow } from "./SectionRow";
 
 /**
  * How long a request waits before the control that sent it comes back. Quick
@@ -444,31 +446,31 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             }}
             aria-label="Search the songbook"
             placeholder={keyboard ? "Search the songbook — ↑↓ to pick, ↵ to open" : "Search the songbook"}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+            className="w-full rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
           />
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
             <span className="whitespace-nowrap">{total !== null && `${total.toLocaleString("en-GB")} ${total === 1 ? "song" : "songs"} in the songbook`}</span>
             <span className="flex flex-wrap items-center gap-x-3">
-              <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+              <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 Setlists
               </Link>
-              <button onClick={() => setAdding(true)} className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+              <button onClick={() => setAdding(true)} className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 + Quick add a song
               </button>
-              <Link href="/songs/import" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+              <Link href="/songs/import" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 Import a songbook
               </Link>
             </span>
           </div>
           {hits.length > 0 && (
-            <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 bg-zinc-900/60">
+            <ul className="divide-y divide-ink-800 rounded-xl border border-ink-800 bg-ink-900/60">
               {hits.map((m, hi) => (
                 <li key={m.song.guid ?? m.song.id} className="flex items-stretch">
                   <button
                     onClick={() => openSong(m.song, m.section)}
                     onMouseEnter={() => setHit(hi)}
                     aria-current={hi === hit ? "true" : undefined}
-                    className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-zinc-800/60 ${hi === hit ? "bg-zinc-800/60" : ""}`}
+                    className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-ink-800/60 ${hi === hit ? "bg-ink-800/60" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="min-w-0 font-medium wrap-break-word">{m.song.title}</span>
@@ -490,7 +492,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                     onClick={() => addToSetlist(m.song)}
                     aria-label={`Add ${m.song.title} to the setlist`}
                     title="Add to the setlist"
-                    className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200"
+                    className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-ink-800 hover:text-ink-200"
                   >
                     +
                   </button>
@@ -539,10 +541,10 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       )}
 
       {adding && (
-        <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <div className="space-y-3 rounded-xl border border-ink-800 bg-ink-900/60 p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">Quick add a song</h2>
-            <button onClick={() => setAdding(false)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 pointer-coarse:min-h-11">
+            <button onClick={() => setAdding(false)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200 pointer-coarse:min-h-11">
               Cancel
             </button>
           </div>
@@ -552,7 +554,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             onChange={(e) => setAddTitle(e.target.value)}
             aria-label="Song title"
             placeholder="Song title"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
           />
           <textarea
             value={addLyrics}
@@ -560,7 +562,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             aria-label="Song lyrics"
             placeholder="Paste the lyrics as they are — they'll be tidied and split into sections"
             rows={10}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
           />
           <button onClick={quickAdd} disabled={busy || !addTitle.trim() || !addLyrics.trim()} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">
             {busy ? "Splitting and saving…" : "Save and open"}
@@ -594,22 +596,25 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-break-word sm:basis-auto">{song.title}</h2>
             <span className="flex flex-wrap gap-2 sm:shrink-0">
-              <button onClick={() => addToSetlist(song)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={() => addToSetlist(song)} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
                 {setlist ? "Add to the setlist" : "Start a setlist"}
               </button>
-              <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={() => setEditing(true)} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
                 Edit
               </button>
-              <button onClick={closeSong} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={closeSong} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
                 ← Songs
               </button>
             </span>
           </div>
           {pinned !== null && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2">
-              <span className="px-1 text-xs uppercase tracking-wide text-[var(--muted)]">Pinned</span>
-              <button onClick={() => copySection(pinned)} className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm font-medium text-black pointer-coarse:min-h-11">
-                <span className="sr-only">Copy again: </span>↻ {pinned + 1} · {Array.from(song.sections[pinned].split("\n")[0]).slice(0, 28).join("")}
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 p-2">
+              <span className="badge">
+                <Icon name="pin" filled className="h-3 w-3" />
+                Pinned
+              </span>
+              <button onClick={() => copySection(pinned)} className="min-w-0 rounded-md border border-ink-600 bg-ink-800 px-3 py-1 text-left text-[15px] font-medium text-ink-100 hover:bg-ink-700 pointer-coarse:min-h-11">
+                <span className="sr-only">Copy again: </span>↻ {pinned + 1} · <span className="font-text">{Array.from(song.sections[pinned].split("\n")[0]).slice(0, 28).join("")}</span>
               </button>
               <span className="kbd">C</span>
             </div>
@@ -619,56 +624,54 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             <span className="kbd">P</span> pin · <span className="kbd">C</span> copy the pinned one · <span className="kbd">Esc</span> back
           </p>
           {song.sections.length === 0 && <p className="text-sm text-[var(--muted)]">This song has no sections. Edit it to add the lyrics.</p>}
+          <SectionProgress count={song.sections.length} cursor={cursor} sent={sent} label="section" />
           <ol className="space-y-2">
             {song.sections.map((sec, i) => (
-              <li
+              <SectionRow
                 key={i}
-                className={`flex gap-2 rounded-xl border p-1 transition-colors ${
-                  flash === i
-                    ? "border-emerald-500/60 bg-emerald-500/10"
-                    : pinned === i
-                      ? "border-[var(--accent)]/60 bg-zinc-900/60"
-                      : sent.has(i)
-                        ? "border-zinc-800/60 opacity-60"
-                        : "border-zinc-800 bg-zinc-900/60"
-                }`}
-              >
-                <button
-                  ref={(el) => {
-                    sectionRefs.current[i] = el;
-                  }}
-                  onClick={() => copySection(i)}
-                  onFocus={() => setCursor(i)}
-                  onKeyDown={(e) => {
-                    // Handled here rather than by native activation so a keyboard
-                    // send advances the cursor and a mouse click doesn't.
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      copySection(i, true);
-                    }
-                  }}
-                  tabIndex={i === cursor ? 0 : -1}
-                  className={`min-w-0 flex-1 rounded-lg px-3 py-2 text-left hover:bg-zinc-800/60 ${i === cursor ? "ring-1 ring-inset ring-[var(--accent)]/40" : ""}`}
-                >
-                  <span className="mr-2 text-xs text-[var(--muted)]">{i + 1}</span>
-                  {pinned === i && <span className="mr-2 rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-black">Pinned</span>}
-                  {found === i && (
-                    <span className="mr-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
-                      Matched
-                    </span>
-                  )}
-                  <span className="whitespace-pre-wrap text-[15px] leading-relaxed wrap-break-word">{sec}</span>
-                </button>
-                <button
-                  onClick={() => pin(i)}
-                  aria-pressed={pinned === i}
-                  aria-label={`Pin section ${i + 1}`}
-                  title="Pin to copy again quickly (the chorus)"
-                  className={`grid min-h-11 min-w-11 shrink-0 place-items-center self-start rounded-md text-sm ${pinned === i ? "bg-[var(--accent)]" : "hover:bg-zinc-800"}`}
-                >
-                  📌
-                </button>
-              </li>
+                index={i}
+                text={sec}
+                cursor={i === cursor}
+                sent={sent.has(i)}
+                flash={flash === i}
+                buttonRef={(el) => {
+                  sectionRefs.current[i] = el;
+                }}
+                onClick={() => copySection(i)}
+                onFocus={() => setCursor(i)}
+                onKeyDown={(e) => {
+                  // Handled here rather than by native activation so a keyboard
+                  // send advances the cursor and a mouse click doesn't.
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    copySection(i, true);
+                  }
+                }}
+                badges={
+                  (pinned === i || found === i) && (
+                    <>
+                      {pinned === i && (
+                        <span className="badge">
+                          <Icon name="pin" filled className="h-3 w-3" />
+                          Pinned
+                        </span>
+                      )}
+                      {found === i && <span className="badge">Matched</span>}
+                    </>
+                  )
+                }
+                trailing={
+                  <button
+                    onClick={() => pin(i)}
+                    aria-pressed={pinned === i}
+                    aria-label={`Pin section ${i + 1}`}
+                    title="Pin to copy again quickly (the chorus)"
+                    className={`grid min-h-11 min-w-11 shrink-0 place-items-center self-start rounded-md ${pinned === i ? "bg-ink-100 text-black" : "text-ink-400 hover:bg-ink-700 hover:text-ink-100"}`}
+                  >
+                    <Icon name="pin" filled={pinned === i} className="h-5 w-5" />
+                  </button>
+                }
+              />
             ))}
           </ol>
         </div>

@@ -116,7 +116,7 @@ function RenameField({ saved, label, maxLength, onRename }: { saved: string; lab
       }}
       enterKeyHint="done"
       aria-label={label}
-      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-zinc-600 bg-transparent px-2 py-1 font-medium hover:border-solid hover:border-zinc-400 focus:border-solid focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
+      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-ink-600 bg-transparent px-2 py-1 font-medium hover:border-solid hover:border-ink-400 focus:border-solid focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
     />
   );
 }
@@ -231,7 +231,7 @@ export default function MessagesPage() {
   function editor(sections: LibrarySection[]) {
     if (!draft) return null;
     return (
-      <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-950/60 p-3">
+      <div className="space-y-2 rounded-lg border border-ink-700 bg-ink-950/60 p-3">
         <div className="flex flex-wrap gap-2">
           <input
             autoFocus
@@ -261,7 +261,7 @@ export default function MessagesPage() {
           aria-label="Message text"
           placeholder="The text exactly as it should appear in Mixlr. A blank line starts a new part."
           rows={8}
-          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          className="w-full rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
         />
         <p className="text-xs text-[var(--muted)]">
           {Array.isArray(draftParts) ? `${draftParts.length} ${draftParts.length === 1 ? "part" : "parts"}` : draftParts}
@@ -275,7 +275,7 @@ export default function MessagesPage() {
           <button onClick={saveDraft} disabled={busy} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
             Save
           </button>
-          <button onClick={() => setDraft(null)} className="rounded-md px-3 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 pointer-coarse:min-h-11">
+          <button onClick={() => setDraft(null)} className="rounded-md px-3 py-1.5 text-sm text-ink-400 hover:bg-ink-800 pointer-coarse:min-h-11">
             Cancel
           </button>
         </div>
@@ -286,10 +286,10 @@ export default function MessagesPage() {
   const library = state.kind === "loaded" ? state.library : null;
   const groups = library ? groupLibrary(library) : [];
   const sections = groups.map((g) => g.section);
-  const small = "rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800 disabled:opacity-30 pointer-coarse:min-h-11";
-  const square = "grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-zinc-800 disabled:opacity-30";
-  const quiet = "inline-flex items-center text-sm text-[var(--muted)] underline hover:text-zinc-300 pointer-coarse:min-h-11";
-  const field = "rounded-md border border-zinc-700 bg-zinc-900 text-sm outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11";
+  const small = "rounded-md border border-ink-700 px-2 py-1 text-xs hover:bg-ink-800 disabled:opacity-30 pointer-coarse:min-h-11";
+  const square = "grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md hover:bg-ink-800 disabled:opacity-30";
+  const quiet = "inline-flex items-center text-sm text-[var(--muted)] underline hover:text-ink-300 pointer-coarse:min-h-11";
+  const field = "rounded-md border border-ink-700 bg-ink-900 text-sm outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11";
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-4">
@@ -322,7 +322,7 @@ export default function MessagesPage() {
       )}
 
       {groups.map(({ section, messages }, si) => (
-        <section key={section.id} className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <section key={section.id} className="space-y-2 rounded-xl border border-ink-800 bg-ink-900/60 p-4">
           <div className="flex flex-wrap items-center gap-2">
             <RenameField
               saved={section.name}
@@ -370,7 +370,7 @@ export default function MessagesPage() {
             </p>
           )}
 
-          <ol className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+          <ol className="divide-y divide-ink-800 rounded-lg border border-ink-800">
             {messages.map((m, mi) => (
               <li key={m.id} className="space-y-2 px-2 py-2">
                 {draft?.id === m.id ? (
@@ -426,7 +426,7 @@ export default function MessagesPage() {
             maxLength={MAX_SECTION_NAME}
             aria-label="New section name"
             placeholder="e.g. Baby Dedication"
-            className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
+            className="min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
           />
           <button
             onClick={async () => {
