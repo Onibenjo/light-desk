@@ -27,20 +27,20 @@ interface Props {
 export default function MessageView({ label, parts, edited, sent, cursor, flash, addLabel, onCopy, onFocusPart, onAdd, onBack, partRef }: Props) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold leading-tight">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="basis-full text-lg font-semibold leading-tight sm:basis-auto">
           {label}
           {edited && (
             <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">edited</span>
           )}
         </h2>
-        <span className="flex shrink-0 gap-2">
+        <span className="flex flex-wrap gap-2 sm:shrink-0">
           {addLabel && (
-            <button onClick={onAdd} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+            <button onClick={onAdd} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
               {addLabel}
             </button>
           )}
-          <button onClick={onBack} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+          <button onClick={onBack} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
             ← Messages
           </button>
         </span>

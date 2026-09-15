@@ -31,10 +31,10 @@ export default function DiagPage() {
           <p className="text-xs text-[var(--muted)]">Which verse sources are working for this deployment.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => run(false)} disabled={busy} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm disabled:opacity-50">
+          <button onClick={() => run(false)} disabled={busy} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm disabled:opacity-50 pointer-coarse:min-h-11">
             Quick check
           </button>
-          <button onClick={() => run(true)} disabled={busy} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50">
+          <button onClick={() => run(true)} disabled={busy} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
             {busy && deep ? "Looking up…" : "Live lookup, every translation"}
           </button>
         </div>
@@ -44,11 +44,13 @@ export default function DiagPage() {
         <>
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
             <h2 className="mb-2 text-xs uppercase tracking-wide text-[var(--muted)]">Config</h2>
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2 md:grid-cols-3">
+            {/* Two columns at most so a key like LLM_MODEL is never cut to "LLM_…";
+                a value that will not fit beside its key wraps under it, right-aligned. */}
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
               {Object.entries(data.env).map(([k, v]) => (
-                <div key={k} className="flex min-w-0 justify-between gap-2 border-b border-zinc-800/60 py-1">
-                  <dt className="min-w-0 truncate text-zinc-400">{k}</dt>
-                  <dd className={`min-w-0 break-all text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-[var(--muted)]") : "text-zinc-200"}`}>{typeof v === "boolean" ? (v ? "set" : "—") : v}</dd>
+                <div key={k} className="flex min-w-0 flex-wrap justify-between gap-x-3 gap-y-0.5 border-b border-zinc-800/60 py-1">
+                  <dt className="break-all text-zinc-400">{k}</dt>
+                  <dd className={`ml-auto min-w-0 break-all text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-[var(--muted)]") : "text-zinc-200"}`}>{typeof v === "boolean" ? (v ? "set" : "—") : v}</dd>
                 </div>
               ))}
             </dl>
@@ -78,7 +80,7 @@ export default function DiagPage() {
         </>
       )}
       <p className="text-xs text-[var(--muted)]">
-        <Link href="/" className="inline-block py-1.5 underline">← back to the desk</Link>
+        <Link href="/" className="inline-flex items-center py-1.5 underline pointer-coarse:min-h-11">← back to the desk</Link>
       </p>
     </main>
   );

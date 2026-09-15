@@ -466,7 +466,7 @@ export default function Desk() {
               id="translation"
               value={translation}
               onChange={(e) => switchTranslation(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11"
             >
               {TRANSLATIONS.map((t) => (
                 <option key={t.code} value={t.code}>
@@ -485,7 +485,7 @@ export default function Desk() {
                 refocus();
               }}
               title="Auto tries YouVersion, then API.Bible, then BibleGateway, then AI. Pick one to force it."
-              className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
+              className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11 ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
             >
               {SOURCE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -496,10 +496,10 @@ export default function Desk() {
           </div>
         </div>
         <div className="order-2 flex shrink-0 items-center gap-2 sm:order-3">
-          <Link href="/log" className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800" title="Search everything copied, by day">
+          <Link href="/log" className="inline-flex items-center rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 pointer-coarse:min-h-11" title="Search everything copied, by day">
             Log
           </Link>
-          <Link href="/diag" className="rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800" title="Check which verse sources are working">
+          <Link href="/diag" className="inline-flex items-center rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 pointer-coarse:min-h-11" title="Check which verse sources are working">
             Sources
           </Link>
         </div>
@@ -513,7 +513,7 @@ export default function Desk() {
               setTab(t);
               if (t === "verses") refocus();
             }}
-            className={`flex-1 rounded-md px-3 py-2 font-medium capitalize ${tab === t ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+            className={`flex-1 rounded-md px-3 py-2 font-medium capitalize pointer-coarse:min-h-11 ${tab === t ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
           >
             {t === "verses" ? "📖 Verses" : t === "songs" ? "🎵 Songs" : "💬 Messages"}
           </button>
@@ -653,16 +653,16 @@ export default function Desk() {
               · {result.ms} ms
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => copyChunk(0)} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black">
+              <button onClick={() => copyChunk(0)} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black pointer-coarse:min-h-11">
                 Copy again
               </button>
-              <button onClick={nextVerse} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+              <button onClick={nextVerse} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 + Next verse
               </button>
-              <button onClick={copyWhole} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+              <button onClick={copyWhole} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 Whole passage
               </button>
-              <button onClick={openChapter} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800">
+              <button onClick={openChapter} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 Chapter
               </button>
             </div>
@@ -679,7 +679,7 @@ export default function Desk() {
                   disabled={!!busy}
                   aria-pressed={current}
                   title={`${result.passage.reference} in ${t.name}`}
-                  className={`rounded-md border px-2.5 py-1.5 font-mono text-xs disabled:opacity-50 ${
+                  className={`rounded-md border px-2.5 py-1.5 font-mono text-xs disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11 ${
                     current ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-black" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                   }`}
                 >
@@ -699,7 +699,7 @@ export default function Desk() {
                 <button
                   key={i}
                   onClick={() => copyChunk(i)}
-                  className={`rounded-md px-3 py-1 text-sm ${i === copiedChunk ? "bg-zinc-200 text-black" : "border border-zinc-700 hover:bg-zinc-800"}`}
+                  className={`rounded-md px-3 py-1 text-sm pointer-coarse:min-h-11 ${i === copiedChunk ? "bg-zinc-200 text-black" : "border border-zinc-700 hover:bg-zinc-800"}`}
                 >
                   Part {i + 1}
                 </button>
@@ -716,7 +716,7 @@ export default function Desk() {
             <h2 className="font-medium">
               {chapter.reference} · {chapter.translationCode}
             </h2>
-            <button onClick={() => setChapter(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+            <button onClick={() => setChapter(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 pointer-coarse:min-h-11 pointer-coarse:min-w-11">
               Close
             </button>
           </div>
@@ -726,7 +726,7 @@ export default function Desk() {
               <button
                 key={v.verse}
                 onClick={() => lookup(`${chapter.reference}:${v.verse}`)}
-                className="block w-full rounded-md px-2 py-1 text-left text-[15px] leading-relaxed hover:bg-zinc-800"
+                className="block w-full rounded-md px-2 py-1 text-left text-[15px] leading-relaxed hover:bg-zinc-800 pointer-coarse:min-h-11"
               >
                 <span className="mr-2 text-[var(--muted)]">{v.verse}.</span>
                 {v.text}
