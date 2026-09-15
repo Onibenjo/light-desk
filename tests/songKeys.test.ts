@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { moveCursor, digitToIndex, togglePin } from "../src/lib/songKeys";
+import { moveCursor, digitToIndex, resumeCursor, togglePin } from "../src/lib/songKeys";
 
 describe("moveCursor", () => {
   it("steps down and up one section at a time", () => {
@@ -61,5 +61,24 @@ describe("togglePin", () => {
   it("treats section 0 as pinnable, not as absent", () => {
     expect(togglePin(null, 0)).toBe(0);
     expect(togglePin(0, 0)).toBe(null);
+  });
+});
+
+describe("resumeCursor", () => {
+  it("starts at the first section of a song not copied from yet", () => {
+    expect(resumeCursor(new Set(), 10)).toBe(0);
+  });
+
+  it("lands just past the furthest section already copied", () => {
+    expect(resumeCursor(new Set([0, 1, 2]), 10)).toBe(3);
+    expect(resumeCursor(new Set([0, 5]), 10)).toBe(6);
+  });
+
+  it("starts again from the top once the last section was copied, for a reprise", () => {
+    expect(resumeCursor(new Set([7, 8, 9]), 10)).toBe(0);
+  });
+
+  it("points at nothing in a song with no sections", () => {
+    expect(resumeCursor(new Set([3]), 0)).toBe(0);
   });
 });

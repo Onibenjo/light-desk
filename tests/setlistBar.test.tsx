@@ -105,3 +105,11 @@ describe("messages in the setlist bar", () => {
     expect(html).not.toContain('disabled=""');
   });
 });
+
+describe("ticking a song in the setlist", () => {
+  it("ticks a song once any of its sections was copied, the same as a message", () => {
+    const html = render([row({ id: 1, title: "Way Maker" }), row({ id: 2, title: "Excess Love" })], null, ["song:1"]);
+    expect(html.match(/<span class="sr-only">copied<\/span>/g)).toHaveLength(1);
+    expect(text(html).indexOf("copied")).toBeLessThan(text(html).indexOf("Excess Love"));
+  });
+});

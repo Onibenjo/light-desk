@@ -9,7 +9,7 @@ interface Props {
   /** From staleNote(); shown in amber beside the name when not null. */
   staleNote: string | null;
   rows: SetlistRow[];
-  /** Keys of rows copied during this page session. Local to this screen; never shared. */
+  /** Keys of rows copied during this page session: a message part, or any section of a song. Local to this screen; never shared. */
   copied: ReadonlySet<string>;
   /** The tab decides whether to open row.song or fetch it by id first. */
   onOpen: (row: SongRow) => void;
@@ -21,6 +21,16 @@ function messageNote(row: MessageRow): string | null {
   if (row.waiting) return "library not loaded";
   if (row.removed) return "no longer in the library";
   return null;
+}
+
+/** Something in this row has been copied during this page session. */
+function CopiedTick() {
+  return (
+    <span className="ml-2 inline-flex text-emerald-400">
+      <Icon name="check" className="h-3.5 w-3.5 align-middle" />
+      <span className="sr-only">copied</span>
+    </span>
+  );
 }
 
 /**
@@ -58,7 +68,10 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
                     <span className="sr-only">Song: </span>
                     <span className="font-medium">{row.title}</span>
                   </span>
-                  <span className="shrink-0 text-xs text-[var(--muted)]">{row.missing ? "no longer in the songbook" : row.author}</span>
+                  <span className="shrink-0 text-xs text-[var(--muted)]">
+                    {row.missing ? "no longer in the songbook" : row.author}
+                    {copied.has(row.key) && <CopiedTick />}
+                  </span>
                 </button>
               ) : (
                 <button
@@ -79,12 +92,7 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
                   </span>
                   <span className="shrink-0 text-xs text-[var(--muted)]">
                     {messageNote(row) ?? (row.parts && row.parts.length > 1 ? `${row.parts.length} parts` : "")}
-                    {copied.has(row.key) && (
-                      <span className="ml-2 inline-flex text-emerald-400">
-                        <Icon name="check" className="h-3.5 w-3.5 align-middle" />
-                        <span className="sr-only">copied</span>
-                      </span>
-                    )}
+                    {copied.has(row.key) && <CopiedTick />}
                   </span>
                 </button>
               )}

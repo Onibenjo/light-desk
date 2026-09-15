@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ import MessagesTab from "./MessagesTab";
 import { useSetlist } from "./useSetlist";
 import { useMessages } from "./useMessages";
 import { useMessageCopy } from "./useMessageCopy";
+import { useSongProgress } from "./useSongProgress";
 import { messageActions } from "@/lib/messageActions";
 import { messagesById, openMessageFor, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
 import { openMessageFromRow, type MessageRow, type SongRow } from "@/lib/setlist";
@@ -280,6 +281,27 @@ export default function Desk() {
     },
     [library, sendMessage],
   );
+
+  /** Opens a message from "Next in the setlist", even a one-part one: next means go to it, not copy it unseen. */
+  const openMessageRow = useCallback(
+    (row: MessageRow) => {
+      const m = openMessageFromRow(row, messagesById(library));
+      if (!m) return;
+      setPendingMessage(m);
+      setTab("messages");
+    },
+    [library],
+  );
+
+  const songProgress = useSongProgress();
+  // A setlist row is ticked once anything in it was copied: a message part, or
+  // any section of a song. Both tabs show the same setlist, so they share this.
+  const { progress } = songProgress;
+  const setlistCopied = useMemo(() => {
+    const all = new Set(copied);
+    for (const [key, sections] of progress) if (sections.size > 0) all.add(key);
+    return all;
+  }, [copied, progress]);
 
   const onPaletteMessage = useCallback((entry: LibraryEntry) => sendMessage(openMessageFor(entry)), [sendMessage]);
 
@@ -605,6 +627,8 @@ export default function Desk() {
         { keys: "1–9", label: "Copy that section" },
         { keys: "P", label: "Pin the section you're on (the chorus)" },
         { keys: "C", label: "Copy the pinned section again" },
+        { keys: "T", label: "Copy the song's title" },
+        { keys: "N", label: "Open the next item in the setlist" },
         { keys: "Esc", label: "Back to the song list" },
       ],
     },
@@ -615,6 +639,7 @@ export default function Desk() {
         { keys: "↑ ↓", label: "Pick a message in the results" },
         { keys: "↵", label: "Copy it, or open a long one to copy part by part" },
         { keys: "1–9", label: "Copy that part" },
+        { keys: "N", label: "Open the next item in the setlist" },
         { keys: "Esc", label: "Back to the library" },
       ],
     },
@@ -739,8 +764,10 @@ export default function Desk() {
           logSend={logSend}
           setlistApi={setlistApi}
           library={library}
-          copied={copied}
+          copied={setlistCopied}
           onMessageRow={onMessageRow}
+          onOpenMessageRow={openMessageRow}
+          songProgress={songProgress}
           pendingSong={pendingSong}
           onPendingSongDone={clearPendingSong}
         />
@@ -753,7 +780,7 @@ export default function Desk() {
           failed={libraryFailed}
           onRetry={reloadLibrary}
           setlistApi={setlistApi}
-          copied={copied}
+          copied={setlistCopied}
           copyPart={copyPart}
           showToast={showToast}
           pending={pendingMessage}

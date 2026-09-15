@@ -2,12 +2,12 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { formatSection } from "@/lib/videopsalm";
-import { moveCursor, digitToIndex, togglePin } from "@/lib/songKeys";
+import { formatSection, formatTitle } from "@/lib/videopsalm";
+import { moveCursor, digitToIndex, resumeCursor, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
-import { resolveSetlist, songsById, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
+import { canOpenRow, placeInSetlist, resolveSetlist, songKey, songsById, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
 import { messagesById, type Library } from "@/lib/messageLibrary";
 import { failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { MatchedLine } from "./MatchedLine";
@@ -17,7 +17,9 @@ import SetlistBar from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
 import Icon from "./Icon";
-import { SectionProgress, SectionRow } from "./SectionRow";
+import { SectionRow } from "./SectionRow";
+import { EndOfList, OpenHeader } from "./OpenHeader";
+import type { SongProgress } from "./useSongProgress";
 
 /**
  * How long a request waits before the control that sent it comes back. Quick
@@ -25,6 +27,8 @@ import { SectionProgress, SectionRow } from "./SectionRow";
  */
 const OPEN_TIMEOUT_MS = 15_000;
 const QUICK_ADD_TIMEOUT_MS = 60_000;
+
+const NO_SECTIONS: ReadonlySet<number> = new Set();
 
 /** What the server search last answered, for the query it answered. */
 type ServerSearch = { kind: "done"; q: string; songs: SongMatch[] } | { kind: "failed"; q: string; failure: Failure };
@@ -81,12 +85,16 @@ interface Props {
   copied: ReadonlySet<string>;
   /** A message row in the bar: the desk copies it, or switches to Messages to send it in parts. */
   onMessageRow: (row: MessageRow) => void;
+  /** "Next in the setlist" at the end of a song: always opens the message, even a one-part one, so it is read before it is copied. */
+  onOpenMessageRow: (row: MessageRow) => void;
+  /** Copied sections per song, kept by the desk for the whole session. */
+  songProgress: SongProgress;
   /** A song row tapped on the Messages tab, to open on arrival. */
   pendingSong: SongRow | null;
   onPendingSongDone: () => void;
 }
 
-export default function SongsTab({ copyText, showToast, logSend, setlistApi, library, copied, onMessageRow, pendingSong, onPendingSongDone }: Props) {
+export default function SongsTab({ copyText, showToast, logSend, setlistApi, library, copied, onMessageRow, onOpenMessageRow, songProgress, pendingSong, onPendingSongDone }: Props) {
   const [q, setQ] = useState("");
   const { setlist, addItem, startSetlist } = setlistApi;
   // The song waiting for a setlist to exist.
@@ -106,7 +114,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   const [song, setSong] = useState<SearchableSong | null>(null);
   // The section the remembered line was found in, marked but not jumped to.
   const [found, setFound] = useState<number | null>(null);
-  const [sent, setSent] = useState<Set<number>>(new Set());
+  const { sentFor, markSent, forget } = songProgress;
+  const sent = song ? sentFor(songKey(song)) : NO_SECTIONS;
   // One pin at a time, so there is never a question which section C sends.
   const [pinned, setPinned] = useState<number | null>(null);
   // Briefly flashes the row that was just copied, where the operator is looking.
@@ -212,15 +221,17 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     setEditing(false);
     setSong(s);
     setFound(matchedSection);
-    setSent(new Set());
     setPinned(null);
     sectionRefs.current = [];
     // Land on section 1 so the first Enter sends it, with no click needed — a
-    // song is nearly always sent from the top, whichever line found it. The
-    // actual DOM focus happens in the effect below, once the section buttons
-    // have committed.
-    setCursor(0);
-  }, []);
+    // song is nearly always sent from the top, whichever line found it. A song
+    // already part-copied this session picks up after its furthest section
+    // instead. The actual DOM focus happens in the effect below, once the
+    // section buttons have committed.
+    setCursor(resumeCursor(sentFor(songKey(s)), s.sections.length));
+    // Opened from the bottom of the last song, the new one starts at its header.
+    window.scrollTo({ top: 0 });
+  }, [sentFor]);
 
   // Focuses the opened song's current section once React has committed its
   // buttons, instead of racing requestAnimationFrame against that commit.
@@ -282,7 +293,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     const text = formatSection(song.sections[i]);
     const ok = await copyText(text);
     if (ok) {
-      setSent((prev) => new Set(prev).add(i));
+      markSent(songKey(song), i);
       showToast(`Copied section ${i + 1} of ${song.sections.length} — paste in Mixlr`);
       logSend("song", `${song.title} §${i + 1}`, text);
       setFlash(i);
@@ -363,8 +374,35 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
 
   const closeSong = useCallback(() => {
     setSong(null);
+    // Back to the setlist and the search box, not to wherever the long list was scrolled.
+    window.scrollTo({ top: 0 });
     focusSearch();
   }, [focusSearch]);
+
+  /** The song's name as the chat announces it, posted before its first section. */
+  async function copyTitle() {
+    if (!song) return;
+    const text = formatTitle(song.title);
+    if (!text) return;
+    const ok = await copyText(text);
+    if (ok) {
+      showToast(`Copied the title "${song.title}" — paste in Mixlr`);
+      logSend("song", `${song.title} · title`, text);
+    } else {
+      showToast("Couldn't copy — try again", "err");
+    }
+  }
+
+  const place = song && setlist ? placeInSetlist(setlistRows, songKey(song)) : null;
+
+  const canOpenNext = !!place?.next && canOpenRow(place.next);
+
+  function openNext() {
+    const next = place?.next;
+    if (!next || !canOpenRow(next)) return;
+    if (next.kind === "song") void openSetlistRow(next);
+    else onOpenMessageRow(next);
+  }
 
   useEffect(() => {
     // A song is about to be handed over from the Messages tab: it wins the
@@ -376,7 +414,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
 
   // Song-view keys. Safe on the document because this view renders no text field.
   useEffect(() => {
-    if (!song || editing) return;
+    // The Start a setlist form can sit over an open song; its keys (T, Esc) belong to the form then.
+    if (!song || editing || starting) return;
     const count = song.sections.length;
     function onKey(e: KeyboardEvent) {
       if (isTypingTarget(e.target as HTMLElement) || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -391,6 +430,14 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       if (e.key === "p" || e.key === "P") {
         e.preventDefault();
         return pin(cursor);
+      }
+      if (e.key === "t" || e.key === "T") {
+        e.preventDefault();
+        return void copyTitle();
+      }
+      if ((e.key === "n" || e.key === "N") && canOpenNext) {
+        e.preventDefault();
+        return openNext();
       }
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
@@ -593,19 +640,27 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
 
       {song && !editing && (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="min-w-0 basis-full text-2xl font-semibold leading-tight wrap-break-word sm:basis-auto">{song.title}</h2>
-            <span className="flex flex-wrap gap-2 sm:shrink-0">
-              <button onClick={() => addToSetlist(song)} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
-                {setlist ? "Add to the setlist" : "Start a setlist"}
+          <OpenHeader
+            backLabel="Songs"
+            onBack={closeSong}
+            title={song.title}
+            action={
+              <button onClick={() => void copyTitle()} title={`Copies ${formatTitle(song.title)}`} className="btn btn-sm shrink-0">
+                Copy title
               </button>
-              <button onClick={() => setEditing(true)} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
-                Edit
-              </button>
-              <button onClick={closeSong} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
-                ← Songs
-              </button>
-            </span>
+            }
+            count={song.sections.length}
+            cursor={cursor}
+            sent={sent}
+            label="section"
+          />
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => addToSetlist(song)} className="btn btn-sm">
+              {setlist ? "Add to the setlist" : "Start a setlist"}
+            </button>
+            <button onClick={() => setEditing(true)} className="btn btn-sm">
+              Edit
+            </button>
           </div>
           {pinned !== null && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 p-2">
@@ -621,10 +676,15 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           )}
           <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
             <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that section ·{" "}
-            <span className="kbd">P</span> pin · <span className="kbd">C</span> copy the pinned one · <span className="kbd">Esc</span> back
+            <span className="kbd">P</span> pin · <span className="kbd">C</span> copy the pinned one · <span className="kbd">T</span> copy the title ·{" "}
+            {canOpenNext && (
+              <>
+                <span className="kbd">N</span> next in the setlist ·{" "}
+              </>
+            )}
+            <span className="kbd">Esc</span> back
           </p>
           {song.sections.length === 0 && <p className="text-sm text-[var(--muted)]">This song has no sections. Edit it to add the lyrics.</p>}
-          <SectionProgress count={song.sections.length} cursor={cursor} sent={sent} label="section" />
           <ol className="space-y-2">
             {song.sections.map((sec, i) => (
               <SectionRow
@@ -674,6 +734,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
               />
             ))}
           </ol>
+          <EndOfList what="song" setlistName={setlist?.name ?? null} place={place} onNext={openNext} backLabel="Songs" onBack={closeSong} />
         </div>
       )}
 
@@ -685,7 +746,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           onSaved={(saved) => {
             setEditing(false);
             setSong(saved);
-            setSent(new Set());
+            forget(songKey(saved));
             setPinned(null);
             // An edit can move section boundaries, so the old index no longer points
             // at the line that matched the search — same reason openSong resets it.

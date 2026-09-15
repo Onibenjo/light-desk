@@ -1,6 +1,8 @@
 "use client";
 
-import { SectionProgress, SectionRow } from "./SectionRow";
+import { SectionRow } from "./SectionRow";
+import { EndOfList, OpenHeader } from "./OpenHeader";
+import { canOpenRow, type SetlistPlace } from "@/lib/setlist";
 
 interface Props {
   label: string;
@@ -17,6 +19,10 @@ interface Props {
   onFocusPart: (index: number) => void;
   onAdd: () => void;
   onBack: () => void;
+  /** The active setlist's name, and where this message sits in it; null when it isn't in one. */
+  setlistName: string | null;
+  place: SetlistPlace | null;
+  onNext: () => void;
   partRef: (index: number, el: HTMLButtonElement | null) => void;
 }
 
@@ -26,33 +32,41 @@ interface Props {
  * handled by the tab (Esc, arrows, 1–9); Enter on a focused part copies it and
  * moves on, a click copies it and stays.
  */
-export default function MessageView({ label, parts, edited, sent, cursor, flash, addLabel, onCopy, onFocusPart, onAdd, onBack, partRef }: Props) {
+export default function MessageView({ label, parts, edited, sent, cursor, flash, addLabel, onCopy, onFocusPart, onAdd, onBack, setlistName, place, onNext, partRef }: Props) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="min-w-0 basis-full text-2xl font-semibold leading-tight wrap-anywhere sm:basis-auto">
-          {label}
-          {edited && (
-            <span className="badge ml-2">
+      <OpenHeader
+        backLabel="Messages"
+        onBack={onBack}
+        title={label}
+        badge={
+          edited && (
+            <span className="badge shrink-0">
               edited<span className="sr-only"> for this service</span>
             </span>
-          )}
-        </h2>
-        <span className="flex flex-wrap gap-2 sm:shrink-0">
-          {addLabel && (
-            <button onClick={onAdd} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
-              {addLabel}
-            </button>
-          )}
-          <button onClick={onBack} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
-            ← Messages
+          )
+        }
+        count={parts.length}
+        cursor={cursor}
+        sent={sent}
+        label="part"
+      />
+      {addLabel && (
+        <div>
+          <button onClick={onAdd} className="btn btn-sm">
+            {addLabel}
           </button>
-        </span>
-      </div>
+        </div>
+      )}
       <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-        <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part · <span className="kbd">Esc</span> back
+        <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part ·{" "}
+        {place?.next && canOpenRow(place.next) && (
+          <>
+            <span className="kbd">N</span> next in the setlist ·{" "}
+          </>
+        )}
+        <span className="kbd">Esc</span> back
       </p>
-      <SectionProgress count={parts.length} cursor={cursor} sent={sent} label="part" />
       <ol className="space-y-2">
         {parts.map((part, i) => (
           <SectionRow
@@ -74,6 +88,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
           />
         ))}
       </ol>
+      <EndOfList what="message" setlistName={setlistName} place={place} onNext={onNext} backLabel="Messages" onBack={onBack} />
     </div>
   );
 }

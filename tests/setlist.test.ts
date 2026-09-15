@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildIndex, type SearchableSong } from "../src/lib/songSearch";
-import { ageInDays, comingSundayName, moveItem, openMessageFromRow, planMessageEdit, resolveSetlist, songsById, staleNote, withParts, STALE_AFTER_DAYS } from "../src/lib/setlist";
+import { ageInDays, canOpenRow, comingSundayName, moveItem, openMessageFromRow, placeInSetlist, songKey, planMessageEdit, resolveSetlist, songsById, staleNote, withParts, STALE_AFTER_DAYS } from "../src/lib/setlist";
 import { messagesById } from "../src/lib/messageLibrary";
 import { library } from "./fixtures/library";
 
@@ -171,5 +171,63 @@ describe("opening a message from its setlist row", () => {
     const [row] = resolveSetlist([{ kind: "message", id: 77, title: "Gone" }], null, lib);
     if (row.kind !== "message") throw new Error("expected a message row");
     expect(openMessageFromRow(row, lib)).toBe(null);
+  });
+});
+
+describe("what comes after the open song or message", () => {
+  const rows = resolveSetlist(
+    [
+      { kind: "message", id: 11, title: "Welcome" },
+      { kind: "song", id: 1, title: "Way Maker" },
+      { kind: "song", id: 2, title: "Excess Love" },
+    ],
+    null,
+    null,
+  );
+
+  it("names the next row and where this one sits", () => {
+    const place = placeInSetlist(rows, "song:1");
+    expect(place?.position).toBe(2);
+    expect(place?.count).toBe(3);
+    expect(place?.next?.title).toBe("Excess Love");
+  });
+
+  it("has no next row at the end of the setlist", () => {
+    expect(placeInSetlist(rows, "song:2")).toEqual({ position: 3, count: 3, next: null, nextPosition: null, skipped: 0 });
+  });
+
+  it("skips a song deleted since, so one gone row can't stop the service order", () => {
+    const book = songsById(buildIndex([{ id: 1, title: "Way Maker", sections: ["la"] }, { id: 3, title: "Olorun", sections: ["la"] }]));
+    const withGone = resolveSetlist([{ kind: "song", id: 1, title: "Way Maker" }, { kind: "song", id: 2, title: "Deleted" }, { kind: "song", id: 3, title: "Olorun" }], book, null);
+    const place = placeInSetlist(withGone, "song:1");
+    expect(place?.next?.title).toBe("Olorun");
+    expect(place?.nextPosition).toBe(3);
+    expect(place?.skipped).toBe(1);
+  });
+
+  it("offers a message still loading as next rather than skipping it: not known yet isn't gone", () => {
+    const loading = resolveSetlist([{ kind: "song", id: 1, title: "Way Maker" }, { kind: "message", id: 11, title: "Welcome" }], null, null);
+    const place = placeInSetlist(loading, "song:1");
+    expect(place?.next?.title).toBe("Welcome");
+    expect(place?.skipped).toBe(0);
+    expect(canOpenRow(place!.next!)).toBe(false);
+  });
+
+  it("has no place for something that isn't in the setlist", () => {
+    expect(placeInSetlist(rows, "song:99")).toBe(null);
+  });
+
+  it("keys a saved song the way its setlist row is keyed", () => {
+    expect(songKey({ id: 1, title: "Way Maker" })).toBe(rows[1].key);
+    expect(songKey({ guid: "abc", title: "Way Maker" })).toBe("guid:abc");
+  });
+
+  it("won't open a deleted song or a message with nothing to show", () => {
+    const book = songsById(buildIndex([{ id: 2, title: "Excess Love", sections: ["la"] }]));
+    const [, gone, kept] = resolveSetlist([{ kind: "message", id: 77, title: "Gone" }, { kind: "song", id: 1, title: "Way Maker" }, { kind: "song", id: 2, title: "Excess Love" }], book, messagesById(library));
+    expect(canOpenRow(gone)).toBe(false);
+    expect(canOpenRow(kept)).toBe(true);
+    const [message] = resolveSetlist([{ kind: "message", id: 77, title: "Gone" }], null, messagesById(library));
+    expect(canOpenRow(message)).toBe(false);
   });
 });

@@ -50,7 +50,8 @@ export function SectionRow({
         onFocus={onFocus}
         onKeyDown={onKeyDown}
         tabIndex={cursor ? 0 : -1}
-        className="flex min-w-0 flex-1 gap-3 rounded-lg px-3 py-2.5 text-left font-text hover:bg-ink-700/40"
+        // Focus scrolls the cursor's row into view; the margin keeps it clear of the pinned header.
+        className="flex min-w-0 flex-1 scroll-mt-32 scroll-mb-4 gap-3 rounded-lg px-3 py-2.5 text-left font-text hover:bg-ink-700/40"
       >
         <span
           className={`mt-0.5 inline-flex h-6 min-w-6 shrink-0 items-center justify-center gap-0.5 rounded px-1 font-ui text-[13px] font-semibold tabular-nums ${
@@ -74,15 +75,16 @@ export function SectionRow({
 }
 
 /**
- * Where the operator is in a long song or message, kept in view while the list
- * scrolls: one cell per section, the same three states as the rows. The cells
- * are a picture of the sentence beside them, so only the sentence is read out.
+ * Where the operator is in a long song or message: one cell per section, the
+ * same three states as the rows. Kept in view by the pinned OpenHeader it sits
+ * in. The cells are a picture of the sentence beside them, so only the
+ * sentence is read out.
  */
 export function SectionProgress({ count, cursor, sent, label }: { count: number; cursor: number; sent: ReadonlySet<number>; label: "section" | "part" }) {
   if (count < 2) return null;
   const title = label === "section" ? "Section" : "Part";
   return (
-    <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 bg-ink-950 px-1 py-2">
+    <div className="flex items-center gap-3">
       <p className="shrink-0 font-ui text-[13px] font-semibold tracking-wider uppercase text-ink-200 tabular-nums">
         {title} {Math.min(cursor, count - 1) + 1} of {count}
         <span className="ml-2 font-medium text-[var(--muted)]">· {sent.size} copied</span>
