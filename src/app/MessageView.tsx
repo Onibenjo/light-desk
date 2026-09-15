@@ -28,7 +28,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="basis-full text-lg font-semibold leading-tight sm:basis-auto">
+        <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-anywhere sm:basis-auto">
           {label}
           {edited && (
             <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">edited</span>
@@ -70,7 +70,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
               className={`w-full rounded-lg px-3 py-2 text-left hover:bg-zinc-800/60 ${i === cursor ? "ring-1 ring-inset ring-[var(--accent)]/40" : ""}`}
             >
               <span className="mr-2 text-xs text-[var(--muted)]">{i + 1}</span>
-              <span className="whitespace-pre-wrap text-[15px] leading-relaxed">{part}</span>
+              <span className="whitespace-pre-wrap text-[15px] leading-relaxed wrap-break-word">{part}</span>
             </button>
           </li>
         ))}

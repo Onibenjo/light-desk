@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CommandPalette, { type ShortcutGuide } from "./CommandPalette";
@@ -17,6 +17,15 @@ import { useMessageCopy } from "./useMessageCopy";
 import { messageActions } from "@/lib/messageActions";
 import { messagesById, openMessageFor, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
 import { openMessageFromRow, type MessageRow, type SongRow } from "@/lib/setlist";
+import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
+import { tabIndexForKey } from "@/lib/tabKeys";
+
+const TABS = [
+  { id: "verses", icon: "📖", label: "Verses" },
+  { id: "songs", icon: "🎵", label: "Songs" },
+  { id: "messages", icon: "💬", label: "Messages" },
+] as const;
+type Tab = (typeof TABS)[number]["id"];
 
 type Ref = { book: number; chapter: number; verseStart: number; verseEnd: number };
 type Passage = {
@@ -59,21 +68,61 @@ async function copyText(text: string): Promise<boolean> {
     return true;
   } catch {
     // Fallback for odd permission states: a hidden textarea + execCommand.
+    // execCommand can throw too; the caller only wants a yes or no, and the
+    // textarea must never be left behind in the page.
     const ta = document.createElement("textarea");
     ta.value = text;
     ta.style.position = "fixed";
     ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
+    try {
+      document.body.appendChild(ta);
+      ta.select();
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      ta.remove();
+    }
   }
 }
 
+function isRecord(data: unknown): data is Record<string, unknown> {
+  return typeof data === "object" && data !== null;
+}
+
+/** The fields the desk reads from a passage or chapter; anything short of them is a broken reply. */
+function isPassage(data: unknown): data is Passage {
+  return isRecord(data) && typeof data.reference === "string" && typeof data.translationCode === "string" && Array.isArray(data.verses);
+}
+
+function isRef(data: unknown): data is Ref {
+  return isRecord(data) && [data.book, data.chapter, data.verseStart, data.verseEnd].every((n) => typeof n === "number");
+}
+
+function isCandidate(data: unknown): data is Candidate {
+  return isRecord(data) && typeof data.label === "string" && typeof data.why === "string" && isRef(data.ref);
+}
+
+function isPassageResult(data: unknown): data is PassageResult {
+  return (
+    isRecord(data) &&
+    isPassage(data.passage) &&
+    typeof data.text === "string" &&
+    Array.isArray(data.chunks) &&
+    data.chunks.length > 0 &&
+    data.chunks.every((c) => typeof c === "string") &&
+    isRef(data.ref)
+  );
+}
+
+/** A 200 whose body could not be read, such as a wifi login page answering in the server's place. */
+const UNREADABLE: Failure = describeFailure(500);
+
+const TOO_LONG: Failure = { kind: "refused", message: "That is too long to look up — shorten it and try again" };
+
 export default function Desk() {
   const router = useRouter();
-  const [tab, setTab] = useState<"verses" | "songs" | "messages">("verses");
+  const [tab, setTab] = useState<Tab>("verses");
   const [input, setInput] = useState("");
   const [translation, setTranslation] = useState(DEFAULT_TRANSLATION);
   const [sourceChoice, setSourceChoice] = useState("auto");
@@ -85,8 +134,17 @@ export default function Desk() {
   const [toast, setToast] = useState<{ text: string; tone: "ok" | "warn" | "err" } | null>(null);
   const [copiedChunk, setCopiedChunk] = useState(0);
   const [chapter, setChapter] = useState<Passage | null>(null);
+  // Set when a request is refused by the PIN gate (the PIN changed, or the
+  // cookie is gone); cleared by the next request that gets through.
+  const [locked, setLocked] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
+  // The tab just reached with an arrow key, for the frames in which its panel may still grab focus.
+  const arrowedTo = useRef<Tab | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  // `busy` is state, so two presses in the same frame both read it as idle.
+  // This is what actually stops a second lookup racing the first.
+  const inFlight = useRef(false);
 
   // Wake the database as soon as the desk opens. On Turso an idle database
   // suspends, and this is used twice a week — without this the first lookup of
@@ -136,9 +194,29 @@ export default function Desk() {
     toastTimer.current = window.setTimeout(() => setToast(null), tone === "err" ? 6000 : 3500);
   }, []);
 
-  const logSend = useCallback((kind: string, label: string, body: string, meta?: unknown) => {
-    fetch("/api/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, label, body, meta }) }).catch(() => {});
+  /** Tells the operator what went wrong, and remembers a lock for the banner (a toast can't hold a link). */
+  const fail = useCallback(
+    (f: Failure) => {
+      if (f.kind === "locked") setLocked(true);
+      showToast(f.message, "err");
+    },
+    [showToast],
+  );
+
+  /** A request that got through proves the device is unlocked again. */
+  const noteResponse = useCallback((res: Response) => {
+    if (res.ok) setLocked(false);
+    else if (describeFailure(res.status).kind === "locked") setLocked(true);
   }, []);
+
+  const logSend = useCallback(
+    (kind: string, label: string, body: string, meta?: unknown) => {
+      fetch("/api/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, label, body, meta }) })
+        .then(noteResponse)
+        .catch(() => {});
+    },
+    [noteResponse],
+  );
 
   // Owned here rather than in a tab: both tabs show the same setlist, and the
   // palette copies messages from any tab.
@@ -181,8 +259,51 @@ export default function Desk() {
   // it would answer every send by covering the verse with the on-screen keyboard.
   const refocus = useCallback(() => {
     if (!hasFinePointer()) return;
-    requestAnimationFrame(() => inputRef.current?.focus());
+    // The box is disabled while a request runs, and focus() on a disabled
+    // field does nothing. When the render that re-enables it has not landed by
+    // the next frame, which happens after a quick request, wait a few more.
+    const attempt = (framesLeft: number) =>
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (el?.disabled && framesLeft > 0) attempt(framesLeft - 1);
+        else el?.focus();
+      });
+    attempt(10);
   }, []);
+
+  const tabsId = useId();
+  const tabId = (t: Tab) => `${tabsId}-tab-${t}`;
+  const panelId = (t: Tab) => `${tabsId}-panel-${t}`;
+
+  // Arrows move along the tab bar and switch tabs as they go. Focus stays on
+  // the tab, unlike a click, which puts the cursor in that tab's search or
+  // reference box: otherwise passing through a tab on the way to the next one
+  // would drop the cursor into its box and the next arrow would move nowhere.
+  function onTabKey(e: React.KeyboardEvent<HTMLButtonElement>, current: number) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const next = tabIndexForKey(e.key, current, TABS.length);
+    if (next === null) return;
+    e.preventDefault();
+    // Keeps these keys from the tabs' own document shortcuts.
+    e.stopPropagation();
+    const t = TABS[next].id;
+    setTab(t);
+    tabRefs.current[t]?.focus();
+    // Songs and Messages focus their search box a frame after they mount.
+    // Hand focus straight back while that can still happen (see onPanelFocus):
+    // taking it back a frame later leaves a gap where a quick second arrow
+    // lands in the box and is lost.
+    arrowedTo.current = t;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (arrowedTo.current === t) arrowedTo.current = null;
+      }),
+    );
+  }
+
+  function onPanelFocus(t: Tab) {
+    if (arrowedTo.current === t) tabRefs.current[t]?.focus();
+  }
 
   // Same reason this isn't the `autoFocus` attribute: on a phone that opens the
   // keyboard over the desk before the operator has looked at it.
@@ -193,18 +314,33 @@ export default function Desk() {
   /** Fetch a reference, copy chunk 0, show it. */
   const lookup = useCallback(
     async (q: string, opts?: { silent?: boolean; select?: boolean; translation?: string }) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
       const useTranslation = opts?.translation ?? translation;
       setBusy(q);
       setCandidates(null);
       try {
-        const res = await fetch(`/api/passage?q=${encodeURIComponent(q)}&t=${encodeURIComponent(useTranslation)}&src=${sourceChoice}`);
-        const data = await res.json();
-        if (!res.ok) {
-          if (data.kind === "description") return await describe(q);
-          showToast(data.error ?? "Lookup failed", "err");
-          return;
+        let res: Response;
+        try {
+          res = await fetch(`/api/passage?q=${encodeURIComponent(q)}&t=${encodeURIComponent(useTranslation)}&src=${sourceChoice}`);
+        } catch {
+          return fail(OFFLINE);
         }
-        const r = data as PassageResult;
+        if (res.status === 400) {
+          // Not a reference: the route says so in the body, and the body can
+          // only be read once, so this one status is read here rather than
+          // handed to failureFrom.
+          const body: unknown = await res.json().catch(() => null);
+          if (isRecord(body) && body.kind === "description") return await describe(q);
+          return fail(describeFailure(400, isRecord(body) && typeof body.error === "string" ? body.error : null, "Lookup failed — try again"));
+        }
+        // The reference travels in the URL, and the web server refuses a URL
+        // past its size limit before the route sees it; trying again won't help.
+        if (res.status === 414 || res.status === 431) return fail(TOO_LONG);
+        if (!res.ok) return fail(await failureFrom(res, "Lookup failed — try again"));
+        const r: unknown = await res.json().catch(() => null);
+        if (!isPassageResult(r)) return fail(UNREADABLE);
+        setLocked(false);
         setResult(r);
         setCopiedChunk(0);
         const tag = `${r.passage.reference} (${r.passage.translationCode})`;
@@ -227,15 +363,14 @@ export default function Desk() {
           showToast("Couldn't reach the clipboard — use the Copy button", "err");
         }
         if (opts?.select !== false) setInput("");
-      } catch {
-        showToast("Network problem — try again", "err");
       } finally {
+        inFlight.current = false;
         setBusy(null);
         refocus();
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [translation, sourceChoice, showToast, logSend, refocus],
+    [translation, sourceChoice, showToast, fail, logSend, refocus],
   );
 
   const describe = useCallback(
@@ -243,13 +378,17 @@ export default function Desk() {
       setBusy(phrase);
       setResult(null);
       try {
-        const res = await fetch("/api/find-verse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: phrase }) });
-        const data = await res.json();
-        if (!res.ok) {
-          showToast(data.error ?? "Search failed", "err");
-          return;
+        let res: Response;
+        try {
+          res = await fetch("/api/find-verse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: phrase }) });
+        } catch {
+          return fail(OFFLINE);
         }
-        const list = data.candidates as Candidate[];
+        if (!res.ok) return fail(await failureFrom(res, "Search failed — try other words"));
+        const data: unknown = await res.json().catch(() => null);
+        if (!isRecord(data) || !Array.isArray(data.candidates)) return fail(UNREADABLE);
+        setLocked(false);
+        const list = data.candidates.filter(isCandidate);
         if (!list.length) {
           showToast("No verse matched that — try other words", "warn");
           return;
@@ -257,14 +396,12 @@ export default function Desk() {
         setCandidates(list);
         logSend("search", phrase, "", { candidates: list.map((c) => c.label), ms: data.ms });
         showToast(`${list.length} possible verse${list.length > 1 ? "s" : ""} — press 1, 2 or 3`, "ok");
-      } catch {
-        showToast("Network problem — try again", "err");
       } finally {
         setBusy(null);
         refocus();
       }
     },
-    [showToast, logSend, refocus],
+    [showToast, fail, logSend, refocus],
   );
 
   /** Set the translation, and re-send whatever verse is already on screen in it. */
@@ -364,15 +501,25 @@ export default function Desk() {
   }
 
   async function openChapter() {
-    if (!result) return;
+    if (!result || inFlight.current) return;
+    inFlight.current = true;
     setBusy("chapter");
     try {
-      const res = await fetch(`/api/chapter?book=${result.ref.book}&chapter=${result.ref.chapter}&t=${encodeURIComponent(result.passage.translationCode)}&src=${sourceChoice}`);
-      const data = await res.json();
-      if (!res.ok) return showToast(data.error ?? "Couldn't load chapter", "err");
-      setChapter(data.passage as Passage);
+      let res: Response;
+      try {
+        res = await fetch(`/api/chapter?book=${result.ref.book}&chapter=${result.ref.chapter}&t=${encodeURIComponent(result.passage.translationCode)}&src=${sourceChoice}`);
+      } catch {
+        return fail(OFFLINE);
+      }
+      if (!res.ok) return fail(await failureFrom(res, "Couldn't load the chapter — try again"));
+      const data: unknown = await res.json().catch(() => null);
+      if (!isRecord(data) || !isPassage(data.passage)) return fail(UNREADABLE);
+      setLocked(false);
+      setChapter(data.passage);
     } finally {
+      inFlight.current = false;
       setBusy(null);
+      refocus();
     }
   }
 
@@ -466,7 +613,11 @@ export default function Desk() {
               id="translation"
               value={translation}
               onChange={(e) => switchTranslation(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11"
+              // Matches the translation chips: a switch mid-lookup would be dropped
+              // by the in-flight guard, leaving this saying one translation while
+              // the verse on screen is still in the other.
+              disabled={!!busy}
+              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm disabled:opacity-60 pointer-coarse:min-h-11"
             >
               {TRANSLATIONS.map((t) => (
                 <option key={t.code} value={t.code}>
@@ -505,20 +656,43 @@ export default function Desk() {
         </div>
       </header>
 
-      <nav className="flex gap-1 rounded-lg bg-zinc-900 p-1 text-sm">
-        {(["verses", "songs", "messages"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => {
-              setTab(t);
-              if (t === "verses") refocus();
-            }}
-            className={`flex-1 rounded-md px-3 py-2 font-medium capitalize pointer-coarse:min-h-11 ${tab === t ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
-          >
-            {t === "verses" ? "📖 Verses" : t === "songs" ? "🎵 Songs" : "💬 Messages"}
-          </button>
-        ))}
-      </nav>
+      {locked && (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          This device is locked, so nothing can be looked up or logged.{" "}
+          <Link href={unlockHref("/")} className="font-medium underline underline-offset-2 hover:text-amber-200">
+            Enter the church PIN
+          </Link>
+        </p>
+      )}
+
+      <div role="tablist" aria-label="Desk" className="flex gap-1 rounded-lg bg-zinc-900 p-1 text-sm">
+        {TABS.map((t, i) => {
+          const selected = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              ref={(el) => {
+                tabRefs.current[t.id] = el;
+              }}
+              type="button"
+              role="tab"
+              id={tabId(t.id)}
+              aria-selected={selected}
+              aria-controls={panelId(t.id)}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => {
+                setTab(t.id);
+                if (t.id === "verses") refocus();
+              }}
+              onKeyDown={(e) => onTabKey(e, i)}
+              className={`flex-1 rounded-md px-3 py-2 font-medium pointer-coarse:min-h-11 ${selected ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+            >
+              <span aria-hidden="true">{t.icon} </span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Floating, not in the flow: you're often scrolled to section 13 when this
           fires, and an inline banner both sits off-screen and shoves the list down
@@ -538,7 +712,7 @@ export default function Desk() {
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4"
       >
-        {toast && <div className={`max-w-md rounded-lg border px-4 py-3 text-sm shadow-lg ${tone[toast.tone]}`}>{toast.text}</div>}
+        {toast && <div className={`max-w-md rounded-lg border px-4 py-3 text-sm wrap-anywhere shadow-lg ${tone[toast.tone]}`}>{toast.text}</div>}
       </div>
       {showBusy && busy && (
         <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
@@ -546,6 +720,9 @@ export default function Desk() {
         </p>
       )}
 
+      {/* All three panels stay in the DOM so each tab's aria-controls always
+          points at something; Songs and Messages still mount only while shown. */}
+      <div role="tabpanel" id={panelId("songs")} aria-labelledby={tabId("songs")} hidden={tab !== "songs"} onFocus={() => onPanelFocus("songs")}>
       {tab === "songs" && (
         <SongsTab
           copyText={copyText}
@@ -559,6 +736,8 @@ export default function Desk() {
           onPendingSongDone={clearPendingSong}
         />
       )}
+      </div>
+      <div role="tabpanel" id={panelId("messages")} aria-labelledby={tabId("messages")} hidden={tab !== "messages"} onFocus={() => onPanelFocus("messages")}>
       {tab === "messages" && (
         <MessagesTab
           library={library}
@@ -576,8 +755,9 @@ export default function Desk() {
           }}
         />
       )}
+      </div>
 
-      <div className={tab === "verses" ? "contents" : "hidden"}>
+      <div role="tabpanel" id={panelId("verses")} aria-labelledby={tabId("verses")} className={tab === "verses" ? "contents" : "hidden"}>
       <form onSubmit={onSubmit} className="space-y-2">
         <div className="flex gap-2">
           {/* The placeholder is short enough to read to its end on a 320px
@@ -630,7 +810,9 @@ export default function Desk() {
           <h2 className="text-xs uppercase tracking-wide text-[var(--muted)]">Did they mean…</h2>
           {candidates.map((c, i) => (
             <button
-              key={c.label}
+              // By position: the model can suggest the same label twice, and
+              // the list is replaced whole, never reordered.
+              key={i}
               onClick={() => lookup(refToQuery(c.ref))}
               className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
             >

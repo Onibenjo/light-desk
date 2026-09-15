@@ -22,7 +22,12 @@ export function useMessageCopy({ copyText, showToast, logSend }: Deps) {
     async (message: Pick<OpenMessage, "key" | "label" | "parts">, index: number): Promise<boolean> => {
       const text = message.parts[index];
       if (text === undefined) return false;
-      if (!(await copyText(text))) {
+      // A throw from the clipboard is the same as a refusal: no tick, no log, a toast.
+      let ok = false;
+      try {
+        ok = await copyText(text);
+      } catch {}
+      if (!ok) {
         showToast("Clipboard blocked — tap again", "err");
         return false;
       }

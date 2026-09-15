@@ -9,12 +9,65 @@ import { hasFinePointer } from "@/lib/pointer";
 import { buildIndex, searchSongs, type IndexedSong, type SearchableSong, type SongMatch } from "@/lib/songSearch";
 import { resolveSetlist, songsById, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
 import { messagesById, type Library } from "@/lib/messageLibrary";
+import { failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { MatchedLine } from "./MatchedLine";
-import SongEditor from "./SongEditor";
+import SongEditor, { readSong, songFromBody } from "./SongEditor";
 import SongList from "./SongList";
 import SetlistBar from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
+
+/**
+ * How long a request waits before the control that sent it comes back. Quick
+ * add is longer because a paste with no blank lines goes to the model first.
+ */
+const OPEN_TIMEOUT_MS = 15_000;
+const QUICK_ADD_TIMEOUT_MS = 60_000;
+
+/** What the server search last answered, for the query it answered. */
+type ServerSearch = { kind: "done"; q: string; songs: SongMatch[] } | { kind: "failed"; q: string; failure: Failure };
+
+function readSnippet(value: unknown): SongMatch["snippet"] | undefined {
+  if (value === null) return null;
+  if (typeof value !== "object") return undefined;
+  if (!("text" in value) || typeof value.text !== "string") return undefined;
+  if (!("translation" in value) || typeof value.translation !== "boolean") return undefined;
+  if (!("ranges" in value) || !Array.isArray(value.ranges)) return undefined;
+  const raw: unknown[] = value.ranges;
+  const ranges: { start: number; end: number }[] = [];
+  for (const r of raw) {
+    if (typeof r !== "object" || r === null || !("start" in r) || !("end" in r) || typeof r.start !== "number" || typeof r.end !== "number") return undefined;
+    ranges.push({ start: r.start, end: r.end });
+  }
+  return { text: value.text, ranges, translation: value.translation };
+}
+
+function readMatch(value: unknown): SongMatch | null {
+  if (typeof value !== "object" || value === null || !("song" in value)) return null;
+  const song = readSong(value.song);
+  if (!song) return null;
+  const tier = "tier" in value ? value.tier : null;
+  if (tier !== 1 && tier !== 2 && tier !== 3 && tier !== 4 && tier !== 5) return null;
+  if (!("matched" in value) || typeof value.matched !== "number" || !("words" in value) || typeof value.words !== "number") return null;
+  const fuzzy = "fuzzy" in value && value.fuzzy === true;
+  const section = "section" in value && typeof value.section === "number" ? value.section : null;
+  const snippet = readSnippet("snippet" in value ? value.snippet : null);
+  if (snippet === undefined) return null;
+  return { song, tier, matched: value.matched, words: value.words, fuzzy, section, snippet };
+}
+
+/** `{ songs, total }` from GET /api/songs, or null when the body is not that. */
+function readServerSearch(body: unknown): { songs: SongMatch[]; total: number | null } | null {
+  if (typeof body !== "object" || body === null || !("songs" in body) || !Array.isArray(body.songs)) return null;
+  const raw: unknown[] = body.songs;
+  const songs: SongMatch[] = [];
+  for (const m of raw) {
+    const match = readMatch(m);
+    if (!match) return null;
+    songs.push(match);
+  }
+  return { songs, total: "total" in body && typeof body.total === "number" ? body.total : null };
+}
 
 interface Props {
   copyText: (t: string) => Promise<boolean>;
@@ -44,7 +97,9 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   const libraryById = useMemo(() => messagesById(library), [library]);
   const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, libraryById) : []), [setlist, byId, libraryById]);
   // Results from the server, used only until the local book has arrived.
-  const [remote, setRemote] = useState<SongMatch[]>([]);
+  const [remote, setRemote] = useState<ServerSearch | null>(null);
+  // Bumped by "Search again" after a failed server search, to run the same query once more.
+  const [retry, setRetry] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
   const [song, setSong] = useState<SearchableSong | null>(null);
   // The section the remembered line was found in, marked but not jumped to.
@@ -59,13 +114,19 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   const [addTitle, setAddTitle] = useState("");
   const [addLyrics, setAddLyrics] = useState("");
   const [busy, setBusy] = useState(false);
+  // `busy` lands a render late; a second tap in that gap must not add the song twice.
+  const addInFlight = useRef(false);
+  // Read when a quick add answers: if the panel was cancelled meanwhile, the
+  // saved song is not opened over whatever the operator moved on to.
+  const addOpen = useRef(false);
+  // Only the latest setlist-row tap may open its song when the fetch returns.
+  const openSeq = useRef(0);
   // Which section the keyboard is pointing at. Real DOM focus follows it, so the
   // browser handles scrolling it into view and screen readers announce it.
   const [cursor, setCursor] = useState(0);
   const [hit, setHit] = useState(0); // highlighted row in the search results
   const inputRef = useRef<HTMLInputElement>(null);
   const sectionRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const debounce = useRef<number | undefined>(undefined);
 
   // The whole songbook, once. From here on a search costs no network at all,
   // which is what makes it usable on the venue's wifi.
@@ -94,21 +155,46 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   // Once the book is here the results are simply a function of what was typed;
   // nothing to store, and no round-trip.
   const local = useMemo(() => (book ? searchSongs(book, deferredQ) : null), [book, deferredQ]);
-  const hits = local ?? (q.trim() ? remote : []);
+  // What the server is asked, trimmed so a trailing space does not search again.
+  const serverQ = book ? "" : q.trim();
+  // The answer for exactly what is in the box; null while that is still on its way.
+  const answered = remote?.q === serverQ ? remote : null;
+  // While a new query is on its way the last results stay up, rather than flickering out.
+  const hits = local ?? (serverQ && remote?.kind === "done" ? remote.songs : []);
 
-  // Until the book has arrived, the server runs the same search for us.
+  // Until the book has arrived, the server runs the same search for us. Each
+  // query aborts the one before it, so a slow early answer cannot land on top
+  // of a newer one.
   useEffect(() => {
-    if (book || !q.trim()) return;
-    window.clearTimeout(debounce.current);
-    debounce.current = window.setTimeout(async () => {
-      const res = await fetch(`/api/songs?q=${encodeURIComponent(q)}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setRemote(data.songs ?? []);
-      setTotal((t) => data.total ?? t);
+    if (!serverQ) return;
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(async () => {
+      let failure: Failure;
+      try {
+        const res = await fetch(`/api/songs?q=${encodeURIComponent(serverQ)}`, { signal: ctrl.signal });
+        if (res.ok) {
+          const data = readServerSearch(await res.json());
+          if (ctrl.signal.aborted) return;
+          if (data) {
+            setRemote({ kind: "done", q: serverQ, songs: data.songs });
+            setTotal((t) => data.total ?? t);
+            return;
+          }
+          // A 200 that is not our answer is a captive portal or a proxy, not Lightdesk.
+          failure = OFFLINE;
+        } else {
+          failure = await failureFrom(res, "The search did not run");
+        }
+      } catch {
+        failure = OFFLINE;
+      }
+      if (!ctrl.signal.aborted) setRemote({ kind: "failed", q: serverQ, failure });
     }, 200);
-    return () => window.clearTimeout(debounce.current);
-  }, [q, book]);
+    return () => {
+      window.clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [serverQ, retry]);
 
   // Once a song is open its section buttons are already mounted, so a direct
   // focus (no rAF) always lands — the race is only ever on the *first* render
@@ -119,6 +205,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   }, []);
 
   const openSong = useCallback((s: SearchableSong, matchedSection: number | null = null) => {
+    // Any song opened supersedes a setlist row still fetching its own.
+    openSeq.current++;
     setEditing(false);
     setSong(s);
     setFound(matchedSection);
@@ -146,10 +234,23 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     async (row: SongRow) => {
       if (row.missing) return;
       if (row.song) return openSong(row.song);
-      const res = await fetch(`/api/songs/${row.id}`);
-      if (!res.ok) return showToast("Could not open that song — search for it", "err");
-      const { song: fetched } = (await res.json()) as { song: SearchableSong };
-      openSong(fetched);
+      const seq = ++openSeq.current;
+      const fallback = "Could not open that song — search for it";
+      let message: string;
+      try {
+        const res = await fetch(`/api/songs/${row.id}`, { signal: AbortSignal.timeout(OPEN_TIMEOUT_MS) });
+        if (res.ok) {
+          const fetched = songFromBody(await res.json());
+          if (seq !== openSeq.current) return;
+          if (fetched) return openSong(fetched);
+          message = fallback;
+        } else {
+          message = (await failureFrom(res, fallback)).message;
+        }
+      } catch {
+        message = OFFLINE.message;
+      }
+      if (seq === openSeq.current) showToast(message, "err");
     },
     [openSong, showToast],
   );
@@ -192,32 +293,49 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     }
   }
 
+  useEffect(() => {
+    addOpen.current = adding;
+  }, [adding]);
+
   async function quickAdd() {
-    if (!addTitle.trim() || !addLyrics.trim() || busy) return;
+    if (addInFlight.current || !addTitle.trim() || !addLyrics.trim()) return;
+    addInFlight.current = true;
     setBusy(true);
+    const sentTitle = addTitle;
+    const sentLyrics = addLyrics;
+    // On any failure the panel and both fields stay as they are, so a retry is one tap.
     try {
       const res = await fetch("/api/songs/quick-add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: addTitle, lyrics: addLyrics }),
+        body: JSON.stringify({ title: sentTitle, lyrics: sentLyrics }),
+        signal: AbortSignal.timeout(QUICK_ADD_TIMEOUT_MS),
       });
-      const data = await res.json();
-      if (!res.ok) return showToast(data.error ?? "Could not add the song", "err");
-      showToast(`Saved "${addTitle}" — tap a section to send`);
-      setAdding(false);
-      setAddTitle("");
-      setAddLyrics("");
-      const saved = data.song as SearchableSong;
+      if (!res.ok) return showToast((await failureFrom(res, "Could not add the song")).message, "err");
+      const saved = songFromBody(await res.json());
+      if (!saved) return showToast(OFFLINE.message, "err");
+      showToast(`Saved "${saved.title}" — tap a section to send`);
+      // Only what was sent: text typed into a reopened panel meanwhile is not this song.
+      setAddTitle((t) => (t === sentTitle ? "" : t));
+      setAddLyrics((l) => (l === sentLyrics ? "" : l));
       // Into the local index too, or it would be unsearchable until a reload.
       setBook((b) => (b ? [...b, ...buildIndex([saved])] : b));
       setTotal((t) => (t === null ? t : t + 1));
-      openSong(saved);
+      if (addOpen.current) {
+        setAdding(false);
+        openSong(saved);
+      }
+    } catch {
+      showToast(OFFLINE.message, "err");
     } finally {
+      addInFlight.current = false;
       setBusy(false);
     }
   }
 
   function pin(i: number) {
+    // A song with no sections has nothing to pin, and C would read past the end.
+    if (!song || i < 0 || i >= song.sections.length) return;
     const next = togglePin(pinned, i);
     setPinned(next);
     showToast(next === null ? `Unpinned section ${i + 1}` : `Pinned section ${i + 1} — press C to re-send it`);
@@ -319,7 +437,9 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                 setHit((i) => Math.max(0, i - 1));
               } else if (e.key === "Enter") {
                 e.preventDefault();
-                openSong(hits[hit].song, hits[hit].section);
+                // The results can shrink under a highlight that was moved down first.
+                const pick = hits[Math.min(hit, hits.length - 1)];
+                openSong(pick.song, pick.section);
               }
             }}
             aria-label="Search the songbook"
@@ -351,8 +471,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                     className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-zinc-800/60 ${hi === hit ? "bg-zinc-800/60" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="min-w-0 font-medium">{m.song.title}</span>
-                      <span className="shrink-0 text-xs text-[var(--muted)]">
+                      <span className="min-w-0 font-medium wrap-break-word">{m.song.title}</span>
+                      <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
                         {m.matched < m.words && <span className="text-amber-400/80">{m.matched} of {m.words} words · </span>}
                         {m.fuzzy && <span className="text-amber-400/80">spelling · </span>}
                         {m.song.author ? `${m.song.author} · ` : ""}
@@ -386,7 +506,27 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
               <SongList book={book} onOpen={openSong} />
             </div>
           )}
-          {q.trim() && hits.length === 0 && (
+          {answered?.kind === "failed" && (
+            <p role="status" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+              <span className="text-amber-400">The search did not run. {answered.failure.message.replace(/[.!]$/, "")}.</span>
+              {answered.failure.kind === "locked" && (
+                <Link href={unlockHref("/")} className="-my-1 inline-flex items-center py-1 underline pointer-coarse:my-0 pointer-coarse:min-h-11">
+                  Unlock
+                </Link>
+              )}
+              <button
+                onClick={() => {
+                  setRemote(null);
+                  setRetry((n) => n + 1);
+                }}
+                className="-my-1 inline-flex items-center py-1 underline pointer-coarse:my-0 pointer-coarse:min-h-11"
+              >
+                Search again
+              </button>
+            </p>
+          )}
+          {serverQ && !answered && hits.length === 0 && <p className="text-sm text-[var(--muted)]">Searching the songbook…</p>}
+          {q.trim() && hits.length === 0 && (local !== null || answered?.kind === "done") && (
             <p className="text-sm text-[var(--muted)]">
               Nothing matched — even part of it. Check a word, or{" "}
               <button onClick={() => setAdding(true)} className="underline">
@@ -434,9 +574,16 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           onCancel={() => setStarting(null)}
           onStart={async (name) => {
             const song = starting;
-            setStarting(null);
-            if (song.id === undefined) return;
+            if (song.id === undefined) {
+              setStarting(null);
+              return showToast("Save the song before adding it to a setlist", "err");
+            }
             const result = await startSetlist(name, { kind: "song", id: song.id, title: song.title });
+            // The form stays up, with the name as typed, only when nothing was
+            // created: Start again is then safe. Otherwise it closes, or a second
+            // try would make a second setlist of the same name.
+            const nothingMade = typeof result === "object" && result.created === undefined;
+            if (!nothingMade) setStarting((s) => (s === song ? null : s));
             showToast(result === "added" ? `Started ${name} with "${song.title}"` : addToast(result, song.title, name).text, result === "added" ? "ok" : "err");
           }}
         />
@@ -445,7 +592,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       {song && !editing && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="basis-full text-lg font-semibold leading-tight sm:basis-auto">{song.title}</h2>
+            <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-break-word sm:basis-auto">{song.title}</h2>
             <span className="flex flex-wrap gap-2 sm:shrink-0">
               <button onClick={() => addToSetlist(song)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
                 {setlist ? "+ Setlist" : "Start a setlist"}
@@ -462,7 +609,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2">
               <span className="px-1 text-xs uppercase tracking-wide text-[var(--muted)]">Pinned</span>
               <button onClick={() => copySection(pinned)} className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm font-medium text-black pointer-coarse:min-h-11">
-                <span className="sr-only">Re-send </span>↻ {pinned + 1} · {song.sections[pinned].split("\n")[0].slice(0, 28)}
+                <span className="sr-only">Re-send </span>↻ {pinned + 1} · {Array.from(song.sections[pinned].split("\n")[0]).slice(0, 28).join("")}
               </button>
               <span className="kbd">C</span>
             </div>
@@ -471,6 +618,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             <span className="kbd">↵</span> send and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> jump ·{" "}
             <span className="kbd">P</span> pin this one · <span className="kbd">C</span> re-send the pinned one · <span className="kbd">Esc</span> back
           </p>
+          {song.sections.length === 0 && <p className="text-sm text-[var(--muted)]">This song has no sections to send. Edit it to add the lyrics.</p>}
           <ol className="space-y-2">
             {song.sections.map((sec, i) => (
               <li
@@ -500,7 +648,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                     }
                   }}
                   tabIndex={i === cursor ? 0 : -1}
-                  className={`flex-1 rounded-lg px-3 py-2 text-left hover:bg-zinc-800/60 ${i === cursor ? "ring-1 ring-inset ring-[var(--accent)]/40" : ""}`}
+                  className={`min-w-0 flex-1 rounded-lg px-3 py-2 text-left hover:bg-zinc-800/60 ${i === cursor ? "ring-1 ring-inset ring-[var(--accent)]/40" : ""}`}
                 >
                   <span className="mr-2 text-xs text-[var(--muted)]">{i + 1}</span>
                   {pinned === i && <span className="mr-2 rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-black">Pinned</span>}
@@ -509,7 +657,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                       Your line
                     </span>
                   )}
-                  <span className="whitespace-pre-wrap text-[15px] leading-relaxed">{sec}</span>
+                  <span className="whitespace-pre-wrap text-[15px] leading-relaxed wrap-break-word">{sec}</span>
                 </button>
                 <button
                   onClick={() => pin(i)}

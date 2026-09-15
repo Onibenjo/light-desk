@@ -41,6 +41,11 @@ describe("browsing the whole songbook", () => {
     for (const id of ids) expect(id).toMatch(/^[a-z0-9-]+$/);
   });
 
+  it("lets a long unbroken title wrap instead of pushing the row sideways", () => {
+    const long = "A".repeat(150);
+    expect(render([song(long)])).toMatch(new RegExp(`<span class="[^"]*\\bwrap-break-word\\b[^"]*">${long}</span>`));
+  });
+
   it("renders nothing at all for an empty book", () => {
     expect(text(render([]))).toBe("");
   });
