@@ -30,7 +30,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-anywhere sm:basis-auto">
+        <h2 className="min-w-0 basis-full text-2xl font-semibold leading-tight wrap-anywhere sm:basis-auto">
           {label}
           {edited && (
             <span className="badge ml-2">

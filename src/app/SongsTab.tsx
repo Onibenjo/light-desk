@@ -470,7 +470,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                     onClick={() => openSong(m.song, m.section)}
                     onMouseEnter={() => setHit(hi)}
                     aria-current={hi === hit ? "true" : undefined}
-                    className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-ink-800/60 ${hi === hit ? "bg-ink-800/60" : ""}`}
+                    className={`min-w-0 flex-1 px-4 py-3 text-left font-text hover:bg-ink-800/60 ${hi === hit ? "bg-ink-800/60" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="min-w-0 font-medium wrap-break-word">{m.song.title}</span>
@@ -594,7 +594,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       {song && !editing && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-break-word sm:basis-auto">{song.title}</h2>
+            <h2 className="min-w-0 basis-full text-2xl font-semibold leading-tight wrap-break-word sm:basis-auto">{song.title}</h2>
             <span className="flex flex-wrap gap-2 sm:shrink-0">
               <button onClick={() => addToSetlist(song)} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11">
                 {setlist ? "Add to the setlist" : "Start a setlist"}

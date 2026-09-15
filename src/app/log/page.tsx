@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CommandPalette from "../CommandPalette";
+import Icon, { type IconName } from "../Icon";
+import PageShell from "../PageShell";
+import Toast, { copyText, useToast } from "../Toast";
 import { type Action } from "@/lib/shortcuts";
 import { dayBounds, toISODate, shiftDay, formatDayLabel, groupDays } from "@/lib/logQuery";
 import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
@@ -28,12 +31,8 @@ const KIND_CHIP: Record<(typeof KINDS)[number], string> = {
 };
 const KIND_BADGE: Record<string, string> = { verse: "verse", search: "description search", song: "song", message: "message" };
 
-const KIND_STYLE: Record<string, string> = {
-  verse: "bg-emerald-900/50 text-emerald-300",
-  search: "bg-sky-900/50 text-sky-300",
-  song: "bg-violet-900/50 text-violet-300",
-  message: "bg-amber-900/50 text-amber-300",
-};
+/** Kinds are told apart by icon and word, not colour: green already means "copied", amber "check this". */
+const KIND_ICON: Record<string, IconName> = { verse: "book", search: "book", song: "music", message: "message" };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -48,30 +47,6 @@ function isLogRow(v: unknown): v is LogRow {
   );
 }
 
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Same fallback as the desk for odd permission states: a hidden textarea + execCommand.
-    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      return document.execCommand("copy");
-    } catch {
-      return false;
-    } finally {
-      document.body.removeChild(ta);
-      // Selecting the textarea took focus off the Copy button; a keyboard user keeps their place.
-      back?.focus();
-    }
-  }
-}
 
 /** A server sentence after a lead-in: ends with exactly one full stop. */
 const sentence = (message: string) => (/[.!?]$/.test(message) ? message : `${message}.`);
@@ -91,8 +66,7 @@ export default function LogPage() {
   const failure = load.kind === "failed" ? load.failure : null;
   // Bumped by Try again so both fetches run again with the same filters.
   const [attempt, setAttempt] = useState(0);
-  const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
+  const { toast, showToast } = useToast();
 
   // Debounce the search box so typing doesn't fire a query per keystroke.
   const [debounced, setDebounced] = useState("");
@@ -100,12 +74,6 @@ export default function LogPage() {
     const id = setTimeout(() => setDebounced(query.trim()), 250);
     return () => clearTimeout(id);
   }, [query]);
-
-  const flash = useCallback((text: string, ok = true) => {
-    setToast({ text, ok });
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), ok ? 2500 : 4000);
-  }, []);
 
   // Which days have anything at all — grouped here, in the browser, because only
   // it knows which local day a stored UTC instant belongs to.
@@ -184,20 +152,11 @@ export default function LogPage() {
   );
 
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+    <PageShell title="Log" purpose="Everything copied, by day.">
       <CommandPalette actions={actions} />
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold">Log</h1>
-          <p className="text-xs text-[var(--muted)]">Everything copied, by day.</p>
-        </div>
-        <Link href="/" className="inline-flex items-center rounded-md border border-ink-700 px-3 py-1.5 text-sm text-ink-300 hover:bg-ink-800 pointer-coarse:min-h-11">
-          ← Desk
-        </Link>
-      </header>
 
       {/* Day picker */}
-      <section className="space-y-3 rounded-xl border border-ink-800 bg-ink-900/60 p-3 sm:p-4">
+      <section className="space-y-3 rounded-xl border border-ink-800 bg-ink-900 p-3 sm:p-4">
         {/* Below sm the arrows and the label take a row of their own, so
             "Wed 30 Sep 2026" never wraps; the date input, Today and All dates
             drop to a second row. From sm up everything sits on one row. */}
@@ -208,18 +167,18 @@ export default function LogPage() {
                 setScope("day");
                 setDate((d) => shiftDay(d, -1));
               }}
-              className="rounded-md border border-ink-700 px-2.5 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              className="btn btn-icon"
               aria-label="Previous day"
             >
               ←
             </button>
-            <span className={`min-w-0 flex-1 whitespace-nowrap text-center text-sm font-medium sm:min-w-[10.5rem] sm:flex-none ${scope === "all" ? "text-[var(--muted)]" : ""}`}>{scope === "all" ? "All dates" : formatDayLabel(date)}</span>
+            <span className={`min-w-0 flex-1 whitespace-nowrap text-center font-ui text-lg font-semibold sm:min-w-[11rem] sm:flex-none ${scope === "all" ? "text-[var(--muted)]" : ""}`}>{scope === "all" ? "All dates" : formatDayLabel(date)}</span>
             <button
               onClick={() => {
                 setScope("day");
                 setDate((d) => shiftDay(d, 1));
               }}
-              className="rounded-md border border-ink-700 px-2.5 py-1.5 text-sm hover:bg-ink-800 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              className="btn btn-icon"
               aria-label="Next day"
             >
               →
@@ -234,21 +193,21 @@ export default function LogPage() {
               setScope("day");
               setDate(e.target.value);
             }}
-            className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11"
+            className="field px-2 py-1.5"
           />
           <button
             onClick={() => {
               setScope("day");
               setDate(today);
             }}
-            className="rounded-md border border-ink-700 px-2.5 py-1.5 text-sm text-ink-300 hover:bg-ink-800 pointer-coarse:min-h-11"
+            className="btn"
           >
             Today
           </button>
           <button
             onClick={() => setScope(scope === "all" ? "day" : "all")}
             aria-pressed={scope === "all"}
-            className={`ml-auto rounded-md border px-2.5 py-1.5 text-sm pointer-coarse:min-h-11 ${scope === "all" ? "border-[var(--accent)] text-[var(--accent)]" : "border-ink-700 text-ink-400 hover:bg-ink-800"}`}
+            className={`btn ml-auto ${scope === "all" ? "btn-on" : ""}`}
           >
             All dates
           </button>
@@ -265,16 +224,11 @@ export default function LogPage() {
                   setDate(d.iso);
                 }}
                 title={`${formatDayLabel(d.iso)} · ${d.count} ${d.count === 1 ? "entry" : "entries"}`}
-                className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs pointer-coarse:min-h-11 ${
-                  scope === "day" && d.iso === date
-                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                    : isSunday(d.iso)
-                      ? "border-ink-700 bg-ink-800/60 text-ink-200"
-                      : "border-ink-800 text-ink-400 hover:bg-ink-800"
-                }`}
+                aria-pressed={scope === "day" && d.iso === date}
+                className={`btn btn-sm shrink-0 ${scope === "day" && d.iso === date ? "btn-on" : isSunday(d.iso) ? "bg-ink-800 text-ink-100" : "border-ink-800 text-ink-400"}`}
               >
                 {formatDayLabel(d.iso).slice(0, 10)}
-                <span className="ml-1.5 text-[var(--muted)]">{d.count}</span>
+                <span className={`ml-1.5 tabular-nums ${scope === "day" && d.iso === date ? "text-ink-700" : "text-[var(--muted)]"}`}>{d.count}</span>
               </button>
             ))}
           </div>
@@ -289,10 +243,10 @@ export default function LogPage() {
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search the log"
             placeholder="Reference, title or words"
-            className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)] pointer-coarse:min-h-11"
+            className="field w-full"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="rounded-md border border-ink-700 px-3 text-sm text-ink-400 hover:bg-ink-800 pointer-coarse:min-h-11">
+            <button onClick={() => setQuery("")} className="btn">
               Clear
             </button>
           )}
@@ -303,7 +257,7 @@ export default function LogPage() {
               key={k}
               onClick={() => setKind(k)}
               aria-pressed={kind === k}
-              className={`rounded-full border px-3 py-1.5 text-xs pointer-coarse:min-h-11 ${kind === k ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]" : "border-ink-800 text-ink-400 hover:bg-ink-800"}`}
+              className={`btn btn-sm rounded-full ${kind === k ? "btn-on" : "border-ink-800 text-ink-300"}`}
             >
               {KIND_CHIP[k]}
             </button>
@@ -312,8 +266,8 @@ export default function LogPage() {
       </section>
 
       {/* Results */}
-      <section className="rounded-xl border border-ink-800 bg-ink-900/60">
-        <div className="flex items-center justify-between gap-3 border-b border-ink-800 px-4 py-2 text-xs text-[var(--muted)]">
+      <section className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
+        <div className="flex items-center justify-between gap-3 border-b border-ink-800 px-4 py-2 text-sm text-[var(--muted)]">
           <span role="status" aria-live="polite" className="shrink-0">
             {busy ? "Loading the log…" : `${failure ? "" : `${rows.length >= SERVER_LIMIT ? "Latest " : ""}${rows.length} ${rows.length === 1 ? "entry" : "entries"} · `}${scope === "day" ? formatDayLabel(date) : "all dates"}`}
           </span>
@@ -325,11 +279,11 @@ export default function LogPage() {
             <p className="text-sm text-red-300">Couldn&rsquo;t load the log. {sentence(failure.message)}</p>
             <div className="flex flex-wrap justify-center gap-2">
               {failure.kind === "locked" && (
-                <Link href={unlockHref("/log")} className="inline-flex items-center rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black pointer-coarse:min-h-11">
+                <Link href={unlockHref("/log")} className="btn btn-primary">
                   Enter the PIN
                 </Link>
               )}
-              <button onClick={() => setAttempt((n) => n + 1)} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-ink-300 hover:bg-ink-800 pointer-coarse:min-h-11">
+              <button onClick={() => setAttempt((n) => n + 1)} className="btn">
                 Try again
               </button>
             </div>
@@ -342,12 +296,12 @@ export default function LogPage() {
               {debounced || kind !== "all" ? `No matches${scope === "day" ? ` on ${formatDayLabel(date)}` : ""}.` : scope === "day" ? `Nothing logged on ${formatDayLabel(date)}.` : "Nothing in the log yet."}
             </p>
             {scope === "day" && debounced && (
-              <button onClick={() => setScope("all")} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-ink-300 hover:bg-ink-800 pointer-coarse:min-h-11">
+              <button onClick={() => setScope("all")} className="btn">
                 Search all dates
               </button>
             )}
             {scope === "day" && !debounced && countForDate === 0 && days.length > 0 && (
-              <button onClick={() => setDate(days[0].iso)} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-ink-300 hover:bg-ink-800 pointer-coarse:min-h-11">
+              <button onClick={() => setDate(days[0].iso)} className="btn">
                 Jump to {formatDayLabel(days[0].iso)}
               </button>
             )}
@@ -356,16 +310,19 @@ export default function LogPage() {
 
         <ul className="divide-y divide-ink-800">
           {!failure && rows.map((row) => (
-            <li key={row.id} className="flex items-start justify-between gap-3 px-4 py-2.5 text-sm">
+            <li key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded px-1.5 py-0.5 text-[11px] uppercase ${KIND_STYLE[row.kind] ?? "bg-ink-800 text-ink-400"}`}>{KIND_BADGE[row.kind] ?? row.kind}</span>
-                  <span className="min-w-0 wrap-anywhere">{row.label}</span>
+                  <span className="badge">
+                    {KIND_ICON[row.kind] && <Icon name={KIND_ICON[row.kind]} className="h-3 w-3" />}
+                    {KIND_BADGE[row.kind] ?? row.kind}
+                  </span>
+                  <span className="min-w-0 text-[15px] font-bold wrap-anywhere">{row.label}</span>
                 </div>
-                {row.body && <p className="mt-1 line-clamp-2 text-xs wrap-anywhere text-[var(--muted)]">{row.body}</p>}
+                {row.body && <p className="mt-1 line-clamp-2 text-sm wrap-anywhere text-[var(--muted)]">{row.body}</p>}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-[var(--muted)]">
+                <span className="font-ui text-sm text-[var(--muted)] tabular-nums">
                   {scope === "all" && <span className="mr-1.5">{formatDayLabel(toISODate(new Date(row.createdAt))).slice(0, 10)}</span>}
                   {time(row.createdAt)}
                 </span>
@@ -373,9 +330,9 @@ export default function LogPage() {
                   <button
                     onClick={() => {
                       if (row.body === null) return;
-                      copyText(row.body).then((ok) => flash(ok ? `Copied ${row.label} — paste in Mixlr` : "Couldn't copy — try again", ok));
+                      copyText(row.body).then((ok) => showToast(ok ? `Copied ${row.label} — paste in Mixlr` : "Couldn't copy — try again", ok ? "ok" : "err"));
                     }}
-                    className="shrink-0 rounded border border-ink-700 px-2 py-1 text-xs hover:bg-ink-800 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                    className="btn btn-sm shrink-0"
                   >
                     Copy
                   </button>
@@ -386,11 +343,7 @@ export default function LogPage() {
         </ul>
       </section>
 
-      <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
-        {toast && (
-          <div className={`max-w-md rounded-lg border px-4 py-2 text-sm wrap-anywhere shadow-lg ${toast.ok ? "border-emerald-500/40 bg-emerald-950 text-emerald-200" : "border-red-500/40 bg-red-950 text-red-200"}`}>{toast.text}</div>
-        )}
-      </div>
-    </main>
+      <Toast toast={toast} />
+    </PageShell>
   );
 }

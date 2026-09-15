@@ -44,7 +44,7 @@ export function TitleList({ noun, titles }: { noun: Noun; titles: string[] }) {
 
   return (
     <div className="space-y-1.5">
-      <h3 className="text-sm font-medium">{count(titles.length, noun)}</h3>
+      <h3 className="eyebrow">{count(titles.length, noun)}</h3>
       <ul className="max-h-72 overflow-y-auto rounded-lg border border-ink-800 bg-ink-950/40">
         {shown.map((title, i) => (
           <li key={i} className="truncate px-3 py-1.5 text-sm text-ink-300">

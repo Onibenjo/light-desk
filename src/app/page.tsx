@@ -11,6 +11,7 @@ import { hasFinePointer } from "@/lib/pointer";
 import { TRANSLATIONS, DEFAULT_TRANSLATION, translationFromInput } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
 import Icon from "./Icon";
+import Toast, { copyText, useToast } from "./Toast";
 import SongsTab from "./SongsTab";
 import MessagesTab from "./MessagesTab";
 import { useSetlist } from "./useSetlist";
@@ -86,29 +87,6 @@ function refToQuery(r: Ref): string {
   return `${b.name} ${r.chapter}:${r.verseStart}${r.verseEnd > r.verseStart ? `-${r.verseEnd}` : ""}`;
 }
 
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Fallback for odd permission states: a hidden textarea + execCommand.
-    // execCommand can throw too; the caller only wants a yes or no, and the
-    // textarea must never be left behind in the page.
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    try {
-      document.body.appendChild(ta);
-      ta.select();
-      return document.execCommand("copy");
-    } catch {
-      return false;
-    } finally {
-      ta.remove();
-    }
-  }
-}
 
 function isRecord(data: unknown): data is Record<string, unknown> {
   return typeof data === "object" && data !== null;
@@ -167,7 +145,7 @@ export default function Desk() {
   const [showBusy, setShowBusy] = useState(false);
   const [result, setResult] = useState<PassageResult | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
-  const [toast, setToast] = useState<{ text: string; tone: "ok" | "warn" | "err" } | null>(null);
+  const { toast, showToast } = useToast();
   const [copiedChunk, setCopiedChunk] = useState(0);
   const [chapter, setChapter] = useState<Passage | null>(null);
   // Set when a request is refused by the PIN gate (the PIN changed, or the
@@ -177,7 +155,6 @@ export default function Desk() {
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
   // The tab just reached with an arrow key, for the frames in which its panel may still grab focus.
   const arrowedTo = useRef<Tab | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
   // `busy` is state, so two presses in the same frame both read it as idle.
   // This is what actually stops a second lookup racing the first.
   const inFlight = useRef(false);
@@ -224,11 +201,6 @@ export default function Desk() {
     };
   }, [busy]);
 
-  const showToast = useCallback((text: string, tone: "ok" | "warn" | "err" = "ok") => {
-    setToast({ text, tone });
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), tone === "err" ? 6000 : 3500);
-  }, []);
 
   /** Tells the operator what went wrong, and remembers a lock for the banner (a toast can't hold a link). */
   const fail = useCallback(
@@ -627,13 +599,6 @@ export default function Desk() {
     },
   ];
 
-  // Solid, not translucent: the toast now floats over whatever is scrolled
-  // beneath it, so a see-through background would give unpredictable contrast.
-  const tone = {
-    ok: "bg-emerald-950 border-emerald-500/40 text-emerald-200",
-    warn: "bg-amber-950 border-amber-500/40 text-amber-200",
-    err: "bg-red-950 border-red-500/40 text-red-200",
-  };
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-5 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
@@ -694,10 +659,10 @@ export default function Desk() {
           </div>
         </div>
         <div className="order-2 flex shrink-0 items-center gap-2 sm:order-3">
-          <Link href="/log" className="inline-flex items-center rounded-md border border-ink-700 px-2 py-1.5 text-sm text-ink-300 hover:bg-ink-800 pointer-coarse:min-h-11" title="Search everything copied, by day">
+          <Link href="/log" className="btn" title="Search everything copied, by day">
             Log
           </Link>
-          <Link href="/diag" className="inline-flex items-center rounded-md border border-ink-700 px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 pointer-coarse:min-h-11" title="Check which verse sources are working">
+          <Link href="/diag" className="btn" title="Check which verse sources are working">
             Sources
           </Link>
         </div>
@@ -741,26 +706,7 @@ export default function Desk() {
         })}
       </div>
 
-      {/* Floating, not in the flow: you're often scrolled to section 13 when this
-          fires, and an inline banner both sits off-screen and shoves the list down
-          under the cursor. pointer-events-none so it can never eat a click.
-
-          Centred by a full-width flex row rather than `left-1/2` and a transform.
-          The old way measured 50% of the *content* width, so the moment anything
-          on the page overflowed, the confirmation the operator is waiting on slid
-          off the side of the screen with it. This cannot: the row is pinned to
-          both edges, so the box is bounded by the screen whatever else happens.
-
-          The live region itself stays mounted — a screen reader announces changes
-          inside one, and reliably misses a region that appears with its text
-          already in place. */}
-      <div
-        role="status"
-        aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4"
-      >
-        {toast && <div className={`max-w-md rounded-lg border px-4 py-3 text-sm wrap-anywhere shadow-lg ${tone[toast.tone]}`}>{toast.text}</div>}
-      </div>
+      <Toast toast={toast} />
       {showBusy && busy && (
         <p role="status" aria-live="polite" className="text-sm text-ink-400 animate-pulse">
           {busy === "chapter" ? "Loading the chapter…" : `Looking up “${busy}”…`}

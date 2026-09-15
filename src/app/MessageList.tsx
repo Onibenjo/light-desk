@@ -38,7 +38,7 @@ function MessageList({ groups, active, copied, onPick, onAdd, onHover }: Props) 
                       onClick={() => onPick(entry)}
                       onMouseEnter={() => onHover(message.id)}
                       aria-current={active === message.id ? "true" : undefined}
-                      className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-ink-800/60 ${active === message.id ? "bg-ink-800/60" : ""}`}
+                      className={`min-w-0 flex-1 px-4 py-3 text-left font-text hover:bg-ink-800/60 ${active === message.id ? "bg-ink-800/60" : ""}`}
                     >
                       <span className="flex items-baseline justify-between gap-3">
                         <span className="min-w-0 font-medium wrap-anywhere">{message.title}</span>

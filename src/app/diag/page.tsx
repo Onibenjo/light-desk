@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import PageShell from "../PageShell";
 import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 
 type Check = { name: string; ok: boolean; detail: string; ms?: number };
@@ -63,31 +64,30 @@ export default function DiagPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-3xl space-y-5 p-4 sm:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold">Verse sources</h1>
-          <p className="text-xs text-[var(--muted)]">Which verse sources are working, and what is set up.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => run(false)} disabled={busy} className="rounded-md border border-ink-700 px-3 py-1.5 text-sm disabled:opacity-50 pointer-coarse:min-h-11">
+    <PageShell
+      title="Verse sources"
+      purpose="Which verse sources are working, and what is set up."
+      actions={
+        <>
+          <button onClick={() => run(false)} disabled={busy} className="btn btn-primary">
             Check again
           </button>
-          <button onClick={() => run(true)} disabled={busy} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50 pointer-coarse:min-h-11">
+          <button onClick={() => run(true)} disabled={busy} className="btn">
             {busy && deep ? "Looking up every translation…" : "Look up every translation (slow)"}
           </button>
-        </div>
-      </header>
+        </>
+      }
+    >
       {failure && (
         <div role="alert" className="space-y-2 rounded-lg border border-red-500/40 bg-red-600/20 px-4 py-3 text-sm text-red-200">
           <p>Couldn&rsquo;t check the verse sources. {sentence(failure.message)}</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {failure.kind === "locked" ? (
-              <Link href={unlockHref("/diag")} className="inline-flex items-center py-1.5 font-medium underline pointer-coarse:min-h-11">
+              <Link href={unlockHref("/diag")} className="btn border-red-400/40 text-red-100 hover:bg-red-600/20">
                 Enter the PIN
               </Link>
             ) : (
-              <button onClick={() => run(deep)} className="inline-flex items-center py-1.5 font-medium underline pointer-coarse:min-h-11">
+              <button onClick={() => run(deep)} className="btn border-red-400/40 text-red-100 hover:bg-red-600/20">
                 Try again
               </button>
             )}
@@ -97,8 +97,8 @@ export default function DiagPage() {
       {!data && !failure && <p className="text-sm text-ink-400 animate-pulse">Checking the verse sources…</p>}
       {data && (
         <>
-          <section className="rounded-xl border border-ink-800 bg-ink-900/60 p-4">
-            <h2 className="mb-2 text-xs uppercase tracking-wide text-[var(--muted)]">Settings</h2>
+          <section className="rounded-xl border border-ink-800 bg-ink-900 p-4">
+            <h2 className="eyebrow mb-2">Settings</h2>
             {/* Two columns at most so a key like LLM_MODEL is never cut to "LLM_…";
                 a value that will not fit beside its key wraps under it, right-aligned. */}
             <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
@@ -110,12 +110,12 @@ export default function DiagPage() {
               ))}
             </dl>
           </section>
-          <section className="rounded-xl border border-ink-800 bg-ink-900/60 p-4">
-            <h2 className="mb-2 text-xs uppercase tracking-wide text-[var(--muted)]">Results</h2>
+          <section className="rounded-xl border border-ink-800 bg-ink-900 p-4">
+            <h2 className="eyebrow mb-2">Results</h2>
             <ul className="divide-y divide-ink-800 text-sm">
               {data.checks.map((c) => (
                 <li key={c.name} className="flex flex-wrap gap-x-3 gap-y-1 py-2">
-                  <span className={`shrink-0 ${c.ok ? "text-emerald-400" : "text-red-400"}`}>{c.ok ? "✓" : "✗"}</span>
+                  <span className={`shrink-0 font-ui font-semibold ${c.ok ? "text-emerald-400" : "text-red-400"}`}>{c.ok ? "✓ OK" : "✗ Failing"}</span>
                   <span className="min-w-0 flex-1 break-words text-ink-200 sm:w-56 sm:flex-none">{c.name}</span>
                   <span className="min-w-0 basis-full wrap-anywhere text-ink-400 sm:basis-0 sm:flex-1">
                     {c.detail}
@@ -127,16 +127,13 @@ export default function DiagPage() {
             {data.hint && <p className="mt-3 text-xs text-[var(--muted)]">{data.hint}</p>}
           </section>
           {data.youversionBibles.length > 0 && (
-            <details className="rounded-xl border border-ink-800 bg-ink-900/60 p-4 text-sm">
+            <details className="rounded-xl border border-ink-800 bg-ink-900 p-4 text-sm">
               <summary className="cursor-pointer text-ink-300">English Bibles your YouVersion key can use ({data.youversionBibles.length})</summary>
               <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs text-ink-400">{data.youversionBibles.join("\n")}</pre>
             </details>
           )}
         </>
       )}
-      <p className="text-xs text-[var(--muted)]">
-        <Link href="/" className="inline-flex items-center py-1.5 underline pointer-coarse:min-h-11">← Desk</Link>
-      </p>
-    </main>
+    </PageShell>
   );
 }

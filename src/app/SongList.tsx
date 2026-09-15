@@ -41,7 +41,7 @@ function SongList({ book, onOpen }: Props) {
           <ul className="divide-y divide-ink-800">
             {group.songs.map((song) => (
               <li key={song.guid ?? song.id}>
-                <button onClick={() => onOpen(song)} className="flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left hover:bg-ink-800/60">
+                <button onClick={() => onOpen(song)} className="flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left font-text hover:bg-ink-800/60">
                   <span className="min-w-0 font-medium wrap-break-word">{song.title}</span>
                   <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
                     {song.author ? `${song.author} · ` : ""}

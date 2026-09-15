@@ -88,13 +88,58 @@ body {
   }
 }
 
-.kbd {
-  @apply inline-block rounded border border-ink-600 bg-ink-800 px-1.5 py-0.5 text-[11px] font-mono text-ink-300;
-}
+/* The shared pieces. In the components layer so a utility on the element
+   (a width, a margin) still wins over them. */
+@layer components {
+  .kbd {
+    @apply inline-block rounded border border-ink-600 bg-ink-800 px-1.5 py-0.5 font-mono text-[11px] text-ink-300;
+  }
 
-/* State labels (Pinned, Edited, Matched). 11px caps in the console face,
-   neutral by default: the words carry the meaning, so the accent stays free
-   for the one thing on screen to act on. */
-.badge {
-  @apply inline-flex items-center gap-1 rounded border border-ink-600 px-1.5 py-px align-middle font-ui text-[11px] font-semibold tracking-wider whitespace-nowrap text-ink-200 uppercase;
+  /* State labels (Pinned, Edited, Matched). 11px caps in the console face,
+     neutral by default: the words carry the meaning, so the accent stays free
+     for the one thing on screen to act on. */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded border border-ink-600 px-1.5 py-px align-middle font-ui text-[11px] font-semibold tracking-wider whitespace-nowrap text-ink-200 uppercase;
+  }
+
+  /* Buttons. One outline style, one primary (the orange, at most one per
+     view), one quiet, one for destructive actions. 44px on touch, 34px where
+     there is a mouse, which is what the desk already measured out. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-ink-700 px-3 py-1.5 font-ui text-[15px] leading-5 font-medium whitespace-nowrap text-ink-200 hover:border-ink-600 hover:bg-ink-800 disabled:pointer-events-none disabled:opacity-40 pointer-coarse:min-h-11;
+  }
+  .btn-primary {
+    @apply border-transparent bg-[var(--accent)] font-semibold text-black hover:border-transparent hover:bg-[var(--accent)] hover:brightness-110;
+  }
+  .btn-quiet {
+    @apply border-transparent text-ink-300 hover:border-transparent hover:text-ink-100;
+  }
+  .btn-danger {
+    @apply text-red-300 hover:border-red-500/50 hover:bg-red-950;
+  }
+  /* A toggle that is on (aria-pressed): white on ink, the same selected look
+     everywhere, so orange keeps meaning "act here". */
+  .btn-on {
+    @apply border-ink-100 bg-ink-100 text-black hover:border-ink-100 hover:bg-ink-50;
+  }
+  /* The armed state of a two-press Delete: now it looks like it will delete. */
+  .btn-armed {
+    @apply border-red-500 bg-red-600 font-semibold text-white hover:border-red-500 hover:bg-red-600;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1 text-sm;
+  }
+  /* A square icon-only button; carries its own aria-label. */
+  .btn-icon {
+    @apply min-w-9 px-0 pointer-coarse:min-w-11;
+  }
+
+  .field {
+    @apply rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-[15px] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] pointer-coarse:min-h-11;
+  }
+
+  /* Section headings inside a page: small caps in the console face. */
+  .eyebrow {
+    @apply font-ui text-xs font-semibold tracking-widest text-[var(--muted)] uppercase;
+  }
 }
