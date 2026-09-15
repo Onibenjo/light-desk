@@ -8,7 +8,7 @@ import { hasFinePointer } from "@/lib/pointer";
 import { groupEntries, groupLibrary, messagesById, openMessageFor, type Library, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
 import { searchMessages } from "@/lib/messageSearch";
 import { unlockHref, type Failure } from "@/lib/apiError";
-import { openMessageFromRow, resolveSetlist, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
+import { canOpenRow, openMessageFromRow, placeInSetlist, resolveSetlist, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
 import MessageList from "./MessageList";
 import MessageView from "./MessageView";
 import SetlistBar from "./SetlistBar";
@@ -79,10 +79,14 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
     setSent(new Set());
     setCursor(0);
     partRefs.current = [];
+    // Opened from the bottom of the last item, the new one starts at its header.
+    window.scrollTo({ top: 0 });
   }, []);
 
   const closeMessage = useCallback(() => {
     setOpen(null);
+    // Back to the setlist and the search box, not to wherever the message was scrolled.
+    window.scrollTo({ top: 0 });
     if (hasFinePointer()) requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
@@ -142,6 +146,23 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
 
   const addEntry = useCallback((entry: LibraryEntry) => void add(openMessageFor(entry)), [add]);
 
+  // A message found in the library while its setlist row carries text edited
+  // for this service is showing different words from that row: it is not that
+  // setlist item, so it doesn't claim its place or offer what comes after it.
+  const openRow = open ? setlistRows.find((r) => r.key === open.key) : undefined;
+  const sameText = !openRow || openRow.kind !== "message" || openRow.edited === open?.edited;
+  const place = open && setlist && sameText ? placeInSetlist(setlistRows, open.key) : null;
+  const canOpenNext = !!place?.next && canOpenRow(place.next);
+
+  /** "Next in the setlist": a song opens on the Songs tab; a message opens here, even a one-part one, to be read before it is copied. */
+  function openNext() {
+    const next = place?.next;
+    if (!next || !canOpenRow(next)) return;
+    if (next.kind === "song") return onOpenSong(next);
+    const m = openMessageFromRow(next, byId);
+    if (m) openMessage(m);
+  }
+
   async function copyOpenPart(i: number, advance: boolean) {
     if (!open) return;
     if (!(await copyPart(open, i))) return;
@@ -161,6 +182,10 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
       if (e.key === "Escape") {
         e.preventDefault();
         return closeMessage();
+      }
+      if ((e.key === "n" || e.key === "N") && canOpenNext) {
+        e.preventDefault();
+        return openNext();
       }
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
@@ -209,6 +234,9 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         onFocusPart={setCursor}
         onAdd={() => void add(open)}
         onBack={closeMessage}
+        setlistName={setlist?.name ?? null}
+        place={place}
+        onNext={openNext}
         partRef={(i, el) => {
           partRefs.current[i] = el;
         }}
@@ -250,15 +278,15 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         }}
         aria-label="Search messages"
         placeholder={wide ? "Search messages — e.g. sound restored, tithe" : "Search messages"}
-        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+        className="w-full rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
       />
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
         <span className="whitespace-nowrap">{library && `${library.messages.length} ${library.messages.length === 1 ? "message" : "messages"} in the library`}</span>
         <span className="flex flex-wrap items-center gap-x-3">
-          <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+          <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
             Setlists
           </Link>
-          <Link href="/messages" className="-my-1 inline-flex items-center py-1 underline hover:text-zinc-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+          <Link href="/messages" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
             Edit the library
           </Link>
         </span>

@@ -1,8 +1,8 @@
 # Lightdesk UI audit
 
-Date: 2026-09-14. Branch: `ui-audit`. Scope: every page under `src/app` (desk with its three tabs, `/messages`, `/setlists`, `/log`, `/diag`, `/songs/import`, `/unlock`), the command palette and the shortcut guide.
+Date: 2026-09-15 (second pass; first pass 2026-09-14). Branch: `ui-layout`. Scope: every page under `src/app` (desk with its three tabs, `/messages`, `/setlists`, `/log`, `/diag`, `/songs/import`, `/unlock`), the command palette and the shortcut guide.
 
-Method: read every UI source file; ran the Impeccable mechanical detector over all of them (zero findings); drove the local dev server in a headless browser at 1280×800 and 390×844; measured touch targets, horizontal overflow, contrast and native-control theming in the DOM.
+Method: read every UI source file; drove the local dev server in Chrome through agent-browser at 1280×900 and at an emulated 390×844, on the desk, an open song, the message library, setlists, the log, verse sources and import; measured horizontal overflow, layout shift during a lookup, and contrast ratios by computation. The first pass also ran the Impeccable mechanical detector over every UI file (zero findings).
 
 Mode: Operate. The operator is copying text into Mixlr mid-service, often on the venue wifi, sometimes on a phone. Scanability and reliability outrank expression.
 
@@ -10,212 +10,123 @@ Mode: Operate. The operator is copying text into Mixlr mid-service, often on the
 
 | # | Dimension | Score | Key finding |
 |---|-----------|-------|-------------|
-| 1 | Accessibility | 3 | Import's file chooser is unreachable by keyboard; tabs are three plain buttons |
-| 2 | Performance | 3 | `backdrop-blur` on 27 sticky headers over a 2,222-row list; status line causes layout shift |
-| 3 | Responsive design | 2 | `/messages` shows one letter per title on a phone; `/log` date row wraps to four lines |
-| 4 | Theming | 3 | No `color-scheme`, so native selects, scrollbars and the date picker render light |
-| 5 | Implementation integrity | 3 | Coherent and product-specific; emoji icons and four different page headers are the drift |
-| **Total** | | **14/20** | **Good. Address the weak dimensions.** |
+| 1 | Accessibility | 4 | Sound; the untested edge is how screen readers read the uppercase labels |
+| 2 | Performance | 4 | Blur gone and fonts self-hosted; document keydown effects still re-subscribe every render |
+| 3 | Responsive design | 4 | No overflow at 390px on any page; never checked on a real phone |
+| 4 | Theming | 4 | One warm scale, `color-scheme: dark`, and the accent reserved for action and position |
+| 5 | Implementation integrity | 3 | Shared shell, toast, row and button classes; page-level helpers still duplicated |
+| **Total** | | **19/20** | **Strong. Finish the de-duplication, then verify on the real devices.** |
 
-## Implementation integrity verdict
+First pass scored 14/20 (3, 3, 2, 3, 3).
 
-**Pass.** The detector found nothing. The code expresses one product: a dark desk in the zinc scale with a single CLC orange accent, one tuned muted token, keyboard-first flows with real DOM focus, and copy that talks about Mixlr, Sirs and Mas, the media lead. Nothing here could be swapped into another product unchanged.
+## Design direction
 
-The drift is small and repeated rather than structural:
+**Booth console** (chosen 2026-09-15, one of three options offered). Warm charcoal in place of Tailwind's cool zinc, tinted toward the CLC orange; a condensed face for the console and a legibility-first face for anything that gets copied; the accent kept for "act here" and "you are here".
 
-- Emoji used as icons (📖 🎵 💬 📌) render differently on every OS, cannot take the accent, and the pin glyph reads as a red pin on the pin button.
-- Four page-header patterns and three "back" affordances across seven pages.
-- Button styling is repeated inline about eighty times with no shared primitive, which is how the `/messages` action buttons ended up 26px tall while the same actions on `/setlists` are 34px.
-- `copyText` and the toast exist twice (desk and log).
+- **Type**: Barlow Semi Condensed for buttons, tabs, headings and badges; Atkinson Hyperlegible Next (Braille Institute; I/l/1 and rn/m can't be confused) for verse, lyric and message text, and as the body default. Both self-hosted by `next/font` at build time, so the venue wifi never decides whether the desk has its fonts. Set in `layout.tsx`, with roles assigned in `globals.css`.
+- **Colour**: `--color-ink-50…950` in `globals.css`, replacing every `zinc-*` class. Page #0c0b0a, panels #171513, raised #221f1c, borders #3a3530. Measured on the page: body text 17.5:1, `--muted` 7.8:1, accent 6.5:1, black on accent 6.9:1; `--muted` is 6.5:1 on a raised panel. `ink-500` is for borders and disabled states only, never text.
+- **Accent discipline**: orange now marks only a primary button, the cursor in a song or message, the selected tab's icon, the focused field, and the active-setlist dot. Selected toggles are white-on-ink (`.btn-on`). Matched words in song search are bold on a grey highlight. Log kinds are neutral badges with icons, so green keeps meaning "copied".
+- **Identity**: the CLC mark from the church website (`public/brand/clc-logo.png`) on the desk, the lock screen and every page header. `proxy.ts` lets `brand/` through the PIN gate so it loads before unlocking.
 
 ## Executive summary
 
-- Audit health score: **14/20** (Good)
-- Issues: 0 P0, 4 P1, 11 P2, 6 P3
-- Top issues:
-  1. The message library is unusable on a phone: every title truncates to a single letter and the section-name field is 30px wide. The README says setlists are prepared "the night before, on a phone".
-  2. A song or message opened on a phone has its title crushed into a 5-line column beside three buttons.
-  3. The log's day picker wraps the date label into four lines on a phone.
-  4. The songbook import cannot be opened from the keyboard: the file input is `display: none`.
-  5. Tabs, the "?" hint, and delete confirmations are invisible or misleading to screen readers and keyboard users.
-- Recommended next steps: `/impeccable adapt` for the three phone breakages, `/impeccable harden` for the a11y gaps, `/impeccable polish` to close.
+- Audit health score: **19/20** (Strong)
+- Issues: 0 P0, 0 P1, 3 P2, 6 P3
+- All 21 findings from the first pass are closed. The three P1 phone breakages and the P1 keyboard trap were fixed on 2026-09-14/15; the remaining first-pass items (emoji icons, `color-scheme`, 10px badges, `backdrop-blur`, the busy line's layout shift, page chrome, duplicated toast and `copyText`) were closed by the three redesign commits.
+- What is left is tidying, not repair: page-level helpers duplicated between the two admin pages, thirteen inline button class strings in the desk components, and a handful of P3s.
+- Recommended next steps: finish moving the desk components onto `.btn`, share `Problem`/`RenameField`, then check the church laptop and a real phone.
+
+## What changed since the first pass
+
+Three commits on `ui-layout`:
+
+- `60fb0de` — the booth console look; the verse card as a preview of the Mixlr post; song and message rows sharing `SectionRow` with a cursor, copied checks and a progress strip.
+- `2ef0f4d` — `PageShell` across the five non-desk pages; the message library's row actions behind a "More" disclosure; shared button, field and badge classes; one `Toast` and one `copyText`; accent discipline.
+- `4febdd5` — the busy spinner inside the reference box; "Earlier today" on the Verses tab.
+
+Verified on screen: the verse card and its banners, an open song (cursor, checks, progress, pinned, matched), song search, the message library including an armed Delete disarming itself after 4s, setlists, the log, verse sources, import, the lock screen, and every page at 390px.
+
+Measured rather than assumed:
+- The reference box does not move during a slow lookup: its top stayed at 150px before and during a 2.5s lookup (the first-pass finding was a ~30px jump).
+- `document.documentElement.scrollWidth === innerWidth` (390) on the desk, `/messages`, `/log`, `/setlists` and `/diag`.
+- `getComputedStyle(document.documentElement).colorScheme` is now `dark` (it was `normal`).
+- Both font families report `status: "loaded"`.
 
 ## Detailed findings
 
-### P1 Major
-
-**[P1] Message library rows lose their titles on a phone**
-- Location: `src/app/messages/page.tsx:212-239` (row), `:168-180` (section header)
-- Category: Responsive
-- Impact: At 390px each row shows "V." or "S." and a truncated preview because five fixed-width buttons (Edit, Duplicate, ↑, ↓, Delete) take the whole row. The section name input measures 30×34px. The admin cannot tell messages apart, so cannot edit the right one.
-- Standard: WCAG 1.4.10 Reflow
-- Recommendation: Stack the row on narrow widths (title block full width, actions in a second row), or collapse the five actions into one overflow control. Give the section name a `min-w` and let the controls wrap below it.
-- Suggested command: `/impeccable adapt`
-
-**[P1] Open song and open message titles are crushed on a phone**
-- Location: `src/app/SongsTab.tsx:442-455`, `src/app/MessageView.tsx:28-45`
-- Category: Responsive
-- Impact: "Amazing Grace (Victory) - Tim Godfrey" renders as five stacked lines in an 80px column because the three-button group is `shrink-0` on a `flex` row that never wraps. The operator reads the title to confirm they opened the right song.
-- Standard: WCAG 1.4.10 Reflow
-- Recommendation: `flex-wrap` the header so the buttons drop under the title below `sm`, or put the title on its own line on narrow widths.
-- Suggested command: `/impeccable adapt`
-
-**[P1] Log day picker breaks at phone width**
-- Location: `src/app/log/page.tsx:128-176`
-- Category: Responsive
-- Impact: "Mon 14 Sep 2026" wraps into four lines between the arrows, and "All dates" drops to its own row. The control the operator uses to find last Sunday is the one that breaks.
-- Standard: WCAG 1.4.10 Reflow
-- Recommendation: Two rows on narrow widths: arrows and label on one, date input and Today and All dates on the next. Give the label `whitespace-nowrap` with a `min-w` that fits the longest date.
-- Suggested command: `/impeccable adapt`
-
-**[P1] Songbook import cannot be opened from the keyboard**
-- Location: `src/app/songs/import/page.tsx:103-118`
-- Category: Accessibility
-- Impact: The file input is `className="hidden"` (display: none), so it is not focusable and the wrapping label is not a button. Keyboard and screen-reader users cannot choose a file.
-- Standard: WCAG 2.1.1 Keyboard
-- Recommendation: Use `sr-only` on the input so it stays focusable, and style the label with `focus-within:` so the dropzone shows the ring.
-- Suggested command: `/impeccable harden`
-
 ### P2 Minor
 
-**[P2] Tabs are three plain buttons**
-- Location: `src/app/page.tsx:508-521`
-- Category: Accessibility
-- Impact: A screen reader announces "Verses, button" with no selected state and no relationship to the panel. `capitalize` is applied to text that is already capitalised.
-- Standard: WCAG 4.1.2 Name, Role, Value
-- Recommendation: `role="tablist"` on the nav, `role="tab"` + `aria-selected` + `aria-controls` on each button, `role="tabpanel"` on the content; arrow-key movement between tabs.
-- Suggested command: `/impeccable harden`
-
-**[P2] The "?" hint sits under an input that swallows "?"**
-- Location: `src/app/page.tsx:620-624`, `src/app/CommandPalette.tsx:54`
-- Category: Accessibility / copy
-- Impact: The desk keeps focus in the reference box on purpose. Pressing "?" there types a question mark (verified). The hint directly beneath the box says "? all shortcuts", so the advertised key never works from where the operator always is.
-- Recommendation: Either let "?" open the guide when the box is empty, or change the hint to the chord that does work from the box (⌘K, then "shortcuts").
-- Suggested command: `/impeccable clarify`
-
-**[P2] "Looking up…" status shoves the form down**
-- Location: `src/app/page.tsx:543-547`
-- Category: Performance / layout
-- Impact: The busy line mounts above the form after 300ms, so the input and everything under it jump ~30px while the operator is looking at it, then jump back.
-- Recommendation: Reserve the line's height, or put the busy state inside the input (a spinner at the right edge, or the placeholder) so nothing moves.
-- Suggested command: `/impeccable layout`
-
-**[P2] Native controls render in the light scheme**
-- Location: `src/app/globals.css`, `src/app/layout.tsx:23`, `src/app/log/page.tsx:159`
-- Category: Theming
-- Impact: `color-scheme` is "normal" (verified), so the select popups on the desk header, scrollbars in the chapter and song lists, and the date picker open white on a black page. The log page patches one input with `[color-scheme:dark]`, which confirms the gap and fixes it in one place.
-- Recommendation: `color-scheme: dark` on `:root` (and `<meta name="color-scheme" content="dark">`), remove the local patch.
-- Suggested command: `/impeccable polish`
-
-**[P2] Emoji as icons**
-- Location: `src/app/page.tsx:518`, `src/app/SetlistBar.tsx:53,64`, `src/app/setlists/page.tsx:165-167`, `src/app/SongsTab.tsx:516`
+**[P2] Page-level helpers are duplicated between the two admin pages**
+- Location: `src/app/messages/page.tsx:55,86,125,135` and `src/app/setlists/page.tsx:48,79,118` — `Problem`, `RenameField`, `sentence`, `tidy`
 - Category: Implementation integrity
-- Impact: 📖 🎵 💬 📌 are OS glyphs: different shapes on the church laptop (Windows) and the operator's phone, full colour that ignores the accent, and no `aria-hidden` on the tab labels so screen readers read "open book Verses".
-- Recommendation: Inline SVG icons (one small set) tinted with `currentColor`, `aria-hidden`, and the tab's text as the accessible name.
-- Suggested command: `/impeccable polish`
+- Impact: `RenameField` (37 lines, including the comment explaining why it saves on blur) and `tidy` are byte-identical in both files, so a fix to one will miss the other. `Problem` differs in exactly the ways a prop would cover: the message library names the admin PIN and falls back to `DeniedHint`, setlists names the church PIN. `sentence` exists in the message library; setlists inlines the same expression instead.
+- Recommendation: Move `RenameField` and `tidy` to shared files beside `PageShell`, and `Problem` with the PIN wording and the denied branch as props.
 
-**[P2] Inconsistent page chrome**
-- Location: `src/app/messages/page.tsx:141-146`, `src/app/setlists/page.tsx:96-101`, `src/app/log/page.tsx:116-124`, `src/app/diag/page.tsx:28-41,80-82`, `src/app/songs/import/page.tsx:95,175-179`
+**[P2] Thirteen inline button class strings remain in the desk components**
+- Location: `src/app/page.tsx` (3), `src/app/SongsTab.tsx` (3), `src/app/SongEditor.tsx` (3), `src/app/MessageView.tsx` (2), `src/app/CommandPalette.tsx` (1)
 - Category: Implementation integrity
-- Impact: Four header styles ("Lightdesk · log" with subtitle, "Message library" bare, brand block on the desk, plain h1 on import) and three back affordances: underlined "← Back to the desk", a bordered "← Desk" button, and a lowercase "← back to the desk" at the bottom of the page. Import has no way back until you scroll past the result.
-- Recommendation: One shared page header (title, one-line purpose, back control) used by every non-desk page.
-- Suggested command: `/impeccable layout`
+- Impact: The five admin pages now use `.btn`; the desk does not, so the same control can drift again — the drift that produced 26px and 34px versions of the same action in the first pass.
+- Recommendation: Move them onto `.btn` and its modifiers. The verse card's action row is the one place where a size other than the default may be worth keeping, and it should then be a named modifier.
 
-**[P2] Delete confirmation is silent and never disarms**
-- Location: `src/app/messages/page.tsx:196-203,232-238`, `src/app/setlists/page.tsx:142-148`
-- Category: Accessibility
-- Impact: The button label changes from "Delete" to "Sure?" with no live region, so a screen reader user presses twice without hearing the arming. There is no timeout, so an armed Delete stays armed until the next write.
-- Standard: WCAG 4.1.3 Status Messages
-- Recommendation: `aria-live` announcement, or `aria-describedby` on the armed button; disarm after a few seconds or on blur. The song editor's two-button pattern (`SongEditor.tsx`) is the better one already in the codebase.
-- Suggested command: `/impeccable harden`
-
-**[P2] Rename-in-place fields have no visible affordance on touch**
-- Location: `src/app/messages/page.tsx:169-180`, `src/app/setlists/page.tsx:128-133`
-- Category: Accessibility / clarity
-- Impact: Section and setlist names are inputs with `border-transparent` that only show a border on hover. On a phone there is no hover, so nobody knows the name is editable. Saving on blur also means a phone user who taps away by accident saves.
-- Recommendation: A faint underline or edit icon at rest; save on Enter or an explicit control.
-- Suggested command: `/impeccable clarify`
-
-**[P2] Touch targets are consistently under 44px on a phone**
-- Location: desk tab bar (36px), header Log/Sources (34px), verse action buttons (34px), translation chips (30px), log chips (30px), `/messages` Edit/Duplicate/Delete (26px), "+ Add a message" links (20px), `/setlists` and `/messages` back links (20px)
-- Category: Responsive
-- Impact: Everything clears the 24px WCAG minimum, but the primary mid-service controls (Copy again, Next verse, the translation chips) are 30–34px. The one thing the desk does well, the 44px pin and + buttons, shows the intent.
-- Standard: WCAG 2.5.8 (met); 44px is the mobile convention
-- Recommendation: `min-h-11` on the action buttons and chips at `pointer-coarse`, or globally on the desk.
-- Suggested command: `/impeccable adapt`
-
-**[P2] 10px badges**
-- Location: `src/app/SongsTab.tsx:501,503`, `src/app/MessageView.tsx:34`, `src/app/SetlistBar.tsx:70`, `src/app/setlists/page.tsx:171`
-- Category: Accessibility / typography
-- Impact: "YOUR LINE", "PINNED", "EDITED" are 10px uppercase. They carry state the operator acts on and are below a readable floor on a laptop across the room.
-- Recommendation: 11px minimum with tracking, or 12px sentence case.
-- Suggested command: `/impeccable typeset`
-
-**[P2] `backdrop-blur` on every sticky letter header**
-- Location: `src/app/SongList.tsx:40`
-- Category: Performance
-- Impact: 27 sticky headers each blur whatever scrolls beneath them over a 2,222-row list. The comment in this file shows the list was profiled carefully, but the blur was not part of that measurement. On the phone profile it is the most likely source of dropped frames while scrolling.
-- Recommendation: Measure; a solid `bg-zinc-950` header loses nothing visible on this palette.
-- Suggested command: `/impeccable optimize`
+**[P2] The song and message view headers are built twice**
+- Location: `src/app/SongsTab.tsx:596-609`, `src/app/MessageView.tsx:32-45`
+- Category: Implementation integrity
+- Impact: Title plus a button group, written out in both files, already differing in their wrap rules (`wrap-break-word` against `wrap-anywhere`).
+- Recommendation: One small header component, the way `SectionRow` now serves both lists.
 
 ### P3 Polish
 
-**[P3] Toast covers the last visible row**
-- Location: `src/app/page.tsx:536-542`
-- Impact: Fixed at the bottom, so it sits over the row the operator may be about to tap for 3.5s (verified on the song list). `pointer-events-none` lets the tap through, but the text underneath is hidden.
-- Suggested command: `/impeccable polish`
+**[P3] Document keydown effects re-subscribe on every render**
+- Location: `src/app/page.tsx:508`, `src/app/SongsTab.tsx:407`, `src/app/MessagesTab.tsx:175`
+- Impact: No dependency array, so the listener is torn down and re-added on every render, including every keystroke in a search box. Carried over from the first pass; cheap, but still wrong.
 
-**[P3] Unlock error is not linked to the input**
-- Location: `src/app/unlock/page.tsx:32-42`
-- Impact: "Wrong PIN" is a sibling paragraph; `aria-describedby` and `aria-invalid` would announce it.
-- Suggested command: `/impeccable harden`
+**[P3] The toast still covers the bottom row**
+- Location: `src/app/Toast.tsx`
+- Impact: Fixed at the bottom for 3.5s over the row the operator may be about to tap. `pointer-events-none` lets the tap through, but the text underneath is hidden.
 
-**[P3] Document keydown effects re-subscribe every render**
-- Location: `src/app/page.tsx:316-341`, `src/app/SongsTab.tsx:253-284`, `src/app/MessagesTab.tsx:140-161`
-- Impact: No dependency array, so every render tears down and re-adds the listener. Cheap, but it runs on every keystroke in the search boxes.
-- Suggested command: `/impeccable optimize`
+**[P3] Uppercase labels are exposed uppercase to the accessibility tree**
+- Location: the desk tabs (`page.tsx`), `.badge`, `.eyebrow`
+- Impact: Chrome reports the tab's name as "VERSES", because the accessible name takes the transformed text. Some screen readers spell short all-caps words out letter by letter.
+- Recommendation: Check with VoiceOver and NVDA. If it reads badly, keep sentence case in the markup and uppercase only in CSS via `font-variant-caps`, or give the tabs an explicit `aria-label`.
 
-**[P3] Duplicated toast and clipboard code**
-- Location: `src/app/log/page.tsx:22-56` vs `src/app/page.tsx:56-72,133-137`
-- Impact: Two toasts with different timings and tones; the log's `copyText` has no execCommand fallback.
-- Suggested command: `/impeccable polish`
+**[P3] Atkinson draws zero with a slash**
+- Impact: References read "3Ø" rather than "30". The font does this deliberately to separate 0 from O, and it suits a booth, but nobody has seen it on the church laptop yet.
+- Recommendation: Ask the operator. `font-feature-settings: "zero" 0` would undo it if it reads as a glyph error.
 
-**[P3] Meta rows and placeholders clip at phone width**
-- Location: `src/app/SongsTab.tsx:324-337`, `:321`, `src/app/MessagesTab.tsx:232`
-- Impact: "2222 songs in the book" wraps against three links; "Search messages — sound restored, sermon queen…" and the songbook keyboard hint are cut mid-word at 390px.
-- Suggested command: `/impeccable adapt`
+**[P3] Two font families are now downloaded**
+- Impact: About 200 KB of woff2 across both families in the dev build; a production build subsets further, and this has not been measured. Self-hosted and cached, so it costs the first load in the booth only.
+- Recommendation: Measure after `next build`; drop unused Barlow weights (400, 500, 600 and 700 are requested) if any are unused.
 
-**[P3] Diagnostics config grid truncates keys**
-- Location: `src/app/diag/page.tsx:47-53`
-- Impact: "LLM_…" at 1280px in the three-column grid; the value is readable, the key is not.
-- Suggested command: `/impeccable layout`
+**[P3] `/setlists` has never been seen with real data**
+- Impact: The local database has no setlists, so the redesigned rows, the "Edit for this service" editor and the active-setlist marker were only checked empty.
+
+**[P3] Real devices are unverified**
+- Impact: Everything responsive was checked in an emulated 390×844 viewport. iOS safe-area insets, the 16px input floor, touch targets and the installed-app chrome need the church laptop and a phone.
 
 ## Patterns and systemic issues
 
-- **Fixed-width action groups on flex rows** cause all three P1 layout breaks (`/messages` rows, song/message header, log day picker). The pattern is `flex items-center justify-between` with a `shrink-0` group and no wrap.
-- **No shared primitives** for buttons, page headers, toasts or badges. Sizes and styles drift per file: 20, 26, 30, 34, 36, 44px controls for equivalent actions.
-- **Hover-only affordances** (rename fields, the `+` add button's hover background) do nothing on the phone the README says the admin pages are used on.
-- **Emoji as iconography** repeats in five files.
+- **Duplication has moved up a level.** The repeated button strings and copies of the toast are gone; what is left is whole helpers duplicated between the two admin pages, which is easier to see and to fix.
+- **Two type roles are now load-bearing.** Every `<button>` takes the console face from a base rule, so a button that carries copyable text has to ask for `font-text`. Five list rows needed it during this pass; a new one will need it too.
+- **Trust the words, not the colour.** Badges, log kinds and selected states carry a word or an icon, so the palette is free to mean one thing at a time.
 
 ## Positive findings
 
-- A global `:focus-visible` ring in `@layer base`, with a comment explaining the cascade decision. Keyboard users can always see where they are.
-- The muted token was tuned to contrast and documented in place; measured 7.66:1 on the body and 6.91:1 on panels. No text on any page falls below AA.
-- Roving `tabIndex` with real DOM focus on song sections and message parts, so the browser scrolls and screen readers announce.
-- The command palette is a proper `combobox` + `listbox` with `aria-activedescendant`, focus restore on close, and Tab held inside the dialog.
-- Live regions stay mounted so announcements are not missed; the toast is solid rather than translucent, for predictable contrast.
-- Safe-area insets, a 16px input floor on coarse pointers to stop iOS zoom, and a pointer-aware hint swap so phones never see keyboard advice.
-- No horizontal overflow on any page at 390px (verified).
-- The 9,000-node browse list is memoised with measurements in the comment, and hidden rather than unmounted on search.
-- AI-quoted verse text is shown with a red warning and never auto-copied.
-- The detector found zero mechanical anti-patterns across every UI file.
+- The verse result reads as the Mixlr post it will become: reference and translation as a header, verses at 18–19px, sources in a banner only when the text might be wrong.
+- Song sections show three states at a glance across the booth: orange bar and number for the cursor, green check for copied, and a sticky "Section 3 of 13 · 2 copied" strip.
+- "Earlier today" re-runs the lookup rather than re-copying logged text, so a returning verse still passes every source check and the AI-quoted warning. Confirmed with Jude 24 (MSG): red banner, nothing copied.
+- Copied sections keep full-contrast text instead of the old `opacity-60`, which read as disabled.
+- The busy state no longer moves the page.
+- A global `:focus-visible` ring in `@layer base`, with a comment explaining the cascade decision.
+- Live regions stay mounted, so announcements are not missed; the two-press Delete announces its arming and disarms after 4s.
+- Roving `tabIndex` with real DOM focus on song sections and message parts; the command palette is a proper `combobox` + `listbox`.
+- Safe-area insets and a 16px input floor on coarse pointers to stop iOS zoom.
+- 425 tests pass, including 9 covering the log parsing behind "Earlier today".
 
 ## Recommended actions
 
-1. **[P1] `/impeccable adapt`**: `/messages` rows and section header, song/message view header, and the log day picker at phone width; then the 44px floor for mid-service controls.
-2. **[P1] `/impeccable harden`**: focusable file input on import, tablist semantics on the desk, announced delete confirmations, unlock error association.
-3. **[P2] `/impeccable clarify`**: the "?" hint that cannot work from the reference box; visible rename affordances on `/messages` and `/setlists`.
-4. **[P2] `/impeccable layout`**: one shared page header and back control across the six non-desk pages; reserve space for the busy line; diag key truncation.
-5. **[P2] `/impeccable typeset`**: lift the 10px badges.
-6. **[P2] `/impeccable optimize`**: measure and likely drop `backdrop-blur` on the letter headers; add dependency arrays to the document keydown effects.
-7. **[P2] `/impeccable polish`**: `color-scheme: dark`, SVG icons in place of emoji, one toast and one `copyText`, toast placement.
+1. **[P2]** Share `Problem` and `RenameField` (and `sentence`, `tidy`) between `/messages` and `/setlists`.
+2. **[P2]** Move the desk components onto `.btn`; add the one modifier the verse card needs.
+3. **[P2]** One header component for the song and message views.
+4. **[P3]** Dependency arrays on the three document keydown effects.
+5. **[P3]** Screen-reader check of the uppercase labels; ask the operator about the slashed zero.
+6. **[P3]** Check the church laptop and a real phone, and `/setlists` with a real setlist in it.

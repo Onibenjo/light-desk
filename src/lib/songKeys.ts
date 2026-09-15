@@ -18,6 +18,20 @@ export function digitToIndex(key: string, count: number): number | null {
 }
 
 /**
+ * Where the cursor lands when a song is opened again: just past the furthest
+ * section already copied, so going back to the list for a moment doesn't lose
+ * the place. Copied sections are not always contiguous (a chorus sent out of
+ * order), so it is the furthest one, not the count. A song sung to its last
+ * section starts again from the top: opening it again is a reprise, and the
+ * first Enter must not repost the ending.
+ */
+export function resumeCursor(sent: ReadonlySet<number>, count: number): number {
+  if (count <= 0 || sent.size === 0) return 0;
+  const furthest = Math.max(...sent);
+  return furthest >= count - 1 ? 0 : furthest + 1;
+}
+
+/**
  * One pin at a time: pinning a different section replaces the old one, and
  * pinning the section already pinned clears it. Null means nothing is pinned —
  * note section 0 is a real section, so this can't be a truthiness check.

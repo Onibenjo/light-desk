@@ -152,6 +152,52 @@ export function comingSundayName(now: Date): string {
   return `Sunday ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
+/** The key an open song is known by in a setlist and in the session's copied sections. */
+export function songKey(song: Pick<SearchableSong, "id" | "guid" | "title">): string {
+  return song.id !== undefined ? itemKey({ kind: "song", id: song.id }) : `guid:${song.guid ?? song.title}`;
+}
+
+export interface SetlistPlace {
+  /** 1-based, as the setlist bar numbers it. */
+  position: number;
+  count: number;
+  /** The next row still there, or null when nothing after this one is. */
+  next: SetlistRow | null;
+  /** 1-based position of `next`, or null with it. */
+  nextPosition: number | null;
+  /** Rows passed over on the way to `next` because they were deleted since the setlist was prepared. */
+  skipped: number;
+}
+
+/** A row known to be gone: a song deleted from the book, a message removed from the library. Still loading is not gone. */
+export function isGoneRow(row: SetlistRow): boolean {
+  return row.kind === "song" ? row.missing : row.removed;
+}
+
+/**
+ * Where an open song or message sits in the setlist, and what comes next. Null
+ * when it isn't in it. A row deleted since the setlist was prepared is skipped
+ * rather than offered, so one missing song can't stop the service order.
+ */
+export function placeInSetlist(rows: SetlistRow[], key: string): SetlistPlace | null {
+  const i = rows.findIndex((r) => r.key === key);
+  if (i === -1) return null;
+  let skipped = 0;
+  for (let j = i + 1; j < rows.length; j++) {
+    if (isGoneRow(rows[j])) {
+      skipped++;
+      continue;
+    }
+    return { position: i + 1, count: rows.length, next: rows[j], nextPosition: j + 1, skipped };
+  }
+  return { position: i + 1, count: rows.length, next: null, nextPosition: null, skipped };
+}
+
+/** A row that can be opened now: a song not deleted since, a message with text to show (not still loading). */
+export function canOpenRow(row: SetlistRow): boolean {
+  return row.kind === "song" ? !row.missing : row.parts !== null;
+}
+
 /** What tapping a message row opens or copies. Null when the row has no text to offer. */
 export function openMessageFromRow(row: MessageRow, library: Map<number, LibraryEntry> | null): OpenMessage | null {
   if (!row.parts) return null;

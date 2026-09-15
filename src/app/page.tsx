@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CommandPalette, { type ShortcutGuide } from "./CommandPalette";
@@ -9,11 +10,17 @@ import { BUSY_DELAY_MS } from "@/lib/timing";
 import { hasFinePointer } from "@/lib/pointer";
 import { TRANSLATIONS, DEFAULT_TRANSLATION, translationFromInput } from "@/lib/translations";
 import { BOOKS } from "@/lib/books";
+import Icon from "./Icon";
+import Toast, { copyText, useToast } from "./Toast";
+import RecentVerses from "./RecentVerses";
+import { dayBounds, toISODate } from "@/lib/logQuery";
+import { recentVerses, withRecent, type RecentVerse } from "@/lib/recentVerses";
 import SongsTab from "./SongsTab";
 import MessagesTab from "./MessagesTab";
 import { useSetlist } from "./useSetlist";
 import { useMessages } from "./useMessages";
 import { useMessageCopy } from "./useMessageCopy";
+import { useSongProgress } from "./useSongProgress";
 import { messageActions } from "@/lib/messageActions";
 import { messagesById, openMessageFor, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
 import { openMessageFromRow, type MessageRow, type SongRow } from "@/lib/setlist";
@@ -21,9 +28,9 @@ import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from 
 import { tabIndexForKey } from "@/lib/tabKeys";
 
 const TABS = [
-  { id: "verses", icon: "📖", label: "Verses" },
-  { id: "songs", icon: "🎵", label: "Songs" },
-  { id: "messages", icon: "💬", label: "Messages" },
+  { id: "verses", icon: "book", label: "Verses" },
+  { id: "songs", icon: "music", label: "Songs" },
+  { id: "messages", icon: "message", label: "Messages" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -56,35 +63,34 @@ const SOURCE_LABEL: Record<Passage["source"], string> = {
   llm: "AI-quoted, may be wrong — read it before you copy",
 };
 
+/**
+ * A part as it will read in the Mixlr chat: the reference and translation lines
+ * set as its header, the verses at reading size. Styling only — the string is
+ * the one on the clipboard, and anything not starting with the header is shown
+ * whole rather than guessed at.
+ */
+function PostPreview({ text, header }: { text: string; header: string }) {
+  const hasHeader = text.startsWith(header + "\n");
+  const [reference, translation] = header.split("\n");
+  return (
+    <div className="px-4 py-4 sm:px-5 sm:py-5">
+      {hasHeader && (
+        <p className="mb-2">
+          <span className="block font-text text-lg font-bold leading-snug text-ink-50">{reference}</span>
+          <span className="block font-text text-sm text-[var(--muted)]">{translation}</span>
+        </p>
+      )}
+      <pre className="wrap-anywhere whitespace-pre-wrap font-text text-lg leading-relaxed text-ink-100 sm:text-[19px]">{hasHeader ? text.slice(header.length + 1) : text}</pre>
+    </div>
+  );
+}
+
 function refToQuery(r: Ref): string {
   const b = BOOKS[r.book];
   if (r.verseStart === 0) return `${b.name} ${r.chapter}`;
   return `${b.name} ${r.chapter}:${r.verseStart}${r.verseEnd > r.verseStart ? `-${r.verseEnd}` : ""}`;
 }
 
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Fallback for odd permission states: a hidden textarea + execCommand.
-    // execCommand can throw too; the caller only wants a yes or no, and the
-    // textarea must never be left behind in the page.
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    try {
-      document.body.appendChild(ta);
-      ta.select();
-      return document.execCommand("copy");
-    } catch {
-      return false;
-    } finally {
-      ta.remove();
-    }
-  }
-}
 
 function isRecord(data: unknown): data is Record<string, unknown> {
   return typeof data === "object" && data !== null;
@@ -143,9 +149,10 @@ export default function Desk() {
   const [showBusy, setShowBusy] = useState(false);
   const [result, setResult] = useState<PassageResult | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
-  const [toast, setToast] = useState<{ text: string; tone: "ok" | "warn" | "err" } | null>(null);
+  const { toast, showToast } = useToast();
   const [copiedChunk, setCopiedChunk] = useState(0);
   const [chapter, setChapter] = useState<Passage | null>(null);
+  const [recent, setRecent] = useState<RecentVerse[]>([]);
   // Set when a request is refused by the PIN gate (the PIN changed, or the
   // cookie is gone); cleared by the next request that gets through.
   const [locked, setLocked] = useState(false);
@@ -153,7 +160,6 @@ export default function Desk() {
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
   // The tab just reached with an arrow key, for the frames in which its panel may still grab focus.
   const arrowedTo = useRef<Tab | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
   // `busy` is state, so two presses in the same frame both read it as idle.
   // This is what actually stops a second lookup racing the first.
   const inFlight = useRef(false);
@@ -191,6 +197,22 @@ export default function Desk() {
     } catch {}
   }, [sourceChoice]);
 
+  // Today's verses from the log, once. Quiet on failure: the list is a
+  // shortcut, and a locked device already says so in its own banner.
+  useEffect(() => {
+    let live = true;
+    const { from, to } = dayBounds(toISODate(new Date()));
+    fetch(`/api/log?kind=verse&from=${from}&to=${to}&limit=100`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: unknown) => {
+        if (live && isRecord(d) && Array.isArray(d.rows)) setRecent(recentVerses(d.rows.filter((row): row is { kind: string; label: string; createdAt: string } => isRecord(row) && typeof row.kind === "string" && typeof row.label === "string" && typeof row.createdAt === "string")));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (!busy) return;
     const id = window.setTimeout(() => setShowBusy(true), BUSY_DELAY_MS);
@@ -200,11 +222,6 @@ export default function Desk() {
     };
   }, [busy]);
 
-  const showToast = useCallback((text: string, tone: "ok" | "warn" | "err" = "ok") => {
-    setToast({ text, tone });
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), tone === "err" ? 6000 : 3500);
-  }, []);
 
   /** Tells the operator what went wrong, and remembers a lock for the banner (a toast can't hold a link). */
   const fail = useCallback(
@@ -264,6 +281,27 @@ export default function Desk() {
     },
     [library, sendMessage],
   );
+
+  /** Opens a message from "Next in the setlist", even a one-part one: next means go to it, not copy it unseen. */
+  const openMessageRow = useCallback(
+    (row: MessageRow) => {
+      const m = openMessageFromRow(row, messagesById(library));
+      if (!m) return;
+      setPendingMessage(m);
+      setTab("messages");
+    },
+    [library],
+  );
+
+  const songProgress = useSongProgress();
+  // A setlist row is ticked once anything in it was copied: a message part, or
+  // any section of a song. Both tabs show the same setlist, so they share this.
+  const { progress } = songProgress;
+  const setlistCopied = useMemo(() => {
+    const all = new Set(copied);
+    for (const [key, sections] of progress) if (sections.size > 0) all.add(key);
+    return all;
+  }, [copied, progress]);
 
   const onPaletteMessage = useCallback((entry: LibraryEntry) => sendMessage(openMessageFor(entry)), [sendMessage]);
 
@@ -356,6 +394,7 @@ export default function Desk() {
         setResult(r);
         setCopiedChunk(0);
         const tag = `${r.passage.reference} (${r.passage.translationCode})`;
+        setRecent((list) => withRecent(list, { reference: r.passage.reference, translation: r.passage.translationCode, at: new Date().toISOString() }));
         if (r.passage.source === "llm") {
           // Every real source failed; this text came from the AI's memory.
           // Show it, but make a human read it and press Copy deliberately.
@@ -588,6 +627,8 @@ export default function Desk() {
         { keys: "1–9", label: "Copy that section" },
         { keys: "P", label: "Pin the section you're on (the chorus)" },
         { keys: "C", label: "Copy the pinned section again" },
+        { keys: "T", label: "Copy the song's title" },
+        { keys: "N", label: "Open the next item in the setlist" },
         { keys: "Esc", label: "Back to the song list" },
       ],
     },
@@ -598,18 +639,12 @@ export default function Desk() {
         { keys: "↑ ↓", label: "Pick a message in the results" },
         { keys: "↵", label: "Copy it, or open a long one to copy part by part" },
         { keys: "1–9", label: "Copy that part" },
+        { keys: "N", label: "Open the next item in the setlist" },
         { keys: "Esc", label: "Back to the library" },
       ],
     },
   ];
 
-  // Solid, not translucent: the toast now floats over whatever is scrolled
-  // beneath it, so a see-through background would give unpredictable contrast.
-  const tone = {
-    ok: "bg-emerald-950 border-emerald-500/40 text-emerald-200",
-    warn: "bg-amber-950 border-amber-500/40 text-amber-200",
-    err: "bg-red-950 border-red-500/40 text-red-200",
-  };
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-5 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
@@ -622,9 +657,10 @@ export default function Desk() {
           stretched the layout viewport and took the toast off-screen with it. */}
       <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="order-1 flex min-w-0 items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-black font-bold">L</span>
+          {/* The mark from the church website until CLC's own file arrives. */}
+          <Image src="/brand/clc-logo.png" alt="" width={36} height={36} priority className="h-9 w-9 shrink-0 rounded-full" />
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold leading-tight">Lightdesk</h1>
+            <h1 className="text-xl font-semibold leading-tight tracking-wide uppercase">Lightdesk</h1>
             <p className="truncate text-xs text-[var(--muted)]">CLC · Mixlr chat desk</p>
           </div>
         </div>
@@ -639,7 +675,7 @@ export default function Desk() {
               // by the in-flight guard, leaving this saying one translation while
               // the verse on screen is still in the other.
               disabled={!!busy}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm disabled:opacity-60 pointer-coarse:min-h-11"
+              className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm disabled:opacity-60 pointer-coarse:min-h-11"
             >
               {TRANSLATIONS.map((t) => (
                 <option key={t.code} value={t.code}>
@@ -658,7 +694,7 @@ export default function Desk() {
                 refocus();
               }}
               title="Auto tries saved verses, YouVersion, API.Bible, BibleGateway, then AI-quoted text. Choose one to use only that source."
-              className={`rounded-md border bg-zinc-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11 ${sourceChoice === "auto" ? "border-zinc-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
+              className={`rounded-md border bg-ink-900 px-2 py-1.5 text-sm pointer-coarse:min-h-11 ${sourceChoice === "auto" ? "border-ink-700" : sourceChoice === "llm" ? "border-red-500/60 text-red-200" : "border-amber-500/60 text-amber-200"}`}
             >
               {SOURCE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -669,10 +705,10 @@ export default function Desk() {
           </div>
         </div>
         <div className="order-2 flex shrink-0 items-center gap-2 sm:order-3">
-          <Link href="/log" className="inline-flex items-center rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 pointer-coarse:min-h-11" title="Search everything copied, by day">
+          <Link href="/log" className="btn" title="Search everything copied, by day">
             Log
           </Link>
-          <Link href="/diag" className="inline-flex items-center rounded-md border border-zinc-700 px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 pointer-coarse:min-h-11" title="Check which verse sources are working">
+          <Link href="/diag" className="btn" title="Check which verse sources are working">
             Sources
           </Link>
         </div>
@@ -687,7 +723,7 @@ export default function Desk() {
         </p>
       )}
 
-      <div role="tablist" aria-label="Desk" className="flex gap-1 rounded-lg bg-zinc-900 p-1 text-sm">
+      <div role="tablist" aria-label="Desk" className="flex gap-1 rounded-lg bg-ink-900 p-1 text-sm">
         {TABS.map((t, i) => {
           const selected = tab === t.id;
           return (
@@ -707,40 +743,16 @@ export default function Desk() {
                 if (t.id === "verses") refocus();
               }}
               onKeyDown={(e) => onTabKey(e, i)}
-              className={`flex-1 rounded-md px-3 py-2 font-medium pointer-coarse:min-h-11 ${selected ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-[15px] font-semibold tracking-wide uppercase pointer-coarse:min-h-11 ${selected ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-200"}`}
             >
-              <span aria-hidden="true">{t.icon} </span>
+              <Icon name={t.icon} className={`h-4 w-4 ${selected ? "text-[var(--accent)]" : ""}`} />
               {t.label}
             </button>
           );
         })}
       </div>
 
-      {/* Floating, not in the flow: you're often scrolled to section 13 when this
-          fires, and an inline banner both sits off-screen and shoves the list down
-          under the cursor. pointer-events-none so it can never eat a click.
-
-          Centred by a full-width flex row rather than `left-1/2` and a transform.
-          The old way measured 50% of the *content* width, so the moment anything
-          on the page overflowed, the confirmation the operator is waiting on slid
-          off the side of the screen with it. This cannot: the row is pinned to
-          both edges, so the box is bounded by the screen whatever else happens.
-
-          The live region itself stays mounted — a screen reader announces changes
-          inside one, and reliably misses a region that appears with its text
-          already in place. */}
-      <div
-        role="status"
-        aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4"
-      >
-        {toast && <div className={`max-w-md rounded-lg border px-4 py-3 text-sm wrap-anywhere shadow-lg ${tone[toast.tone]}`}>{toast.text}</div>}
-      </div>
-      {showBusy && busy && (
-        <p role="status" aria-live="polite" className="text-sm text-zinc-400 animate-pulse">
-          {busy === "chapter" ? "Loading the chapter…" : `Looking up “${busy}”…`}
-        </p>
-      )}
+      <Toast toast={toast} />
 
       {/* All three panels stay in the DOM so each tab's aria-controls always
           points at something; Songs and Messages still mount only while shown. */}
@@ -752,8 +764,10 @@ export default function Desk() {
           logSend={logSend}
           setlistApi={setlistApi}
           library={library}
-          copied={copied}
+          copied={setlistCopied}
           onMessageRow={onMessageRow}
+          onOpenMessageRow={openMessageRow}
+          songProgress={songProgress}
           pendingSong={pendingSong}
           onPendingSongDone={clearPendingSong}
         />
@@ -766,7 +780,7 @@ export default function Desk() {
           failed={libraryFailed}
           onRetry={reloadLibrary}
           setlistApi={setlistApi}
-          copied={copied}
+          copied={setlistCopied}
           copyPart={copyPart}
           showToast={showToast}
           pending={pendingMessage}
@@ -782,6 +796,7 @@ export default function Desk() {
       <div role="tabpanel" id={panelId("verses")} aria-labelledby={tabId("verses")} className={tab === "verses" ? "contents" : "hidden"}>
       <form onSubmit={onSubmit} className="space-y-2">
         <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
           {/* The placeholder is short enough to read to its end on a 320px
               screen; the examples the long one carried moved to the hint below,
               where they wrap instead of being clipped mid-word. The three input
@@ -799,8 +814,21 @@ export default function Desk() {
             enterKeyHint="go"
             aria-label="Bible reference or description"
             placeholder="rom 8 28  ·  or describe it"
-            className="w-full min-w-0 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-4 text-lg outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60 sm:text-xl"
+            className={`w-full min-w-0 rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-lg outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60 sm:text-xl ${showBusy && busy ? "pr-12 sm:pr-48" : ""}`}
           />
+          {/* Busy shows inside the box, not as a line above it: that line
+              mounted after BUSY_DELAY_MS and shoved the box and everything under
+              it down while the operator was looking at it. The live region
+              stays mounted so the announcement is heard. */}
+          <p role="status" aria-live="polite" className="pointer-events-none absolute inset-y-0 right-4 flex items-center gap-2 text-sm text-ink-300">
+            {showBusy && busy && (
+              <>
+                <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-ink-600 border-t-ink-100 motion-reduce:animate-none" />
+                <span className="sr-only sm:not-sr-only">{busy === "chapter" ? "Loading the chapter…" : "Looking it up…"}</span>
+              </>
+            )}
+          </p>
+          </div>
           {/* On a laptop Enter has always done this and a button would be noise.
               A touch device has no visible way to submit at all, so it gets one. */}
           <button
@@ -825,55 +853,93 @@ export default function Desk() {
         </p>
       </form>
 
-
       {candidates && (
         <section className="space-y-2">
-          <h2 className="text-xs uppercase tracking-wide text-[var(--muted)]">Possible verses</h2>
+          <h2 className="text-xs font-semibold tracking-widest uppercase text-[var(--muted)]">Possible verses</h2>
           {candidates.map((c, i) => (
             <button
               // By position: the model can suggest the same label twice, and
               // the list is replaced whole, never reordered.
               key={i}
               onClick={() => lookup(refToQuery(c.ref))}
-              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-left hover:border-[var(--accent)]"
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-left font-text hover:border-ink-500 hover:bg-ink-800"
             >
               <span className="kbd shrink-0">{i + 1}</span>
               <span className="font-medium">{c.label}</span>
-              <span className="min-w-0 text-sm text-zinc-400">{c.why}</span>
+              <span className="min-w-0 text-sm text-ink-400">{c.why}</span>
             </button>
           ))}
         </section>
       )}
 
       {result && (
-        <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm text-zinc-400">
-              Source:{" "}
-              <span className={result.passage.source === "llm" ? "font-semibold text-red-300" : result.passage.source === "gateway" ? "text-amber-300" : "text-zinc-200"}>
-                {SOURCE_LABEL[result.passage.source]}
-              </span>{" "}
-              · {result.ms} ms
-            </div>
+        <section aria-label={`${result.passage.reference} (${result.passage.translationCode})`} className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
+          {/* Loud only when the text itself might be wrong. The AI-quoted banner
+              names the Copy button, because nothing was copied for you. */}
+          {result.passage.source === "llm" && (
+            <p className="border-b border-red-500/40 bg-red-950 px-4 py-2.5 text-sm font-semibold text-red-200">
+              {SOURCE_LABEL.llm}
+              {result.passage.attempts && result.passage.attempts.length > 0 && <span className="block text-xs font-normal text-red-300">Failed first: {result.passage.attempts.join(" · ")}</span>}
+            </p>
+          )}
+          {result.passage.source === "gateway" && (
+            <p className="border-b border-amber-500/30 bg-amber-950/60 px-4 py-2 text-sm text-amber-200">
+              From the {SOURCE_LABEL.gateway}
+              {result.passage.attempts && result.passage.attempts.length > 0 && <span className="text-amber-300/80"> · failed first: {result.passage.attempts.join(" · ")}</span>}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-ink-800 px-4 py-2.5">
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => copyChunk(0)} className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black pointer-coarse:min-h-11">
+              {/* Copies the part on screen, the same one "Copy again" in ⌘K copies. */}
+              <button onClick={() => copyChunk(copiedChunk)} className="rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[15px] font-semibold text-black hover:brightness-110 pointer-coarse:min-h-11">
                 {/* An AI-quoted verse was never copied, so there is nothing to copy "again"; the warning names this button. */}
                 {result.passage.source === "llm" ? "Copy" : "Copy again"}
               </button>
-              <button onClick={nextVerse} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={nextVerse} className="rounded-md border border-ink-700 px-3 py-1.5 text-[15px] font-medium text-ink-200 hover:bg-ink-800 pointer-coarse:min-h-11">
                 Next verse
               </button>
-              <button onClick={copyWhole} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={copyWhole} className="rounded-md border border-ink-700 px-3 py-1.5 text-[15px] font-medium text-ink-200 hover:bg-ink-800 pointer-coarse:min-h-11">
                 Copy whole passage
               </button>
-              <button onClick={openChapter} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
+              <button onClick={openChapter} className="rounded-md border border-ink-700 px-3 py-1.5 text-[15px] font-medium text-ink-200 hover:bg-ink-800 pointer-coarse:min-h-11">
                 Open chapter
               </button>
             </div>
+            {result.passage.source !== "llm" && result.passage.source !== "gateway" && (
+              <p className="text-xs text-[var(--muted)]">
+                {SOURCE_LABEL[result.passage.source]} · {result.ms} ms
+              </p>
+            )}
           </div>
 
-          {/* "Let's see it in TPT" — one press copies this same reference in it. */}
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Copy ${result.passage.reference} in another translation`}>
+          {result.chunks.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-ink-800 px-4 py-2.5" role="group" aria-label="Parts">
+              {result.chunks.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => copyChunk(i)}
+                  aria-current={i === copiedChunk ? "true" : undefined}
+                  className={`rounded-md px-3 py-1 text-[15px] font-medium pointer-coarse:min-h-11 ${i === copiedChunk ? "bg-ink-100 text-black" : "border border-ink-700 text-ink-200 hover:bg-ink-800"}`}
+                >
+                  Part {i + 1}
+                </button>
+              ))}
+              <span className="text-xs text-[var(--muted)]">
+                of {result.chunks.length} · one post each
+              </span>
+            </div>
+          )}
+
+          <PostPreview text={result.chunks[copiedChunk]} header={`${result.passage.reference}\n${result.passage.translationName}`} />
+
+          {/* "Let's see it in TPT" — one press copies this same reference in it.
+              Below the text, not above it: the verse is what gets read, and
+              thirteen chips over it pushed it down the card. */}
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-ink-800 bg-ink-950/40 px-4 py-2.5" role="group" aria-label={`Copy ${result.passage.reference} in another translation`}>
+            <span aria-hidden="true" className="mr-1 font-ui text-xs font-semibold tracking-widest uppercase text-[var(--muted)]">
+              Copy in
+            </span>
             {TRANSLATIONS.map((t) => {
               const current = t.code === result.passage.translationCode;
               return (
@@ -883,8 +949,8 @@ export default function Desk() {
                   disabled={!!busy}
                   aria-pressed={current}
                   title={`${result.passage.reference} in ${t.name}`}
-                  className={`rounded-md border px-2.5 py-1.5 font-mono text-xs disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11 ${
-                    current ? "border-[var(--accent)] bg-[var(--accent)] font-semibold text-black" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  className={`rounded-md border px-2 py-1 text-[13px] font-semibold tracking-wide disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11 ${
+                    current ? "border-ink-300 bg-ink-100 text-black" : "border-transparent text-ink-300 hover:border-ink-700 hover:bg-ink-800"
                   }`}
                 >
                   {t.code}
@@ -892,35 +958,16 @@ export default function Desk() {
               );
             })}
           </div>
-          {result.passage.attempts && result.passage.attempts.length > 0 && (result.passage.source === "llm" || result.passage.source === "gateway") && (
-            <p className="text-xs text-[var(--muted)]">
-              Failed first: {result.passage.attempts.join(" · ")}
-            </p>
-          )}
-          {result.chunks.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              {result.chunks.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => copyChunk(i)}
-                  className={`rounded-md px-3 py-1 text-sm pointer-coarse:min-h-11 ${i === copiedChunk ? "bg-zinc-200 text-black" : "border border-zinc-700 hover:bg-zinc-800"}`}
-                >
-                  Part {i + 1}
-                </button>
-              ))}
-            </div>
-          )}
-          <pre className="wrap-anywhere whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-zinc-100">{result.chunks[copiedChunk]}</pre>
         </section>
       )}
 
       {chapter && (
-        <section className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <section className="space-y-2 rounded-xl border border-ink-800 bg-ink-900/60 p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">
               {chapter.reference} · {chapter.translationCode}
             </h2>
-            <button onClick={() => setChapter(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 pointer-coarse:min-h-11 pointer-coarse:min-w-11">
+            <button onClick={() => setChapter(null)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200 pointer-coarse:min-h-11 pointer-coarse:min-w-11">
               Close
             </button>
           </div>
@@ -930,7 +977,7 @@ export default function Desk() {
               <button
                 key={v.verse}
                 onClick={() => lookup(`${chapter.reference}:${v.verse}`)}
-                className="block w-full rounded-md px-2 py-1 text-left text-[15px] leading-relaxed hover:bg-zinc-800 pointer-coarse:min-h-11"
+                className="block w-full rounded-md px-2 py-1 text-left font-text text-base leading-relaxed hover:bg-ink-800 pointer-coarse:min-h-11"
               >
                 <span className="mr-2 text-[var(--muted)]">{v.verse}.</span>
                 {v.text}
@@ -938,6 +985,17 @@ export default function Desk() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Under the verse, not instead of it: the result stays up all service,
+          so this is where the list is reachable. Hidden while choosing between
+          possible verses, where a second list would compete with 1–3. */}
+      {!candidates && (
+        <RecentVerses
+          verses={recent.filter((v) => v.reference !== result?.passage.reference)}
+          disabled={!!busy}
+          onChoose={(v) => lookup(v.reference, { translation: v.translation })}
+        />
       )}
 
       </div>

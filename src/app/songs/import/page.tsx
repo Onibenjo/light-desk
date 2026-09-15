@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
+import PageShell from "../../PageShell";
 import { count, ENTRY, Footnotes, LISTS, SONG, TitleList, type Summary } from "./Footnotes";
 
 /** The server's own limit, checked here too so a huge file is refused before it crawls up the venue wifi. */
@@ -101,18 +102,15 @@ export default function ImportPage() {
   const changes = preview ? preview.added.length + preview.updated.length : 0;
 
   return (
-    <main className="mx-auto max-w-xl space-y-5 p-4 sm:p-6">
-      <h1 className="text-lg font-semibold">Import a songbook</h1>
-
+    <PageShell
+      title="Import a songbook"
+      purpose="Choose a songbook exported from VideoPsalm. You'll see what would change before anything is saved. Import adds new songs and updates changed ones; it never deletes a song or overwrites one edited here. Needs the admin PIN."
+    >
       {!preview && !result && (
         <>
-          <p className="text-sm text-zinc-400">
-            Choose a songbook exported from VideoPsalm. You&rsquo;ll see what would change before anything is saved. Import adds new songs and updates changed ones; it never deletes a song or
-            overwrites one edited here. Needs the admin PIN.
-          </p>
           {/* The input stays in the tab order (sr-only, not display:none) so Enter or
               Space opens the picker; the dashed box draws the focus ring for it. */}
-          <label className="block cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-10 text-center text-zinc-400 hover:border-[var(--accent)] has-focus-visible:border-[var(--accent)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-[var(--accent)]">
+          <label className="block cursor-pointer rounded-xl border-2 border-dashed border-ink-700 p-10 text-center text-ink-400 hover:border-ink-500 hover:text-ink-200 has-focus-visible:border-[var(--accent)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-[var(--accent)]">
             <span aria-live="polite">{busy === "preview" ? "Reading the file…" : "Choose a .json or .vpc file"}</span>
             <input
               type="file"
@@ -154,7 +152,7 @@ export default function ImportPage() {
             </p>
           )}
           {file && !preview && error.kind !== "file" && error.kind !== "refused" && error.kind !== "locked" && error.kind !== "denied" && (
-            <button onClick={() => choose(file)} disabled={busy !== null} className="rounded-md border border-red-400/40 px-3 py-1.5 text-sm hover:bg-red-600/20 disabled:opacity-50 pointer-coarse:min-h-11">
+            <button onClick={() => choose(file)} disabled={busy !== null} className="btn border-red-400/40 text-red-100 hover:bg-red-600/20">
               Try again
             </button>
           )}
@@ -162,9 +160,9 @@ export default function ImportPage() {
       )}
 
       {preview && file && (
-        <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <div className="space-y-4 rounded-xl border border-ink-800 bg-ink-900 p-4">
           <div>
-            <h2 className="font-medium wrap-anywhere">{file.name}</h2>
+            <h2 className="text-xl font-semibold wrap-anywhere">{file.name}</h2>
             <p className="text-xs text-[var(--muted)]">
               {count(preview.totalEntries, ENTRY)} in the file · {preview.unchanged} already up to date · nothing saved yet
             </p>
@@ -176,10 +174,10 @@ export default function ImportPage() {
           <Footnotes s={preview} />
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <button onClick={commit} disabled={busy !== null || changes === 0} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">
+            <button onClick={commit} disabled={busy !== null || changes === 0} className="btn btn-primary">
               {busy === "import" ? "Importing…" : changes === 0 ? "Nothing to import" : `Import ${count(changes, SONG)}`}
             </button>
-            <button onClick={reset} disabled={busy !== null} className="rounded-md border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800 disabled:opacity-50">
+            <button onClick={reset} disabled={busy !== null} className="btn">
               Choose a different file
             </button>
           </div>
@@ -195,17 +193,12 @@ export default function ImportPage() {
           <TitleList noun={LISTS.updated} titles={result.updated} />
           <TitleList noun={LISTS.editedHere} titles={result.skippedEdited} />
           <Footnotes s={result} />
-          <button onClick={reset} className="rounded-md border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800">
+          <button onClick={reset} className="btn">
             Import another file
           </button>
         </div>
       )}
 
-      <p className="text-xs text-[var(--muted)]">
-        <Link href="/" className="inline-block py-1.5 underline">
-          ← Desk
-        </Link>
-      </p>
-    </main>
+    </PageShell>
   );
 }

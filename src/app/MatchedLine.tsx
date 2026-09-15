@@ -11,7 +11,7 @@ export function MatchedLine({ text, ranges }: { text: string; ranges: SnippetRan
   ranges.forEach((r, i) => {
     if (r.start > at) parts.push(text.slice(at, r.start));
     parts.push(
-      <mark key={i} className="bg-transparent font-medium text-[var(--accent)]">
+      <mark key={i} className="rounded-sm bg-ink-700 px-0.5 font-bold text-ink-50">
         {text.slice(r.start, r.end)}
       </mark>,
     );

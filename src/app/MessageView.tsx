@@ -1,5 +1,9 @@
 "use client";
 
+import { SectionRow } from "./SectionRow";
+import { EndOfList, OpenHeader } from "./OpenHeader";
+import { canOpenRow, type SetlistPlace } from "@/lib/setlist";
+
 interface Props {
   label: string;
   parts: string[];
@@ -15,6 +19,10 @@ interface Props {
   onFocusPart: (index: number) => void;
   onAdd: () => void;
   onBack: () => void;
+  /** The active setlist's name, and where this message sits in it; null when it isn't in one. */
+  setlistName: string | null;
+  place: SetlistPlace | null;
+  onNext: () => void;
   partRef: (index: number, el: HTMLButtonElement | null) => void;
 }
 
@@ -24,59 +32,63 @@ interface Props {
  * handled by the tab (Esc, arrows, 1–9); Enter on a focused part copies it and
  * moves on, a click copies it and stays.
  */
-export default function MessageView({ label, parts, edited, sent, cursor, flash, addLabel, onCopy, onFocusPart, onAdd, onBack, partRef }: Props) {
+export default function MessageView({ label, parts, edited, sent, cursor, flash, addLabel, onCopy, onFocusPart, onAdd, onBack, setlistName, place, onNext, partRef }: Props) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="min-w-0 basis-full text-lg font-semibold leading-tight wrap-anywhere sm:basis-auto">
-          {label}
-          {edited && (
-            <span className="ml-2 rounded border border-[var(--accent)]/50 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap text-[var(--accent)]">
+      <OpenHeader
+        backLabel="Messages"
+        onBack={onBack}
+        title={label}
+        badge={
+          edited && (
+            <span className="badge shrink-0">
               edited<span className="sr-only"> for this service</span>
             </span>
-          )}
-        </h2>
-        <span className="flex flex-wrap gap-2 sm:shrink-0">
-          {addLabel && (
-            <button onClick={onAdd} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
-              {addLabel}
-            </button>
-          )}
-          <button onClick={onBack} className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800 pointer-coarse:min-h-11">
-            ← Messages
+          )
+        }
+        count={parts.length}
+        cursor={cursor}
+        sent={sent}
+        label="part"
+      />
+      {addLabel && (
+        <div>
+          <button onClick={onAdd} className="btn btn-sm">
+            {addLabel}
           </button>
-        </span>
-      </div>
+        </div>
+      )}
       <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-        <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part · <span className="kbd">Esc</span> back
+        <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part ·{" "}
+        {place?.next && canOpenRow(place.next) && (
+          <>
+            <span className="kbd">N</span> next in the setlist ·{" "}
+          </>
+        )}
+        <span className="kbd">Esc</span> back
       </p>
       <ol className="space-y-2">
         {parts.map((part, i) => (
-          <li
+          <SectionRow
             key={i}
-            className={`rounded-xl border p-1 transition-colors ${
-              flash === i ? "border-emerald-500/60 bg-emerald-500/10" : sent.has(i) ? "border-zinc-800/60 opacity-60" : "border-zinc-800 bg-zinc-900/60"
-            }`}
-          >
-            <button
-              ref={(el) => partRef(i, el)}
-              onClick={() => onCopy(i, false)}
-              onFocus={() => onFocusPart(i)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onCopy(i, true);
-                }
-              }}
-              tabIndex={i === cursor ? 0 : -1}
-              className={`w-full rounded-lg px-3 py-2 text-left hover:bg-zinc-800/60 ${i === cursor ? "ring-1 ring-inset ring-[var(--accent)]/40" : ""}`}
-            >
-              <span className="mr-2 text-xs text-[var(--muted)]">{i + 1}</span>
-              <span className="whitespace-pre-wrap text-[15px] leading-relaxed wrap-break-word">{part}</span>
-            </button>
-          </li>
+            index={i}
+            text={part}
+            cursor={i === cursor}
+            sent={sent.has(i)}
+            flash={flash === i}
+            buttonRef={(el) => partRef(i, el)}
+            onClick={() => onCopy(i, false)}
+            onFocus={() => onFocusPart(i)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onCopy(i, true);
+              }
+            }}
+          />
         ))}
       </ol>
+      <EndOfList what="message" setlistName={setlistName} place={place} onNext={onNext} backLabel="Messages" onBack={onBack} />
     </div>
   );
 }

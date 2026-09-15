@@ -22,13 +22,13 @@ interface Props {
  */
 function MessageList({ groups, active, copied, onPick, onAdd, onHover }: Props) {
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
+    <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900/60">
       {groups
         .filter((g) => g.messages.length > 0)
         .map(({ section, messages }) => (
           <section key={section.id} aria-label={section.name}>
-            <h3 className="border-y border-zinc-800 bg-zinc-950/95 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">{section.name}</h3>
-            <ul className="divide-y divide-zinc-800">
+            <h3 className="border-y border-ink-800 bg-ink-950/95 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">{section.name}</h3>
+            <ul className="divide-y divide-ink-800">
               {messages.map((message) => {
                 const entry = { section, message };
                 const label = messageLabel(section, message);
@@ -38,7 +38,7 @@ function MessageList({ groups, active, copied, onPick, onAdd, onHover }: Props) 
                       onClick={() => onPick(entry)}
                       onMouseEnter={() => onHover(message.id)}
                       aria-current={active === message.id ? "true" : undefined}
-                      className={`min-w-0 flex-1 px-4 py-3 text-left hover:bg-zinc-800/60 ${active === message.id ? "bg-zinc-800/60" : ""}`}
+                      className={`min-w-0 flex-1 px-4 py-3 text-left font-text hover:bg-ink-800/60 ${active === message.id ? "bg-ink-800/60" : ""}`}
                     >
                       <span className="flex items-baseline justify-between gap-3">
                         <span className="min-w-0 font-medium wrap-anywhere">{message.title}</span>
@@ -54,7 +54,7 @@ function MessageList({ groups, active, copied, onPick, onAdd, onHover }: Props) 
                         onClick={() => onAdd(entry)}
                         aria-label={`Add ${label} to the setlist`}
                         title="Add to the setlist"
-                        className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-zinc-800 hover:text-zinc-200"
+                        className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-ink-800 hover:text-ink-200"
                       >
                         +
                       </button>

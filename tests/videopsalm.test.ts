@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
-import { repairVideoPsalm, parseVideoPsalmSongbook, cleanSlideText, formatSection, regroupSlides, type Slide } from "../src/lib/videopsalm";
+import { repairVideoPsalm, parseVideoPsalmSongbook, cleanSlideText, formatSection, formatTitle, regroupSlides, type Slide } from "../src/lib/videopsalm";
 import { splitOnBlankLines } from "../src/lib/songSections";
 
 describe("VideoPsalm repair", () => {
@@ -175,5 +175,19 @@ describe("no stored section ever contains a blank line", () => {
       for (const sec of s.sections) expect(sec).not.toMatch(/\n\s*\n/);
       expect(splitOnBlankLines(s.sections.join("\n\n"))).toEqual(s.sections);
     }
+  });
+});
+
+describe("formatTitle", () => {
+  it("wraps the title the way the chat announces a new song", () => {
+    expect(formatTitle("A Million Tongues")).toBe("🎶 A Million Tongues 🎶");
+  });
+
+  it("tidies spacing a title picked up on import", () => {
+    expect(formatTitle("  Way   Maker \n")).toBe("🎶 Way Maker 🎶");
+  });
+
+  it("copies nothing for a song with no title", () => {
+    expect(formatTitle("   ")).toBe("");
   });
 });

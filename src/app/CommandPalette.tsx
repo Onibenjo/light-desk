@@ -128,7 +128,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
         aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={view === "guide" ? onGuideKey : undefined}
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-2xl"
       >
         {view === "palette" ? (
           <>
@@ -150,7 +150,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               }}
               onKeyDown={onPaletteKey}
               placeholder="Search commands and messages…"
-              className="w-full border-b border-zinc-800 bg-transparent px-4 py-3 text-base outline-none placeholder:text-[var(--muted)]"
+              className="w-full border-b border-ink-800 bg-transparent px-4 py-3 text-base outline-none placeholder:text-[var(--muted)]"
             />
             <ul id={listId} role="listbox" aria-label="Commands" className="max-h-[45dvh] overflow-y-auto py-1">
               {results.map((a, i) => (
@@ -164,7 +164,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
                     run(a);
                   }}
                   onMouseEnter={() => setActive(i)}
-                  className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm ${i === active ? "bg-zinc-800 text-zinc-100" : "text-zinc-300"}`}
+                  className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm ${i === active ? "bg-ink-800 text-ink-100" : "text-ink-300"}`}
                 >
                   <span>
                     {a.group && <span className="mr-2 text-xs text-[var(--muted)]">{a.group}</span>}
@@ -175,18 +175,18 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               ))}
               {results.length === 0 && <li className="px-4 py-6 text-center text-sm text-[var(--muted)]">Nothing matches.</li>}
             </ul>
-            <p role="status" aria-live="polite" className="border-t border-zinc-800 px-4 py-2 text-xs text-[var(--muted)]">
+            <p role="status" aria-live="polite" className="border-t border-ink-800 px-4 py-2 text-xs text-[var(--muted)]">
               {results.length} {results.length === 1 ? "result" : "results"} · <span className="kbd">↑</span> <span className="kbd">↓</span> move ·{" "}
               <span className="kbd">↵</span> run · <span className="kbd">?</span> all shortcuts
             </p>
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-ink-800 px-4 py-3">
               <h2 id={titleId} className="font-medium">
                 Keyboard shortcuts
               </h2>
-              <button autoFocus onClick={close} className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
+              <button autoFocus onClick={close} className="rounded-md border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:bg-ink-800">
                 Close
               </button>
             </div>
@@ -226,7 +226,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
 function Row({ keys, label }: { keys: string; label: string }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-zinc-300">{label}</span>
+      <span className="text-ink-300">{label}</span>
       <span className="kbd shrink-0">{keys}</span>
     </div>
   );

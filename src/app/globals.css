@@ -1,11 +1,44 @@
 @import "tailwindcss";
 
+/* Booth console. Warm charcoal rather than Tailwind's cool zinc, tinted just
+   enough toward the CLC orange that the two read as one palette. `ink-*` keeps
+   zinc's steps, so a shade swapped in for a zinc one lands at the same depth.
+   Contrast on the page (#0c0b0a): ink-100 17.5:1, muted 7.8:1, ink-500 4.1:1
+   (borders and disabled only, never text). On ink-800 panels muted is 6.5:1. */
+@theme {
+  --color-ink-50: #faf8f5;
+  --color-ink-100: #f4f1ec;
+  --color-ink-200: #e6e1da;
+  --color-ink-300: #d3cdc5;
+  --color-ink-400: #a8a29a;
+  --color-ink-500: #78716a;
+  --color-ink-600: #57504a;
+  --color-ink-700: #3a3530;
+  --color-ink-800: #221f1c;
+  --color-ink-900: #171513;
+  --color-ink-950: #0c0b0a;
+}
+
+/* Two faces, loaded by next/font in layout.tsx. `font-ui` (Barlow Semi
+   Condensed) is the console: buttons, tabs, headings, badges. `font-text`
+   (Atkinson Hyperlegible Next) is anything the operator reads before it goes
+   to Mixlr, where I/l/1 and rn/m must never be mistaken; it is also the body
+   default, so hints and prose get it without asking. */
+@theme inline {
+  --font-ui: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
+  --font-text: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-text);
+}
+
 :root {
-  --accent: #f26b3a; /* CLC orange from the Mixlr avatar */
-  /* Secondary text. zinc-500 (4.06:1) and zinc-600 (2.54:1) both fail WCAG AA on
-     the #0b0b0f background; this is the dimmest tone that still clears 4.5:1
-     (7.66:1 on the body, 6.91:1 on a zinc-900 panel). Retune here, not per-class. */
-  --muted: #a1a1aa;
+  --accent: #f26b3a; /* CLC orange from the Mixlr avatar. Reserved for "act here" and "you are here". */
+  /* Secondary text: ink-400, the dimmest tone that clears 4.5:1 on every
+     surface the desk draws (7.8:1 on the page, 6.5:1 on a raised panel).
+     Retune here, not per-class. */
+  --muted: var(--color-ink-400);
+  /* Native selects, checkboxes, scrollbars and the date picker follow this;
+     without it they opened white on the black page. */
+  color-scheme: dark;
 }
 
 /* Keyboard users need to see where they are; the dark theme swallowed the
@@ -20,10 +53,21 @@
     outline-offset: 2px;
     border-radius: 2px;
   }
+
+  /* Controls speak in the console face. A button that carries copyable text
+     (a song section, a verse in the chapter) sets `font-text` on itself, and
+     the utility wins over this layer. */
+  button,
+  select,
+  [role="tab"],
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-ui);
+  }
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* Installed to the home screen the app draws under the notch and the rounded
      corners, so the gutters come from the device, not the design. Zero on every
      phone without them, and on every laptop. */
@@ -44,6 +88,58 @@ body {
   }
 }
 
-.kbd {
-  @apply inline-block rounded border border-zinc-600 bg-zinc-800 px-1.5 py-0.5 text-[11px] font-mono text-zinc-300;
+/* The shared pieces. In the components layer so a utility on the element
+   (a width, a margin) still wins over them. */
+@layer components {
+  .kbd {
+    @apply inline-block rounded border border-ink-600 bg-ink-800 px-1.5 py-0.5 font-mono text-[11px] text-ink-300;
+  }
+
+  /* State labels (Pinned, Edited, Matched). 11px caps in the console face,
+     neutral by default: the words carry the meaning, so the accent stays free
+     for the one thing on screen to act on. */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded border border-ink-600 px-1.5 py-px align-middle font-ui text-[11px] font-semibold tracking-wider whitespace-nowrap text-ink-200 uppercase;
+  }
+
+  /* Buttons. One outline style, one primary (the orange, at most one per
+     view), one quiet, one for destructive actions. 44px on touch, 34px where
+     there is a mouse, which is what the desk already measured out. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-ink-700 px-3 py-1.5 font-ui text-[15px] leading-5 font-medium whitespace-nowrap text-ink-200 hover:border-ink-600 hover:bg-ink-800 disabled:pointer-events-none disabled:opacity-40 pointer-coarse:min-h-11;
+  }
+  .btn-primary {
+    @apply border-transparent bg-[var(--accent)] font-semibold text-black hover:border-transparent hover:bg-[var(--accent)] hover:brightness-110;
+  }
+  .btn-quiet {
+    @apply border-transparent text-ink-300 hover:border-transparent hover:text-ink-100;
+  }
+  .btn-danger {
+    @apply text-red-300 hover:border-red-500/50 hover:bg-red-950;
+  }
+  /* A toggle that is on (aria-pressed): white on ink, the same selected look
+     everywhere, so orange keeps meaning "act here". */
+  .btn-on {
+    @apply border-ink-100 bg-ink-100 text-black hover:border-ink-100 hover:bg-ink-50;
+  }
+  /* The armed state of a two-press Delete: now it looks like it will delete. */
+  .btn-armed {
+    @apply border-red-500 bg-red-600 font-semibold text-white hover:border-red-500 hover:bg-red-600;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1 text-sm;
+  }
+  /* A square icon-only button; carries its own aria-label. */
+  .btn-icon {
+    @apply min-w-9 px-0 pointer-coarse:min-w-11;
+  }
+
+  .field {
+    @apply rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-[15px] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] pointer-coarse:min-h-11;
+  }
+
+  /* Section headings inside a page: small caps in the console face. */
+  .eyebrow {
+    @apply font-ui text-xs font-semibold tracking-widest text-[var(--muted)] uppercase;
+  }
 }
