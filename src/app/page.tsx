@@ -12,6 +12,9 @@ import { TRANSLATIONS, DEFAULT_TRANSLATION, translationFromInput } from "@/lib/t
 import { BOOKS } from "@/lib/books";
 import Icon from "./Icon";
 import Toast, { copyText, useToast } from "./Toast";
+import RecentVerses from "./RecentVerses";
+import { dayBounds, toISODate } from "@/lib/logQuery";
+import { recentVerses, withRecent, type RecentVerse } from "@/lib/recentVerses";
 import SongsTab from "./SongsTab";
 import MessagesTab from "./MessagesTab";
 import { useSetlist } from "./useSetlist";
@@ -148,6 +151,7 @@ export default function Desk() {
   const { toast, showToast } = useToast();
   const [copiedChunk, setCopiedChunk] = useState(0);
   const [chapter, setChapter] = useState<Passage | null>(null);
+  const [recent, setRecent] = useState<RecentVerse[]>([]);
   // Set when a request is refused by the PIN gate (the PIN changed, or the
   // cookie is gone); cleared by the next request that gets through.
   const [locked, setLocked] = useState(false);
@@ -191,6 +195,22 @@ export default function Desk() {
       localStorage.setItem("ld_source", sourceChoice);
     } catch {}
   }, [sourceChoice]);
+
+  // Today's verses from the log, once. Quiet on failure: the list is a
+  // shortcut, and a locked device already says so in its own banner.
+  useEffect(() => {
+    let live = true;
+    const { from, to } = dayBounds(toISODate(new Date()));
+    fetch(`/api/log?kind=verse&from=${from}&to=${to}&limit=100`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: unknown) => {
+        if (live && isRecord(d) && Array.isArray(d.rows)) setRecent(recentVerses(d.rows.filter((row): row is { kind: string; label: string; createdAt: string } => isRecord(row) && typeof row.kind === "string" && typeof row.label === "string" && typeof row.createdAt === "string")));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!busy) return;
@@ -352,6 +372,7 @@ export default function Desk() {
         setResult(r);
         setCopiedChunk(0);
         const tag = `${r.passage.reference} (${r.passage.translationCode})`;
+        setRecent((list) => withRecent(list, { reference: r.passage.reference, translation: r.passage.translationCode, at: new Date().toISOString() }));
         if (r.passage.source === "llm") {
           // Every real source failed; this text came from the AI's memory.
           // Show it, but make a human read it and press Copy deliberately.
@@ -707,11 +728,6 @@ export default function Desk() {
       </div>
 
       <Toast toast={toast} />
-      {showBusy && busy && (
-        <p role="status" aria-live="polite" className="text-sm text-ink-400 animate-pulse">
-          {busy === "chapter" ? "Loading the chapter…" : `Looking up “${busy}”…`}
-        </p>
-      )}
 
       {/* All three panels stay in the DOM so each tab's aria-controls always
           points at something; Songs and Messages still mount only while shown. */}
@@ -753,6 +769,7 @@ export default function Desk() {
       <div role="tabpanel" id={panelId("verses")} aria-labelledby={tabId("verses")} className={tab === "verses" ? "contents" : "hidden"}>
       <form onSubmit={onSubmit} className="space-y-2">
         <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
           {/* The placeholder is short enough to read to its end on a 320px
               screen; the examples the long one carried moved to the hint below,
               where they wrap instead of being clipped mid-word. The three input
@@ -770,8 +787,21 @@ export default function Desk() {
             enterKeyHint="go"
             aria-label="Bible reference or description"
             placeholder="rom 8 28  ·  or describe it"
-            className="w-full min-w-0 rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-lg outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60 sm:text-xl"
+            className={`w-full min-w-0 rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-lg outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] disabled:opacity-60 sm:text-xl ${showBusy && busy ? "pr-12 sm:pr-48" : ""}`}
           />
+          {/* Busy shows inside the box, not as a line above it: that line
+              mounted after BUSY_DELAY_MS and shoved the box and everything under
+              it down while the operator was looking at it. The live region
+              stays mounted so the announcement is heard. */}
+          <p role="status" aria-live="polite" className="pointer-events-none absolute inset-y-0 right-4 flex items-center gap-2 text-sm text-ink-300">
+            {showBusy && busy && (
+              <>
+                <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-ink-600 border-t-ink-100 motion-reduce:animate-none" />
+                <span className="sr-only sm:not-sr-only">{busy === "chapter" ? "Loading the chapter…" : "Looking it up…"}</span>
+              </>
+            )}
+          </p>
+          </div>
           {/* On a laptop Enter has always done this and a button would be noise.
               A touch device has no visible way to submit at all, so it gets one. */}
           <button
@@ -795,7 +825,6 @@ export default function Desk() {
           <span className="kbd">+</span> next verse · <span className="kbd">Esc</span> clear · <span className="kbd">?</span> all shortcuts
         </p>
       </form>
-
 
       {candidates && (
         <section className="space-y-2">
@@ -929,6 +958,17 @@ export default function Desk() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Under the verse, not instead of it: the result stays up all service,
+          so this is where the list is reachable. Hidden while choosing between
+          possible verses, where a second list would compete with 1–3. */}
+      {!candidates && (
+        <RecentVerses
+          verses={recent.filter((v) => v.reference !== result?.passage.reference)}
+          disabled={!!busy}
+          onChoose={(v) => lookup(v.reference, { translation: v.translation })}
+        />
       )}
 
       </div>
