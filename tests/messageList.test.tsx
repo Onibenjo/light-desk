@@ -21,10 +21,10 @@ describe("the message library the operator browses", () => {
     expect(text(render())).toContain("Sound restored\nSirs and Mas, we apologize");
   });
 
-  it("offers + only where the section can go in a setlist", () => {
+  it("offers + only where the section can go in a service order", () => {
     const html = render();
-    expect(html).toContain('aria-label="Add Welcoming Ambience Jewel · Sunday to the setlist"');
-    expect(html).not.toContain('aria-label="Add Apologies · Sound restored to the setlist"');
+    expect(html).toContain('aria-label="Add Welcoming Ambience Jewel · Sunday to the service order"');
+    expect(html).not.toContain('aria-label="Add Apologies · Sound restored to the service order"');
   });
 
   it("marks the row the keyboard is on, and ticks what was copied", () => {

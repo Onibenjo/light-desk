@@ -42,7 +42,7 @@ const TEXT_ERROR = "A message can't be empty — type its text";
 const COUNT_ERROR = `A message can have at most ${MAX_PARTS} parts — remove some blank lines`;
 const LENGTH_ERROR = `A part can be at most ${MAX_PART_CHARS} characters — split it with a blank line`;
 const SECTION_ERROR = "Choose a section for the message";
-const FLAG_ERROR = "“Can go in a setlist” must be true or false";
+const FLAG_ERROR = "“Can go in a service order” must be true or false";
 const MOVE_ERROR = "Move a message or section one place up or down at a time";
 const NOTHING = "Nothing to save — change something first";
 

@@ -22,7 +22,7 @@ async function setlistId(params: Promise<{ id: string }>): Promise<number | null
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const id = await setlistId(params);
-  if (id === null) return NextResponse.json({ error: "That setlist is gone — reload the page" }, { status: 404 });
+  if (id === null) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
 
   const parsed = parseSetlistPatch(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
@@ -34,16 +34,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // cannot make Sunday's prepared order unsaveable.
   if (parsed.items) {
     const current = await findSetlist(id);
-    if (!current) return NextResponse.json({ error: "That setlist is gone — reload the page" }, { status: 404 });
+    if (!current) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
     const added = addedMessageIds(current.items, parsed.items);
     const refused = refusedMessage(added, await factsForMessages(added));
     if (refused) return NextResponse.json({ error: refused }, { status: 400 });
   }
 
   const result = await updateSetlist(id, parsed);
-  if (result === "gone") return NextResponse.json({ error: "That setlist is gone — reload the page" }, { status: 404 });
+  if (result === "gone") return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
   if (result === "stale") {
-    return NextResponse.json({ error: "Someone else changed this setlist first", setlist: await findSetlist(id) }, { status: 409 });
+    return NextResponse.json({ error: "Someone else changed this service order first", setlist: await findSetlist(id) }, { status: 409 });
   }
   return NextResponse.json({ ok: true, setlist: result });
 }
@@ -51,9 +51,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 /** DELETE /api/setlists/:id. If it was the active one, nothing is promoted in its place. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const id = await setlistId(params);
-  if (id === null) return NextResponse.json({ error: "That setlist is gone — reload the page" }, { status: 404 });
+  if (id === null) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
 
   await ensureSchema();
-  if (!(await deleteSetlist(id))) return NextResponse.json({ error: "That setlist is gone — reload the page" }, { status: 404 });
+  if (!(await deleteSetlist(id))) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

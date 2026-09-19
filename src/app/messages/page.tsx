@@ -291,7 +291,7 @@ export default function MessagesPage() {
   const del = (key: string) => `btn btn-sm ${armed.isArmed(key) ? "btn-armed" : "btn-danger"}`;
 
   return (
-    <PageShell title="Message library" purpose="Everything the operator copies that isn't a verse or a song. Each part of a message is one post in the Mixlr chat.">
+    <PageShell title="Engagement library" purpose="Everything the operator copies that isn't a verse or a song. Each part of a message is one post in the Mixlr chat.">
       <p id={armed.regionId} role="status" className="sr-only">
         {armed.announcement}
       </p>
@@ -329,7 +329,7 @@ export default function MessagesPage() {
                     onChange={(e) => write(`/api/message-sections/${section.id}`, "PATCH", { inService: e.target.checked })}
                     disabled={busy}
                   />
-                  Can go in a setlist
+                  Can go in a service order
                 </label>
                 <button onClick={() => write(`/api/message-sections/${section.id}`, "PATCH", { move: -1 })} disabled={busy || si === 0} aria-label={`Move ${section.name} up`} className="btn btn-quiet btn-icon">
                   ↑
@@ -356,7 +356,7 @@ export default function MessagesPage() {
             </div>
             {!section.inService && (
               <p id={`${ids}-out-${section.id}`} className="px-1 text-xs text-[var(--muted)]">
-                Left out of setlists — copy these from the Messages tab whenever they&apos;re needed.
+                Left out of service orders — copy these from the Engagement tab whenever they&apos;re needed.
               </p>
             )}
           </div>

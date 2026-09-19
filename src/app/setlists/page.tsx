@@ -19,9 +19,9 @@ type SetlistsState = { kind: "loading" } | { kind: "loaded"; setlists: Setlist[]
 /** A failure to show above the setlists, after `lead` ("Not saved."). `saved` when the write went through and only the reload after it failed. */
 type Notice = { failure: Failure; lead: string; saved: boolean };
 
-const RELOAD_LEAD = "Saved, but couldn't reload the setlists.";
+const RELOAD_LEAD = "Saved, but couldn't reload the service orders.";
 
-const RELOADED: Failure = { kind: "conflict", message: "Someone else changed this setlist — it has reloaded, so make your change again" };
+const RELOADED: Failure = { kind: "conflict", message: "Someone else changed this service order — it has reloaded, so make your change again" };
 
 async function fetchSetlists(): Promise<{ ok: true; setlists: Setlist[] } | { ok: false; failure: Failure }> {
   let res: Response;
@@ -211,7 +211,7 @@ export default function SetlistsPage() {
   async function create() {
     const sent = name;
     if (!sent.trim()) return;
-    const ok = await request("/api/setlists", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: sent }) }, "Setlist not created.");
+    const ok = await request("/api/setlists", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: sent }) }, "Service order not created.");
     // A refused name stays in the box to fix; a saved one makes way for the next, unless more was typed meanwhile.
     if (ok) setName((now) => (now === sent ? comingSundayName(new Date()) : now));
   }
@@ -221,7 +221,7 @@ export default function SetlistsPage() {
   const setlists = state.kind === "loaded" ? state.setlists : [];
 
   return (
-    <PageShell title="Setlists" purpose="The active setlist sits at the top of the desk's Songs and Messages tabs. Add to it there, with the + beside a song or a message.">
+    <PageShell title="Service orders" purpose="The active service order sits at the top of the desk's Songs and Engagement tabs. Add to it there, with the + beside a song or a message.">
       <p id={armed.regionId} role="status" className="sr-only">
         {armed.announcement}
       </p>
@@ -233,23 +233,23 @@ export default function SetlistsPage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={MAX_NAME}
-          aria-label="New setlist name"
+          aria-label="New service order name"
           placeholder="e.g. Sunday 14 Sept, 1st service"
           className="field min-w-0 flex-1"
         />
         <button onClick={create} disabled={busy || !name.trim()} className="btn btn-primary shrink-0">
-          New setlist
+          New service order
         </button>
       </div>
 
-      {state.kind === "loading" && <p className="text-sm text-[var(--muted)]">Loading the setlists…</p>}
-      {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the setlists." onRetry={retryLoad} next={pathname} newTab={false} />}
-      {state.kind === "loaded" && setlists.length === 0 && <p className="text-sm text-[var(--muted)]">No setlists yet — name one above and choose New setlist.</p>}
+      {state.kind === "loading" && <p className="text-sm text-[var(--muted)]">Loading the service orders…</p>}
+      {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the service orders." onRetry={retryLoad} next={pathname} newTab={false} />}
+      {state.kind === "loaded" && setlists.length === 0 && <p className="text-sm text-[var(--muted)]">No service orders yet — name one above and choose New service order.</p>}
 
       {setlists.map((s) => (
         <section key={s.id} className={`overflow-hidden rounded-xl border bg-ink-900 ${s.active ? "border-ink-600" : "border-ink-800"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800 px-4 py-3">
-            <RenameField saved={s.name} label={`Rename setlist ${s.name}`} maxLength={MAX_NAME} onRename={(next) => send(s.id, { name: next })} />
+            <RenameField saved={s.name} label={`Rename service order ${s.name}`} maxLength={MAX_NAME} onRename={(next) => send(s.id, { name: next })} />
             <span className="flex flex-wrap items-center gap-2">
               {s.active ? (
                 <ActiveBadge />
@@ -259,7 +259,7 @@ export default function SetlistsPage() {
                 </button>
               )}
               <button
-                {...armed.buttonProps(s.id, `the setlist ${s.name}`, () => void remove(s.id))}
+                {...armed.buttonProps(s.id, `the service order ${s.name}`, () => void remove(s.id))}
                 disabled={busy}
                 className={`btn btn-sm ${armed.isArmed(s.id) ? "btn-armed" : "btn-danger"}`}
               >
@@ -327,7 +327,7 @@ export default function SetlistsPage() {
                           className="field w-full font-text"
                         />
                         <p className="text-xs text-[var(--muted)]">
-                          Changes only this setlist, and later fixes to the library won&apos;t reach it. A blank line starts a new part.
+                          Changes only this service order, and later fixes to the library won&apos;t reach it. A blank line starts a new part.
                         </p>
                         <div className="flex flex-wrap gap-2">
                           <button

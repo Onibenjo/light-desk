@@ -113,7 +113,7 @@ describe("messages in a setlist", () => {
       [8, { inService: true, sectionName: "Greetings" }],
     ]);
     expect(refusedMessage([8], facts)).toBe(null);
-    expect(refusedMessage([8, 7], facts)).toBe("Apologies can't go in a setlist");
+    expect(refusedMessage([8, 7], facts)).toBe("Apologies can't go in a service order");
     expect(refusedMessage([99], facts)).toMatch(/no longer in the library/);
   });
 });

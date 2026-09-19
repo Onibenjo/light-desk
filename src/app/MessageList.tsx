@@ -52,8 +52,8 @@ function MessageList({ groups, active, copied, onPick, onAdd, onHover }: Props) 
                     {section.inService && (
                       <button
                         onClick={() => onAdd(entry)}
-                        aria-label={`Add ${label} to the setlist`}
-                        title="Add to the setlist"
+                        aria-label={`Add ${label} to the service order`}
+                        title="Add to the service order"
                         className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-ink-800 hover:text-ink-200"
                       >
                         +

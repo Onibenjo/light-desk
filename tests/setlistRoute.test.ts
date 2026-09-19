@@ -61,7 +61,7 @@ describe("adding a message to a setlist", () => {
     const { sorry, setlist } = await fixture();
     const res = await patch(setlist.id, { items: [{ kind: "message", id: sorry.id, title: "Apologies · Sound restored" }], updatedAt: setlist.updatedAt });
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe("Apologies can't go in a setlist");
+    expect(res.body.error).toBe("Apologies can't go in a service order");
   });
 
   it("refuses a message that does not exist", async () => {

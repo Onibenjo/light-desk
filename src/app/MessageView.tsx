@@ -13,7 +13,7 @@ interface Props {
   cursor: number;
   /** The part just copied, briefly highlighted where the operator is looking. */
   flash: number | null;
-  /** "Add to the setlist" or "Start a setlist"; null when the section cannot go in a setlist. */
+  /** "Add to the service order" or "Start a service order"; null when the section cannot go in a service order. */
   addLabel: string | null;
   onCopy: (index: number, advance: boolean) => void;
   onFocusPart: (index: number) => void;
@@ -36,7 +36,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
   return (
     <div className="space-y-3">
       <OpenHeader
-        backLabel="Messages"
+        backLabel="Engagement"
         onBack={onBack}
         title={label}
         badge={
@@ -62,7 +62,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
         <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part ·{" "}
         {place?.next && canOpenRow(place.next) && (
           <>
-            <span className="kbd">N</span> next in the setlist ·{" "}
+            <span className="kbd">N</span> next in the service order ·{" "}
           </>
         )}
         <span className="kbd">Esc</span> back
@@ -88,7 +88,7 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
           />
         ))}
       </ol>
-      <EndOfList what="message" setlistName={setlistName} place={place} onNext={onNext} backLabel="Messages" onBack={onBack} />
+      <EndOfList what="message" setlistName={setlistName} place={place} onNext={onNext} backLabel="Engagement" onBack={onBack} />
     </div>
   );
 }
