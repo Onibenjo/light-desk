@@ -16,6 +16,7 @@ import RecentVerses from "./RecentVerses";
 import { dayBounds, toISODate } from "@/lib/logQuery";
 import { recentVerses, withRecent, type RecentVerse } from "@/lib/recentVerses";
 import SongsTab from "./SongsTab";
+import WhatsNew from "./WhatsNew";
 import MessagesTab from "./MessagesTab";
 import { useSetlist } from "./useSetlist";
 import { useMessages } from "./useMessages";
@@ -725,6 +726,7 @@ export default function Desk() {
         </p>
       )}
 
+      <WhatsNew />
 
       <div role="tablist" aria-label="Desk" className="flex gap-1 rounded-lg bg-ink-900 p-1 text-sm">
         {TABS.map((t, i) => {
