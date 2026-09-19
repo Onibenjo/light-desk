@@ -11,7 +11,7 @@ import { unlockHref, type Failure } from "@/lib/apiError";
 import { canOpenRow, openMessageFromRow, placeInSetlist, resolveSetlist, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
 import MessageList from "./MessageList";
 import MessageView from "./MessageView";
-import SetlistBar from "./SetlistBar";
+import SetlistBar, { NoSetlistBar } from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
 
@@ -154,7 +154,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
   const place = open && setlist && sameText ? placeInSetlist(setlistRows, open.key) : null;
   const canOpenNext = !!place?.next && canOpenRow(place.next);
 
-  /** "Next in the setlist": a song opens on the Songs tab; a message opens here, even a one-part one, to be read before it is copied. */
+  /** "Next in the service order": a song opens on the Songs tab; a message opens here, even a one-part one, to be read before it is copied. */
   function openNext() {
     const next = place?.next;
     if (!next || !canOpenRow(next)) return;
@@ -229,7 +229,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         sent={sent}
         cursor={cursor}
         flash={flash}
-        addLabel={open.inService ? (setlist ? "Add to the setlist" : "Start a setlist") : null}
+        addLabel={open.inService ? (setlist ? "Add to the service order" : "Start a service order") : null}
         onCopy={(i, advance) => void copyOpenPart(i, advance)}
         onFocusPart={setCursor}
         onAdd={() => void add(open)}
@@ -246,7 +246,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
 
   return (
     <div className="space-y-4">
-      {setlist && (
+      {setlist ? (
         <SetlistBar
           name={setlist.name}
           staleNote={staleNote(setlist.updatedAt, new Date())}
@@ -255,6 +255,8 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
           onOpen={onOpenSong}
           onMessage={pickRow}
         />
+      ) : (
+        <NoSetlistBar />
       )}
       <input
         ref={inputRef}
@@ -283,9 +285,6 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
         <span className="whitespace-nowrap">{library && `${library.messages.length} ${library.messages.length === 1 ? "message" : "messages"} in the library`}</span>
         <span className="flex flex-wrap items-center gap-x-3">
-          <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
-            Setlists
-          </Link>
           <Link href="/messages" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
             Edit the library
           </Link>

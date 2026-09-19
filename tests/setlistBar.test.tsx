@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import SetlistBar from "../src/app/SetlistBar";
+import SetlistBar, { NoSetlistBar, itemCount } from "../src/app/SetlistBar";
 import type { MessageRow, SetlistRow, SongRow } from "../src/lib/setlist";
 
 const row = (over: Partial<SongRow> & { id: number; title: string }): SongRow => ({
@@ -111,5 +111,66 @@ describe("ticking a song in the setlist", () => {
     const html = render([row({ id: 1, title: "Way Maker" }), row({ id: 2, title: "Excess Love" })], null, ["song:1"]);
     expect(html.match(/<span class="sr-only">copied<\/span>/g)).toHaveLength(1);
     expect(text(html).indexOf("copied")).toBeLessThan(text(html).indexOf("Excess Love"));
+  });
+});
+
+describe("saying what a service order is, to someone who has never made one", () => {
+  const empty = () => renderToStaticMarkup(<NoSetlistBar />);
+
+  it("names the thing, because the bar it stands in for never renders until one exists", () => {
+    expect(text(empty())).toContain("Service order");
+  });
+
+  it("explains what it is for, not just that it is missing", () => {
+    expect(text(empty())).toContain("so nothing is searched for while the service is running");
+  });
+
+  it("offers both ways in: the page, and the + on a result", () => {
+    expect(empty()).toContain('href="/setlists"');
+    expect(text(empty())).toContain("add the first item with +");
+  });
+});
+
+describe("keeping the search box in reach when the service order is long", () => {
+  it("caps the list height and lets it scroll instead of pushing the search box down", () => {
+    const html = render([row({ id: 1, title: "Way Maker" })]);
+    expect(html).toContain("max-h-[45vh]");
+    expect(html).toContain("overflow-y-auto");
+  });
+
+  it("offers a collapse control, named for what pressing it does, once there is something to collapse", () => {
+    const html = render([row({ id: 1, title: "Way Maker" })]);
+    expect(html).toMatch(/<button type="button"[^>]*>Hide<\/button>/);
+  });
+
+  it("does not offer a collapse control over an empty setlist", () => {
+    const t = text(render([]));
+    expect(t).not.toContain("Hide");
+    expect(t).not.toContain("Show");
+  });
+
+  it("pluralises the count the collapsed header falls back to", () => {
+    expect(itemCount(1)).toBe("1 item");
+    expect(itemCount(6)).toBe("6 items");
+  });
+
+  it("renders expanded on the first render, before localStorage can be read", () => {
+    // Guards the SSR/hydration contract: a collapsed choice from a previous visit
+    // must not be visible in the markup the server (or the first client render) sends.
+    const html = render([row({ id: 1, title: "Way Maker" }), row({ id: 2, title: "Excess Love" })]);
+    expect(html).toContain("Way Maker");
+    expect(text(html)).toContain("Hide");
+  });
+});
+
+describe("reaching the service orders page from the bar", () => {
+  it("says what kind of thing the name is, so the word is learned in place", () => {
+    expect(text(render([row({ id: 1, title: "Way Maker" })]))).toContain("Service order");
+  });
+
+  it("carries the link the tiny one under the search box used to carry", () => {
+    const html = render([row({ id: 1, title: "Way Maker" })]);
+    expect(html).toContain('href="/setlists"');
+    expect(text(html)).toContain("Change");
   });
 });

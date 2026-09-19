@@ -30,7 +30,7 @@ import { tabIndexForKey } from "@/lib/tabKeys";
 const TABS = [
   { id: "verses", icon: "book", label: "Verses" },
   { id: "songs", icon: "music", label: "Songs" },
-  { id: "messages", icon: "message", label: "Messages" },
+  { id: "messages", icon: "message", label: "Engagement" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -282,7 +282,7 @@ export default function Desk() {
     [library, sendMessage],
   );
 
-  /** Opens a message from "Next in the setlist", even a one-part one: next means go to it, not copy it unseen. */
+  /** Opens a message from "Next in the service order", even a one-part one: next means go to it, not copy it unseen. */
   const openMessageRow = useCallback(
     (row: MessageRow) => {
       const m = openMessageFromRow(row, messagesById(library));
@@ -594,8 +594,10 @@ export default function Desk() {
     // The palette prints the group before the title, so "Go to" is said once, there.
     list.push({ id: "tab-verses", title: "Verses", group: "Go to", keywords: ["go to verses", "bible", "scripture"], run: () => { setTab("verses"); refocus(); } });
     list.push({ id: "tab-songs", title: "Songs", group: "Go to", keywords: ["go to songs", "lyrics", "songbook", "worship"], run: () => setTab("songs") });
-    list.push({ id: "tab-messages", title: "Messages", group: "Go to", keywords: ["go to messages", "apology", "greeting", "prayer", "announcement"], run: () => setTab("messages") });
-    list.push({ id: "messages-edit", title: "Message library", group: "Go to", keywords: ["edit message library", "engagement", "document"], run: () => router.push("/messages") });
+    list.push({ id: "tab-messages", title: "Engagement", group: "Go to", keywords: ["go to messages", "apology", "greeting", "prayer", "announcement"], run: () => setTab("messages") });
+    list.push({ id: "messages-edit", title: "Engagement library", group: "Go to", keywords: ["edit message library", "messages", "engagement", "document"], run: () => router.push("/messages") });
+    // The palette had no way to reach them at all; "setlist" stays a keyword so the old word still finds them.
+    list.push({ id: "setlists", title: "Service orders", group: "Go to", keywords: ["setlist", "service order", "order of service", "prepare", "plan"], run: () => router.push("/setlists") });
     list.push({ id: "log", title: "Log", group: "Go to", keywords: ["open the log", "history", "sunday", "sent", "copied"], run: () => router.push("/log") });
     list.push({ id: "sources", title: "Verse sources", group: "Go to", keywords: ["check verse sources", "diagnostics", "health"], run: () => router.push("/diag") });
     list.push({ id: "import", title: "Import a songbook", group: "Go to", keywords: ["videopsalm", "upload"], run: () => router.push("/songs/import") });
@@ -628,7 +630,7 @@ export default function Desk() {
         { keys: "P", label: "Pin the section you're on (the chorus)" },
         { keys: "C", label: "Copy the pinned section again" },
         { keys: "T", label: "Copy the song's title" },
-        { keys: "N", label: "Open the next item in the setlist" },
+        { keys: "N", label: "Open the next item in the service order" },
         { keys: "Esc", label: "Back to the song list" },
       ],
     },
@@ -639,7 +641,7 @@ export default function Desk() {
         { keys: "↑ ↓", label: "Pick a message in the results" },
         { keys: "↵", label: "Copy it, or open a long one to copy part by part" },
         { keys: "1–9", label: "Copy that part" },
-        { keys: "N", label: "Open the next item in the setlist" },
+        { keys: "N", label: "Open the next item in the service order" },
         { keys: "Esc", label: "Back to the library" },
       ],
     },
@@ -722,6 +724,7 @@ export default function Desk() {
           </Link>
         </p>
       )}
+
 
       <div role="tablist" aria-label="Desk" className="flex gap-1 rounded-lg bg-ink-900 p-1 text-sm">
         {TABS.map((t, i) => {
