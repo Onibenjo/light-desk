@@ -12,7 +12,7 @@ const render = (over: Partial<Parameters<typeof MessageView>[0]> = {}) =>
       sent={new Set()}
       cursor={0}
       flash={null}
-      addLabel="Add to the setlist"
+      addLabel="Add to the service order"
       onCopy={() => {}}
       onFocusPart={() => {}}
       onAdd={() => {}}
@@ -48,7 +48,7 @@ describe("sending a long message part by part", () => {
   });
 
   it("hides the setlist button for a message that cannot go in one", () => {
-    expect(render()).toContain("Add to the setlist");
+    expect(render()).toContain("Add to the service order");
     expect(render({ addLabel: null })).not.toContain("setlist");
   });
 });
@@ -60,7 +60,7 @@ describe("finding the way on from a long message", () => {
   it("keeps the way back in the header that stays pinned while the parts scroll", () => {
     const html = render();
     const header = html.slice(html.indexOf("sticky"), html.indexOf("<ol"));
-    expect(text(header)).toContain("Messages");
+    expect(text(header)).toContain("Engagement");
     expect(text(header)).toContain("Confession · Full text");
   });
 

@@ -13,7 +13,7 @@ import { failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { MatchedLine } from "./MatchedLine";
 import SongEditor, { readSong, songFromBody } from "./SongEditor";
 import SongList from "./SongList";
-import SetlistBar from "./SetlistBar";
+import SetlistBar, { NoSetlistBar } from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
 import Icon from "./Icon";
@@ -85,7 +85,7 @@ interface Props {
   copied: ReadonlySet<string>;
   /** A message row in the bar: the desk copies it, or switches to Messages to send it in parts. */
   onMessageRow: (row: MessageRow) => void;
-  /** "Next in the setlist" at the end of a song: always opens the message, even a one-part one, so it is read before it is copied. */
+  /** "Next in the service order" at the end of a song: always opens the message, even a one-part one, so it is read before it is copied. */
   onOpenMessageRow: (row: MessageRow) => void;
   /** Copied sections per song, kept by the desk for the whole session. */
   songProgress: SongProgress;
@@ -280,7 +280,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   const addToSetlist = useCallback(
     async (song: SearchableSong) => {
       if (!setlist) return setStarting(song);
-      if (song.id === undefined) return showToast("Save the song before adding it to a setlist", "err");
+      if (song.id === undefined) return showToast("Save the song before adding it to a service order", "err");
       const result = await addItem({ kind: "song", id: song.id, title: song.title });
       const toast = addToast(result, song.title, setlist.name);
       showToast(toast.text, toast.tone);
@@ -414,7 +414,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
 
   // Song-view keys. Safe on the document because this view renders no text field.
   useEffect(() => {
-    // The Start a setlist form can sit over an open song; its keys (T, Esc) belong to the form then.
+    // The Start a service order form can sit over an open song; its keys (T, Esc) belong to the form then.
     if (!song || editing || starting) return;
     const count = song.sections.length;
     function onKey(e: KeyboardEvent) {
@@ -459,7 +459,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     <div className="space-y-4">
       {!song && !adding && !starting && (
         <>
-          {setlist && (
+          {setlist ? (
             <SetlistBar
               name={setlist.name}
               staleNote={staleNote(setlist.updatedAt, new Date())}
@@ -468,6 +468,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
               onOpen={openSetlistRow}
               onMessage={onMessageRow}
             />
+          ) : (
+            <NoSetlistBar />
           )}
           <input
             ref={inputRef}
@@ -498,9 +500,6 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
             <span className="whitespace-nowrap">{total !== null && `${total.toLocaleString("en-GB")} ${total === 1 ? "song" : "songs"} in the songbook`}</span>
             <span className="flex flex-wrap items-center gap-x-3">
-              <Link href="/setlists" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
-                Setlists
-              </Link>
               <button onClick={() => setAdding(true)} className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
                 + Quick add a song
               </button>
@@ -537,8 +536,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                   </button>
                   <button
                     onClick={() => addToSetlist(m.song)}
-                    aria-label={`Add ${m.song.title} to the setlist`}
-                    title="Add to the setlist"
+                    aria-label={`Add ${m.song.title} to the service order`}
+                    title="Add to the service order"
                     className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-ink-800 hover:text-ink-200"
                   >
                     +
@@ -625,7 +624,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             const song = starting;
             if (song.id === undefined) {
               setStarting(null);
-              return showToast("Save the song before adding it to a setlist", "err");
+              return showToast("Save the song before adding it to a service order", "err");
             }
             const result = await startSetlist(name, { kind: "song", id: song.id, title: song.title });
             // The form stays up, with the name as typed, only when nothing was
@@ -656,7 +655,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           />
           <div className="flex flex-wrap gap-2">
             <button onClick={() => addToSetlist(song)} className="btn btn-sm">
-              {setlist ? "Add to the setlist" : "Start a setlist"}
+              {setlist ? "Add to the service order" : "Start a service order"}
             </button>
             <button onClick={() => setEditing(true)} className="btn btn-sm">
               Edit
@@ -679,7 +678,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             <span className="kbd">P</span> pin · <span className="kbd">C</span> copy the pinned one · <span className="kbd">T</span> copy the title ·{" "}
             {canOpenNext && (
               <>
-                <span className="kbd">N</span> next in the setlist ·{" "}
+                <span className="kbd">N</span> next in the service order ·{" "}
               </>
             )}
             <span className="kbd">Esc</span> back

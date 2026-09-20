@@ -45,8 +45,8 @@ export const MAX_ITEMS = 50;
 export const MAX_NAME = 80;
 const MAX_TITLE = 200;
 
-const NAME_ERROR = `Give the setlist a name of ${MAX_NAME} characters or fewer`;
-const ITEM_ERROR = "A song or message in this setlist couldn't be read — reload the page and add it again";
+const NAME_ERROR = `Give the service order a name of ${MAX_NAME} characters or fewer`;
+const ITEM_ERROR = "A song or message in this service order couldn't be read — reload the page and add it again";
 const NOTHING = "Nothing to save — change something first";
 
 /** One line, trimmed. Null when there is nothing usable there. */
@@ -82,7 +82,7 @@ function cleanItems(value: unknown): SetlistItem[] | string {
     if (typeof edited === "string") return `Text edited for this service: ${edited}`;
     items.push({ kind, id, title: label, parts: edited });
   }
-  return items.length > MAX_ITEMS ? `A setlist can have at most ${MAX_ITEMS} songs and messages — remove one to add another` : items;
+  return items.length > MAX_ITEMS ? `A service order can have at most ${MAX_ITEMS} songs and messages — remove one to add another` : items;
 }
 
 export function parseSetlistCreate(body: unknown): SetlistCreate | string {
@@ -108,7 +108,7 @@ export function parseSetlistPatch(body: unknown): SetlistPatch | string {
     // started from, two people preparing at once lose each other's additions
     // with nothing to show for it.
     const updatedAt = "updatedAt" in body ? body.updatedAt : undefined;
-    if (typeof updatedAt !== "string" || !updatedAt) return "Couldn't tell which version of the setlist you last read — reload the page and try again";
+    if (typeof updatedAt !== "string" || !updatedAt) return "Couldn't tell which version of the service order you last read — reload the page and try again";
     patch.items = items;
     patch.updatedAt = updatedAt;
   }
@@ -145,7 +145,7 @@ export function refusedMessage(ids: number[], facts: Map<number, { inService: bo
   for (const id of ids) {
     const fact = facts.get(id);
     if (!fact) return "That message is no longer in the library — reload the page";
-    if (!fact.inService) return `${fact.sectionName} can't go in a setlist`;
+    if (!fact.inService) return `${fact.sectionName} can't go in a service order`;
   }
   return null;
 }

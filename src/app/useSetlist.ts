@@ -65,7 +65,7 @@ async function patch(id: number, body: unknown): Promise<Saved> {
 
 /**
  * Adding one item did not happen. A 400 is the server's own sentence about the
- * item ("Apologies cannot go in a setlist") and stands alone; anything else is
+ * item ("Apologies cannot go in a service order") and stands alone; anything else is
  * about the connection or the device, so it is prefixed with what did not happen.
  */
 export function notAdded(failure: Failure): AddResult {
@@ -84,10 +84,10 @@ export function notStarted({ step, name, title, failure }: { step: StartStep; na
   switch (step) {
     case "create":
       // Nothing exists yet. A 400 here is the name rule, already a full sentence.
-      return { refused: failure.kind === "refused" ? failure.message : `Setlist not started. ${failure.message}` };
+      return { refused: failure.kind === "refused" ? failure.message : `Service order not started. ${failure.message}` };
     case "activate":
       // Retrying from the desk would make a second setlist with the same name.
-      return { refused: `Created ${name}, but it isn't active and "${title}" isn't in it — finish it on the Setlists page.`, created: name };
+      return { refused: `Created ${name}, but it isn't active and "${title}" isn't in it — finish it on the Service orders page.`, created: name };
     case "add":
       // It is active and on screen, so + works from here.
       return { refused: `Started ${name}, but "${title}" isn't in it. ${failure.message}`, created: name };
@@ -177,7 +177,7 @@ export function useSetlist() {
             }
           }
         }
-        return notAdded(describeFailure(409, "Someone else is changing this setlist — try again"));
+        return notAdded(describeFailure(409, "Someone else is changing this service order — try again"));
       };
 
       const pending = run().finally(() => adding.current.delete(key));
@@ -232,5 +232,5 @@ export function addToast(result: AddResult, what: string, setlistName: string): 
   if (result === "added") return { text: `Added "${what}" to ${setlistName}`, tone: "ok" };
   if (result === "duplicate") return { text: `"${what}" is already in ${setlistName}`, tone: "warn" };
   if (typeof result === "object") return { text: result.refused, tone: "err" };
-  return { text: "Couldn't add to the setlist — try again", tone: "err" };
+  return { text: "Couldn't add to the service order — try again", tone: "err" };
 }

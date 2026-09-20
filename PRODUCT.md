@@ -10,7 +10,7 @@ web
 
 **Primary: the media-team volunteer running the Mixlr chat during a Citizens of Light Church (CLC) service.** One person at a time, on a rota, on the church laptop in the media booth, with Lightdesk installed as a Chrome app in its own window beside Mixlr. Their job is to post the right text into the Mixlr chat at the right moment: the verse the pastor just quoted, the next song section, the greeting, the prayer introduction, the account details, an apology when the sound drops. Both halves of the service matter equally: songs and greetings come from a prepared order, sermon verses arrive live and unpredictably.
 
-**Secondary: the same team preparing a service the night before, on a phone.** Setlists (`/setlists`) and the message library (`/messages`) are prepared ahead, not mid-service, and are used on a phone at least as often as on the laptop.
+**Secondary: the same team preparing a service the night before, on a phone.** Service orders (`/setlists`) and the engagement library (`/messages`) are prepared ahead, not mid-service, and are used on a phone at least as often as on the laptop.
 
 **Audience the copy is written for: the online congregation on Mixlr**, addressed as "Sirs and Mas". They never see Lightdesk itself, only what it copies.
 
@@ -28,13 +28,13 @@ A single-church tool, not a product for the market: it is built around CLC's exa
 
 - Verse text comes from Bible sources: bundled public-domain KJV, a cache, YouVersion, API.Bible, and a BibleGateway fallback. The AI's job is to turn a description ("walk on snakes and not be bitten") into a reference. Only when every source fails does it quote a verse from memory, and that text is shown with a red warning and never copied automatically.
 - The output format is the church's own: reference on line 1, full translation name on line 2, then one numbered verse per line, split into parts at the Mixlr message limit.
-- The message library is the engagement document, section by section, with the church's own voice intact.
+- The engagement library is the engagement document, section by section, with the church's own voice intact.
 
 ## Operating Context
 
 - **Live service**: Wednesday evenings and Sunday mornings. The operator hears a reference, types it, pastes into Mixlr, and is already listening for the next one. Everything copied is logged with a timestamp, for handover and for copying again.
-- **Prepared order**: the active setlist sits at the top of the Songs and Messages tabs so the operator taps instead of searching. A setlist can carry its own text for one service (the date in a next-service line) without changing the library.
-- **Tools beside it**: Mixlr (the chat), VideoPsalm (the songbook source, exported as `.json` or `.vpc`), the church's engagement document (now the message library).
+- **Prepared order**: the active service order sits at the top of the Songs and Engagement tabs so the operator taps instead of searching. A service order can carry its own text for one service (the date in a next-service line) without changing the library.
+- **Tools beside it**: Mixlr (the chat), VideoPsalm (the songbook source, exported as `.json` or `.vpc`), the church's engagement document (now the engagement library).
 - **Network**: the venue wifi is unreliable. The whole songbook is loaded once and searched locally; verses are cached so nothing is fetched twice; the database is warmed when the desk opens.
 - **Access**: one church PIN unlocks a device for a year; an admin PIN guards editing and import. A device unlocked with the church PIN is refused edits with a hint to unlock the admin PIN in a new tab, so unsaved text is never lost.
 - **Devices**: the church laptop (Chrome, installed as an app) for the service; phones for preparation. iOS zoom-on-focus and safe-area insets are handled because of the phone use.
@@ -47,11 +47,11 @@ A single-church tool, not a product for the market: it is built around CLC's exa
 - Verse sources in order: bundled KJV, cache, YouVersion, API.Bible, BibleGateway scrape (against its terms; amber-labelled; to be removed before the repo is ever public), AI-quoted from memory (red warning, manual copy only, can be disabled).
 - Passages longer than the Mixlr limit (`MAX_MESSAGE_CHARS`, default 1000, not yet calibrated) split into parts with the header repeated; `+` copies the next verse; the whole chapter can be opened and any verse clicked.
 - Songs: whole-book local search with fuzzy matching and the matched line shown; each section copied as one Mixlr post; a pinned section (the chorus) copied again with one key; quick-add from pasted lyrics; edit and tidy; import from VideoPsalm with a preview before anything is written and songs edited here left alone.
-- Messages: the library by section; one-part messages copy straight away, long ones (the Confession) are copied part by part like a song; searchable from any tab through the command palette.
-- Setlists: songs and messages in service order, one active at a time, editable for one service without touching the library; concurrent edits are detected and reloaded rather than merged.
+- Engagement: the library by section; one-part messages copy straight away, long ones (the Confession) are copied part by part like a song; searchable from any tab through the command palette.
+- Service orders: songs and messages in service order, one active at a time, editable for one service without touching the library; concurrent edits are detected and reloaded rather than merged.
 - Log: everything copied, by day, searchable, with a jump to the last Sunday.
 - Keyboard-first on the laptop: Enter, `+`, 1 to 9, P, C, Esc, `?`, ⌘K. Touch-first on the phone: no automatic focus stealing, a Go button, 44px targets where they have been added.
-- Terminology: the glossary and interface voice live in `docs/ui-copy.md` and are binding for interface copy. In short: "desk" (the main screen), "copy" (what the app does; the operator pastes in Mixlr), "section" (one numbered part of a song), "part" (one Mixlr post of a message or passage), "setlist" (the service order), "library" (the message library), "verse sources" (the diagnostics page).
+- Terminology: the glossary and interface voice live in `docs/ui-copy.md` and are binding for interface copy. In short: "desk" (the main screen), "copy" (what the app does; the operator pastes in Mixlr), "section" (one numbered part of a song), "part" (one Mixlr post of a message or passage), "service order" (the order of service; the code still says `setlist`), "Engagement" (the tab; never "Messages", which in church speech means the sermon), "library" (the engagement library), "verse sources" (the diagnostics page).
 - Constraints: Next.js 16 App Router, Tailwind 4, Turso/libSQL, deployed standalone in Docker (Coolify) or on Vercel. The tree is small: seven pages, no component library.
 - Undecided: the Mixlr message limit (to be calibrated by pasting a long block); YouVersion and API.Bible translation ids once keys are approved.
 
@@ -77,7 +77,7 @@ A single-church tool, not a product for the market: it is built around CLC's exa
 
 1. **The verse is never wrong.** Text comes from a real source or is marked as unverified in red; the operator must read it before it can be sent. Speed never overrides this.
 2. **One box, one key.** The fastest path is typing a reference and pressing Enter. Every feature is judged by whether it keeps the operator's hands on the keyboard and eyes on the service.
-3. **The prepared order is a shortcut into machinery that already works.** A setlist row opens the same song view a search hit opens; nothing is learned twice.
+3. **The prepared order is a shortcut into machinery that already works.** A service-order row opens the same song view a search hit opens; nothing is learned twice.
 4. **Copy is the church's, not the app's.** Message and verse text is posted verbatim; the interface's own words stay short and out of the way.
 5. **Built for the booth and the night before.** A laptop with a keyboard during the service, a phone in the hand the evening before; both are first-class, and neither steals focus from the other.
 
