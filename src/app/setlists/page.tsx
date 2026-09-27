@@ -47,20 +47,21 @@ async function fetchSetlists(): Promise<{ ok: true; setlists: Setlist[] } | { ok
  */
 function Problem({ failure, lead, onRetry, next, newTab }: { failure: Failure; lead: string; onRetry?: () => void; next: string; newTab: boolean }) {
   return (
-    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
+      <Icon name="warn" className="h-4 w-4 shrink-0" />
       <p className="min-w-0 wrap-anywhere">{`${lead} ${failure.message}${/[.?!]$/.test(failure.message) ? "" : "."}`}</p>
       {failure.kind === "locked" ? (
         <a
           href={unlockHref(next)}
           target={newTab ? "_blank" : undefined}
           rel={newTab ? "noopener noreferrer" : undefined}
-          className="inline-flex items-center underline pointer-coarse:min-h-11"
+          className="link inline-flex items-center pointer-coarse:min-h-11"
         >
           {newTab ? "Enter the PIN in a new tab" : "Enter the PIN"}
         </a>
       ) : (
         onRetry && (
-          <button onClick={onRetry} className="btn border-amber-500/40 text-amber-200 hover:border-amber-500/60 hover:bg-amber-500/10">
+          <button onClick={onRetry} className="btn border-warn-line text-warn-fg hover:border-warn-line hover:bg-warn-bg">
             Try again
           </button>
         )
@@ -109,7 +110,7 @@ function RenameField({ saved, label, maxLength, onRename }: { saved: string; lab
       }}
       enterKeyHint="done"
       aria-label={label}
-      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-ink-600 bg-transparent px-1 py-1 font-ui text-xl font-semibold hover:border-solid hover:border-ink-400 focus:border-solid focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
+      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-ink-600 bg-transparent px-1 py-1 font-ui text-xl font-semibold hover:border-solid hover:border-ink-400 focus:border-solid focus:border-accent focus:outline-none pointer-coarse:min-h-11"
     />
   );
 }
@@ -246,9 +247,9 @@ export default function SetlistsPage() {
       {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the service orders." onRetry={retryLoad} next={pathname} newTab={false} />}
       {state.kind === "loaded" && setlists.length === 0 && <p className="text-sm text-[var(--muted)]">No service orders yet — name one above and choose New service order.</p>}
 
-      {setlists.map((s) => (
-        <section key={s.id} className={`overflow-hidden rounded-xl border bg-ink-900 ${s.active ? "border-ink-600" : "border-ink-800"}`}>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800 px-4 py-3">
+      {setlists.map((s, si) => (
+        <section key={s.id} style={{ "--i": si } as React.CSSProperties} className={`card rise overflow-hidden ${s.active ? "border-ink-600" : ""}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-700 px-4 py-3">
             <RenameField saved={s.name} label={`Rename service order ${s.name}`} maxLength={MAX_NAME} onRename={(next) => send(s.id, { name: next })} />
             <span className="flex flex-wrap items-center gap-2">
               {s.active ? (
@@ -273,7 +274,7 @@ export default function SetlistsPage() {
               {s.active ? "Nothing in it yet — add songs and messages from the desk with +." : "Nothing in it yet — make it active, then add songs and messages from the desk."}
             </p>
           ) : (
-            <ol className="divide-y divide-ink-800">
+            <ol className="divide-y divide-ink-700">
               {s.items.map((item, i) => {
                 const entry = item.kind === "message" ? byId?.get(item.id) : undefined;
                 const label = entry ? messageLabel(entry.section, entry.message) : item.title;

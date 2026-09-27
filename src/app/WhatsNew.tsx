@@ -42,13 +42,15 @@ export default function WhatsNew() {
     // The row must not wrap: with justify-between, a full-width line of text pushes
     // Dismiss onto a line of its own where it reads as a stray control, and a one-line
     // note becomes three at the top of a screen that is working during a service.
-    <p className="flex items-start justify-between gap-x-3 rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-2 text-sm text-ink-300">
+    <p className="rise flex items-center justify-between gap-x-3 rounded-xl border border-ink-700 bg-ink-900 py-1.5 pr-1.5 pl-2 text-sm text-ink-300">
+      <span className="badge badge-accent shrink-0">New</span>
       <span className="min-w-0 flex-1">
-        {WHATS_NEW.text}
+        {/* The badge says "New", so the note's own "New:" is not read twice. */}
+        {WHATS_NEW.text.replace(/^New:\s*(.)/, (_, c: string) => c.toUpperCase())}
         {WHATS_NEW.href && WHATS_NEW.linkLabel && (
           <>
             {" "}
-            <Link href={WHATS_NEW.href} className="font-medium text-ink-100 underline underline-offset-2 hover:text-ink-50">
+            <Link href={WHATS_NEW.href} className="link">
               {WHATS_NEW.linkLabel}
             </Link>
           </>
@@ -58,7 +60,7 @@ export default function WhatsNew() {
         type="button"
         onClick={dismiss}
         aria-label="Dismiss this note"
-        className="shrink-0 rounded-md px-2 py-1.5 text-xs font-medium text-[var(--muted)] hover:bg-ink-800 hover:text-ink-200 pointer-coarse:min-h-11"
+        className="btn btn-sm btn-quiet shrink-0"
       >
         Dismiss
       </button>

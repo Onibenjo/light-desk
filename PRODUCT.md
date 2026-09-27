@@ -58,7 +58,7 @@ A single-church tool, not a product for the market: it is built around CLC's exa
 ## Brand Commitments
 
 - **Name**: Lightdesk. Church: Citizens of Light Church, abbreviated CLC.
-- **Colour**: keep the CLC orange (`#f26b3a`, taken from the church's Mixlr avatar) and the dark scheme; both are deliberate, the dark for the booth. Binding (confirmed 2026-09-14).
+- **Colour**: keep the CLC orange (`#f26b3a`, taken from the church's Mixlr avatar) and the dark scheme; both are deliberate, the dark for the booth. Binding (confirmed 2026-09-14). Since 2026-09-27 the desk is dark-first with a warm light theme beside it (bone paper, charcoal ink) for preparing on a phone: it follows the device, the header toggle pins either one per device, and the orange stays the one accent in both.
 - **Logo**: a white flame rising from a ring-and-bar mark on an orange-red gradient disc. The church's own logo file has not arrived yet and must not block work; the version on the church website is on hand at `public/brand/clc-logo.png` (368×368, fetched from https://citizensoflightchurch.org/images/clc-logo.png on 2026-09-14). `public/icons/icon.svg` is a placeholder drawn for the app, not the church mark. A brand guide exists and can be shared later.
 - **Voice**: the congregation is addressed as "Sirs and Mas". This is the church's own voice and is binding in all message copy; it is never rewritten, shortened or made generic. Message text is copied to the chat verbatim, so the library is the church's words, not the app's.
 - **App voice** (the interface itself): plain, short, second person, tells the operator what happens next ("paste in Mixlr, then copy part 2"). Warnings are loud only when the text on screen might be wrong.

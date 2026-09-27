@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import Icon from "../Icon";
 import PageShell from "../PageShell";
 import { DeniedHint } from "../SongEditor";
 import { useArmed } from "../useArmed";
@@ -55,20 +56,21 @@ function copyTitle(title: string): string {
 function Problem({ failure, lead, onRetry, next, newTab }: { failure: Failure; lead: string; onRetry?: () => void; next: string; newTab: boolean }) {
   if (failure.kind === "denied") return <DeniedHint />;
   return (
-    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
+      <Icon name="warn" className="h-4 w-4 shrink-0" />
       <p className="min-w-0 wrap-anywhere">{sentence(lead, failure.message)}</p>
       {failure.kind === "locked" ? (
         <a
           href={unlockHref(next)}
           target={newTab ? "_blank" : undefined}
           rel={newTab ? "noopener noreferrer" : undefined}
-          className="inline-flex items-center underline pointer-coarse:min-h-11"
+          className="link inline-flex items-center pointer-coarse:min-h-11"
         >
           {newTab ? "Enter the admin PIN in a new tab" : "Enter the admin PIN"}
         </a>
       ) : (
         onRetry && (
-          <button onClick={onRetry} className="btn border-amber-500/40 text-amber-200 hover:border-amber-500/60 hover:bg-amber-500/10">
+          <button onClick={onRetry} className="btn border-warn-line text-warn-fg hover:border-warn-line hover:bg-warn-bg">
             Try again
           </button>
         )
@@ -116,7 +118,7 @@ function RenameField({ saved, label, maxLength, onRename }: { saved: string; lab
       }}
       enterKeyHint="done"
       aria-label={label}
-      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-ink-600 bg-transparent px-1 py-1 font-ui text-xl font-semibold hover:border-solid hover:border-ink-400 focus:border-solid focus:border-[var(--accent)] focus:outline-none pointer-coarse:min-h-11"
+      className="min-w-48 flex-1 rounded-none border-0 border-b border-dashed border-ink-600 bg-transparent px-1 py-1 font-ui text-xl font-semibold hover:border-solid hover:border-ink-400 focus:border-solid focus:border-accent focus:outline-none pointer-coarse:min-h-11"
     />
   );
 }
@@ -269,7 +271,7 @@ export default function MessagesPage() {
           {Array.isArray(draftParts) ? `${draftParts.length} ${draftParts.length === 1 ? "part" : "parts"}` : draftParts}
         </p>
         {warnings.map((i) => (
-          <p key={i} className="text-xs text-amber-400">
+          <p key={i} className="text-xs text-warn-fg">
             Part {i + 1} is over {MAX_MESSAGE_CHARS} characters — split it with a blank line, or Mixlr may cut it off.
           </p>
         ))}
@@ -301,7 +303,7 @@ export default function MessagesPage() {
       {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the message library." onRetry={retryLoad} next={pathname} newTab={false} />}
 
       {library && library.sections.length === 0 && library.messages.length === 0 && (
-        <div className="space-y-3 rounded-xl border border-ink-700 bg-ink-900 p-4">
+        <div className="card rise space-y-3 p-4">
           <p className="text-[15px]">The message library is empty. Start with the church&apos;s greetings, prayers and other service messages?</p>
           <button onClick={() => write("/api/messages/seed", "POST")} disabled={busy} className="btn btn-primary">
             Load starter messages
@@ -310,8 +312,8 @@ export default function MessagesPage() {
       )}
 
       {groups.map(({ section, messages }, si) => (
-        <section key={section.id} className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
-          <div className="space-y-1 border-b border-ink-800 px-4 pt-3 pb-3">
+        <section key={section.id} style={{ "--i": si } as React.CSSProperties} className="card rise overflow-hidden">
+          <div className="space-y-1 border-b border-ink-700 px-4 pt-3 pb-3">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <RenameField
                 saved={section.name}
@@ -361,7 +363,7 @@ export default function MessagesPage() {
             )}
           </div>
 
-          <ol className="divide-y divide-ink-800">
+          <ol className="divide-y divide-ink-700">
             {messages.map((m, mi) => {
               const showing = more === m.id;
               const moreId = `${ids}-more-${m.id}`;

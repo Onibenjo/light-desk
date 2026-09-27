@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Icon from "../Icon";
 import PageShell from "../PageShell";
 import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 
@@ -79,47 +80,50 @@ export default function DiagPage() {
       }
     >
       {failure && (
-        <div role="alert" className="space-y-2 rounded-lg border border-red-500/40 bg-red-600/20 px-4 py-3 text-sm text-red-200">
-          <p>Couldn&rsquo;t check the verse sources. {sentence(failure.message)}</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            {failure.kind === "locked" ? (
-              <Link href={unlockHref("/diag")} className="btn border-red-400/40 text-red-100 hover:bg-red-600/20">
-                Enter the PIN
-              </Link>
-            ) : (
-              <button onClick={() => run(deep)} className="btn border-red-400/40 text-red-100 hover:bg-red-600/20">
-                Try again
-              </button>
-            )}
+        <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-bad-line bg-bad-bg px-4 py-3 text-sm text-bad-fg">
+          <Icon name="warn" className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="space-y-2">
+            <p>Couldn&rsquo;t check the verse sources. {sentence(failure.message)}</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {failure.kind === "locked" ? (
+                <Link href={unlockHref("/diag")} className="btn border-bad-line text-bad-fg hover:bg-bad-bg">
+                  Enter the PIN
+                </Link>
+              ) : (
+                <button onClick={() => run(deep)} className="btn border-bad-line text-bad-fg hover:bg-bad-bg">
+                  Try again
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
       {!data && !failure && <p className="text-sm text-ink-400 animate-pulse">Checking the verse sources…</p>}
       {data && (
         <>
-          <section className="rounded-xl border border-ink-800 bg-ink-900 p-4">
+          <section className="card rise p-4">
             <h2 className="eyebrow mb-2">Settings</h2>
             {/* Two columns at most so a key like LLM_MODEL is never cut to "LLM_…";
                 a value that will not fit beside its key wraps under it, right-aligned. */}
             <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
               {Object.entries(data.env).map(([k, v]) => (
-                <div key={k} className="flex min-w-0 flex-wrap justify-between gap-x-3 gap-y-0.5 border-b border-ink-800/60 py-1">
+                <div key={k} className="flex min-w-0 flex-wrap justify-between gap-x-3 gap-y-0.5 border-b border-ink-700/60 py-1 font-mono text-xs">
                   <dt className="break-all text-ink-400">{k}</dt>
-                  <dd className={`ml-auto min-w-0 wrap-anywhere text-right ${typeof v === "boolean" ? (v ? "text-emerald-300" : "text-[var(--muted)]") : "text-ink-200"}`}>{typeof v === "boolean" ? (v ? "set" : "not set") : v}</dd>
+                  <dd className={`ml-auto min-w-0 wrap-anywhere text-right ${typeof v === "boolean" ? (v ? "text-ok-fg" : "text-[var(--muted)]") : "text-ink-200"}`}>{typeof v === "boolean" ? (v ? "set" : "not set") : v}</dd>
                 </div>
               ))}
             </dl>
           </section>
-          <section className="rounded-xl border border-ink-800 bg-ink-900 p-4">
+          <section className="card rise p-4">
             <h2 className="eyebrow mb-2">Results</h2>
-            <ul className="divide-y divide-ink-800 text-sm">
+            <ul className="divide-y divide-ink-700 text-sm">
               {data.checks.map((c) => (
                 <li key={c.name} className="flex flex-wrap gap-x-3 gap-y-1 py-2">
-                  <span className={`shrink-0 font-ui font-semibold ${c.ok ? "text-emerald-400" : "text-red-400"}`}>{c.ok ? "✓ OK" : "✗ Failing"}</span>
+                  <span className={`shrink-0 font-ui font-semibold ${c.ok ? "text-ok-fg" : "text-bad-fg"}`}>{c.ok ? "✓ OK" : "✗ Failing"}</span>
                   <span className="min-w-0 flex-1 break-words text-ink-200 sm:w-56 sm:flex-none">{c.name}</span>
                   <span className="min-w-0 basis-full wrap-anywhere text-ink-400 sm:basis-0 sm:flex-1">
                     {c.detail}
-                    {c.ms !== undefined && <span className="ml-2 text-[var(--muted)]">{c.ms} ms</span>}
+                    {c.ms !== undefined && <span className="ml-2 font-mono text-[var(--muted)]">{c.ms} ms</span>}
                   </span>
                 </li>
               ))}
@@ -127,9 +131,9 @@ export default function DiagPage() {
             {data.hint && <p className="mt-3 text-xs text-[var(--muted)]">{data.hint}</p>}
           </section>
           {data.youversionBibles.length > 0 && (
-            <details className="rounded-xl border border-ink-800 bg-ink-900 p-4 text-sm">
+            <details className="card rise p-4 text-sm">
               <summary className="cursor-pointer text-ink-300">English Bibles your YouVersion key can use ({data.youversionBibles.length})</summary>
-              <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs text-ink-400">{data.youversionBibles.join("\n")}</pre>
+              <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap font-mono text-xs text-ink-400">{data.youversionBibles.join("\n")}</pre>
             </details>
           )}
         </>

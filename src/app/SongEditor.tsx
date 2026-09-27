@@ -59,9 +59,9 @@ export function songFromBody(body: unknown): SearchableSong | null {
  */
 export function DeniedHint() {
   return (
-    <p className="text-sm text-amber-400">
+    <p className="rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
       This device is unlocked with the church PIN.{" "}
-      <a href="/unlock?next=/" target="_blank" rel="noopener noreferrer" className="underline">
+      <a href="/unlock?next=/" target="_blank" rel="noopener noreferrer" className="link">
         Enter the admin PIN in a new tab
       </a>
       , then try again here.
@@ -72,9 +72,9 @@ export function DeniedHint() {
 /** Shown after a 401 on Save or Delete. A new tab for the same reason as DeniedHint. */
 function LockedHint() {
   return (
-    <p className="text-sm text-amber-400">
+    <p className="rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
       This device is locked.{" "}
-      <a href={unlockHref("/")} target="_blank" rel="noopener noreferrer" className="underline">
+      <a href={unlockHref("/")} target="_blank" rel="noopener noreferrer" className="link">
         Enter the admin PIN in a new tab
       </a>
       , then try again here.
@@ -153,16 +153,16 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
     }
   }
 
-  const field = "w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 outline-none focus:border-[var(--accent)]";
+  const field = "field w-full";
 
   return (
-    <div className="space-y-3">
+    <div className="rise card space-y-3 p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold leading-tight">Edit song</h2>
+        <h2 className="display text-[26px]">Edit song</h2>
         {/* Disabled while a save or delete is in flight: that request cannot be
             un-sent, so letting Cancel dismiss the form here would let its
             result land on a screen that already told the operator it didn't happen. */}
-        <button onClick={onCancel} disabled={busy} className="shrink-0 rounded-md border border-ink-700 px-3 py-1.5 text-sm hover:bg-ink-800 disabled:opacity-50">
+        <button onClick={onCancel} disabled={busy} className="btn btn-sm shrink-0">
           Cancel
         </button>
       </div>
@@ -174,7 +174,7 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
         onChange={(e) => setLyrics(e.target.value)}
         aria-label="Song lyrics"
         rows={16}
-        className={`${field} text-sm leading-relaxed`}
+        className={`${field} font-text text-sm leading-relaxed`}
       />
       <p className="text-xs text-[var(--muted)]">
         A blank line starts a new section, and each section is copied on its own. Tidy removes labels like <span className="whitespace-nowrap">[Chorus]</span> and splits sections over six lines. Save keeps exactly what you see.
@@ -184,25 +184,25 @@ export default function SongEditor({ song, onSaved, onDeleted, onCancel, showToa
       {locked && <LockedHint />}
 
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={save} disabled={busy || !title.trim() || !lyrics.trim()} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">
+        <button onClick={save} disabled={busy || !title.trim() || !lyrics.trim()} className="btn btn-primary">
           {busy ? "Saving…" : "Save"}
         </button>
-        <button onClick={() => setLyrics(tidyLyrics(lyrics))} disabled={busy} className="rounded-md border border-ink-700 px-4 py-2 hover:bg-ink-800 disabled:opacity-50">
+        <button onClick={() => setLyrics(tidyLyrics(lyrics))} disabled={busy} className="btn">
           Tidy
         </button>
         <span className="flex-1" />
         {confirmDelete ? (
           <>
             <span className="text-sm text-[var(--muted)]">Delete this song?</span>
-            <button onClick={remove} disabled={busy} className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">
+            <button onClick={remove} disabled={busy} className="btn btn-armed">
               Confirm delete
             </button>
-            <button onClick={() => setConfirmDelete(false)} disabled={busy} className="rounded-md border border-ink-700 px-3 py-2 text-sm hover:bg-ink-800 disabled:opacity-50">
+            <button onClick={() => setConfirmDelete(false)} disabled={busy} className="btn">
               Don&rsquo;t delete
             </button>
           </>
         ) : (
-          <button onClick={() => setConfirmDelete(true)} disabled={busy} className="rounded-md border border-red-900/60 px-3 py-2 text-sm text-red-400 hover:bg-red-950/40 disabled:opacity-50">
+          <button onClick={() => setConfirmDelete(true)} disabled={busy} className="btn btn-danger">
             Delete
           </button>
         )}

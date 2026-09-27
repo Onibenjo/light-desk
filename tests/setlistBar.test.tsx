@@ -47,10 +47,10 @@ describe("the setlist the operator sees", () => {
     expect(render([row({ id: 1, title: "Way Maker" })])).not.toContain("days ago");
   });
 
-  it("warns in amber when it is last week's list", () => {
+  it("warns in the caution colour when it is last week's list", () => {
     const html = render([row({ id: 1, title: "Way Maker" })], "last changed 8 days ago");
     expect(html).toContain("last changed 8 days ago");
-    expect(html).toContain("amber");
+    expect(html).toContain("badge-warn");
   });
 
   it("shows a deleted song as gone rather than dropping the row and losing the count", () => {

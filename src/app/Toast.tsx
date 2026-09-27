@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Icon from "./Icon";
+import Icon, { type IconName } from "./Icon";
 
 export type Tone = "ok" | "warn" | "err";
-type ToastState = { text: string; tone: Tone };
+type ToastState = { text: string; tone: Tone; id: number };
 
 /**
  * Puts text on the clipboard; true when it got there. Falls back to a hidden
@@ -41,17 +41,18 @@ export function useToast() {
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   const showToast = useCallback((text: string, tone: Tone = "ok") => {
-    setToast({ text, tone });
+    // A fresh id re-runs the entrance, so the same words copied twice still read as new.
+    setToast((prev) => ({ text, tone, id: (prev?.id ?? 0) + 1 }));
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setToast(null), tone === "err" ? 6000 : 3500);
   }, []);
   return { toast, showToast };
 }
 
-const TONE: Record<Tone, string> = {
-  ok: "border-emerald-500/40 bg-emerald-950 text-emerald-100",
-  warn: "border-amber-500/40 bg-amber-950 text-amber-100",
-  err: "border-red-500/40 bg-red-950 text-red-100",
+const TONE: Record<Tone, { icon: IconName; chip: string }> = {
+  ok: { icon: "check", chip: "bg-ok-bg text-ok-fg" },
+  warn: { icon: "warn", chip: "bg-warn-bg text-warn-fg" },
+  err: { icon: "x", chip: "bg-bad-bg text-bad-fg" },
 };
 
 /**
@@ -70,8 +71,10 @@ export default function Toast({ toast }: { toast: ToastState | null }) {
   return (
     <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
       {toast && (
-        <div className={`flex max-w-md items-start gap-2 rounded-lg border px-4 py-3 text-[15px] wrap-anywhere shadow-lg shadow-black/50 ${TONE[toast.tone]}`}>
-          {toast.tone === "ok" && <Icon name="check" className="mt-0.5 h-4 w-4 text-emerald-400" />}
+        <div key={toast.id} className="toast-in flex max-w-md items-center gap-3 rounded-xl border border-ink-700 bg-ink-900 py-2.5 pr-4 pl-2.5 text-[15px] text-ink-100 wrap-anywhere shadow-[var(--lift)]">
+          <span className={`pop grid h-7 w-7 shrink-0 place-items-center rounded-full ${TONE[toast.tone].chip}`}>
+            <Icon name={TONE[toast.tone].icon} className="h-3.5 w-3.5" />
+          </span>
           <span>{toast.text}</span>
         </div>
       )}

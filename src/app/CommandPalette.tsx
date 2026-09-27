@@ -10,6 +10,24 @@ const OPEN_GUIDE: Chord = { key: "?" };
 
 type View = "palette" | "guide";
 
+const OPEN_EVENT = "ld:open-palette";
+
+/** The palette's chord as this device writes it: ⌘K on a Mac, Ctrl+K on the church laptop. */
+export function PaletteKey({ className = "kbd" }: { className?: string }) {
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    // navigator doesn't exist during the server render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform) || /Mac/.test(navigator.userAgent));
+  }, []);
+  return <span className={className}>{formatChord(OPEN_PALETTE, isMac)}</span>;
+}
+
+/** Opens the palette from a control (the header's Search), for anyone who never learns ⌘K. */
+export function openPalette() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
 export default function CommandPalette({ actions, guide = [] }: { actions: Action[]; guide?: ShortcutGuide[] }) {
   const [view, setView] = useState<View | null>(null);
   const [query, setQuery] = useState("");
@@ -72,8 +90,15 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
         open("guide");
       }
     }
+    const onOpen = () => {
+      if (!view) open("palette");
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
   }, [open, close, view]);
 
   useEffect(() => {
@@ -121,14 +146,14 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
   const titleId = `${listId}-title`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12dvh]" onMouseDown={close}>
+    <div className="fade-in fixed inset-0 z-50 flex items-start justify-center bg-ink-950/80 p-4 pt-[12dvh]" onMouseDown={close}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={view === "guide" ? onGuideKey : undefined}
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-2xl"
+        className="rise w-full max-w-lg overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-[var(--lift)]"
       >
         {view === "palette" ? (
           <>
@@ -149,10 +174,10 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
                 setActive(0);
               }}
               onKeyDown={onPaletteKey}
-              placeholder="Search commands and messages…"
-              className="w-full border-b border-ink-800 bg-transparent px-4 py-3 text-base outline-none placeholder:text-[var(--muted)]"
+              placeholder="Search messages, songs to open, places to go…"
+              className="w-full border-b border-ink-700 bg-transparent px-5 py-4 text-[17px] text-ink-50 outline-none placeholder:text-[var(--muted)]"
             />
-            <ul id={listId} role="listbox" aria-label="Commands" className="max-h-[45dvh] overflow-y-auto py-1">
+            <ul id={listId} role="listbox" aria-label="Commands" className="max-h-[45dvh] overflow-y-auto p-1.5">
               {results.map((a, i) => (
                 <li
                   key={a.id}
@@ -164,10 +189,11 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
                     run(a);
                   }}
                   onMouseEnter={() => setActive(i)}
-                  className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm ${i === active ? "bg-ink-800 text-ink-100" : "text-ink-300"}`}
+                  className={`relative flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 font-ui text-[14px] ${i === active ? "bg-ink-800 text-ink-50" : "text-ink-300"}`}
                 >
-                  <span>
-                    {a.group && <span className="mr-2 text-xs text-[var(--muted)]">{a.group}</span>}
+                  {i === active && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-accent" />}
+                  <span className="min-w-0">
+                    {a.group && <span className="mr-2.5 text-[11px] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase">{a.group}</span>}
                     {a.title}
                   </span>
                   {a.chord && <span className="kbd shrink-0">{chord(a.chord)}</span>}
@@ -175,31 +201,31 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               ))}
               {results.length === 0 && <li className="px-4 py-6 text-center text-sm text-[var(--muted)]">Nothing matches.</li>}
             </ul>
-            <p role="status" aria-live="polite" className="border-t border-ink-800 px-4 py-2 text-xs text-[var(--muted)]">
+            <p role="status" aria-live="polite" className="border-t border-ink-700 bg-ink-950/40 px-5 py-2.5 font-ui text-xs text-[var(--muted)]">
               {results.length} {results.length === 1 ? "result" : "results"} · <span className="kbd">↑</span> <span className="kbd">↓</span> move ·{" "}
               <span className="kbd">↵</span> run · <span className="kbd">?</span> all shortcuts
             </p>
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b border-ink-800 px-4 py-3">
-              <h2 id={titleId} className="font-medium">
+            <div className="flex items-center justify-between border-b border-ink-700 px-5 py-4">
+              <h2 id={titleId} className="display text-[26px]">
                 Keyboard shortcuts
               </h2>
-              <button autoFocus onClick={close} className="rounded-md border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:bg-ink-800">
+              <button autoFocus onClick={close} className="btn btn-sm">
                 Close
               </button>
             </div>
-            <div className="max-h-[60dvh] space-y-4 overflow-y-auto p-4">
+            <div className="max-h-[60dvh] space-y-5 overflow-y-auto px-5 py-4">
               <section className="space-y-1.5">
-                <h3 className="text-xs uppercase tracking-wide text-[var(--muted)]">Anywhere</h3>
+                <h3 className="eyebrow pb-1">Anywhere</h3>
                 <Row keys={chord(OPEN_PALETTE)} label="Open the command palette" />
                 <Row keys={chord(OPEN_GUIDE)} label="Show this list" />
                 <Row keys="Esc" label="Close" />
               </section>
               {guide.map((g) => (
                 <section key={g.group} className="space-y-1.5">
-                  <h3 className="text-xs uppercase tracking-wide text-[var(--muted)]">{g.group}</h3>
+                  <h3 className="eyebrow pb-1">{g.group}</h3>
                   {g.items.map((it) => (
                     <Row key={it.label} keys={it.keys} label={it.label} />
                   ))}
@@ -207,7 +233,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               ))}
               {actions.some((a) => a.chord) && (
                 <section className="space-y-1.5">
-                  <h3 className="text-xs uppercase tracking-wide text-[var(--muted)]">Commands</h3>
+                  <h3 className="eyebrow pb-1">Commands</h3>
                   {actions
                     .filter((a) => a.chord)
                     .map((a) => (
@@ -225,7 +251,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
 
 function Row({ keys, label }: { keys: string; label: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
+    <div className="flex items-center justify-between gap-3 border-b border-ink-800 py-1.5 font-ui text-sm last:border-0">
       <span className="text-ink-300">{label}</span>
       <span className="kbd shrink-0">{keys}</span>
     </div>

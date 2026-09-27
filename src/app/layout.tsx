@@ -1,18 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next, Barlow_Semi_Condensed } from "next/font/google";
+import { Atkinson_Hyperlegible_Next, Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { THEME_BOOT } from "./themeBoot";
 import "./globals.css";
 
 // Self-hosted at build time, so the booth wifi never decides whether the desk
-// has its fonts. Roles are set in globals.css (`font-ui`, `font-text`).
-const barlow = Barlow_Semi_Condensed({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-barlow",
-});
-const atkinson = Atkinson_Hyperlegible_Next({
-  subsets: ["latin"],
-  variable: "--font-atkinson",
-});
+// has its fonts. Roles are set in globals.css.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
+const instrument = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument" });
+const atkinson = Atkinson_Hyperlegible_Next({ subsets: ["latin"], variable: "--font-atkinson" });
 
 export const metadata: Metadata = {
   title: "Lightdesk",
@@ -22,8 +18,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c0b0a",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0e0d0c" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
+  ],
   width: "device-width",
   initialScale: 1,
   // Installed to the home screen this fills the whole display, notch included,
@@ -34,8 +32,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${barlow.variable} ${atkinson.variable}`}>
-      <body className="min-h-dvh bg-ink-950 font-text text-ink-100 antialiased">{children}</body>
+    // suppressHydrationWarning: THEME_BOOT sets data-theme before React loads,
+    // so the attribute differs from the server's markup by design.
+    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable} ${instrument.variable} ${atkinson.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+      </head>
+      <body className="min-h-dvh bg-ink-950 font-text text-ink-100 antialiased">
+        <div aria-hidden="true" className="ambient" />
+        <div className="relative z-[1]">{children}</div>
+      </body>
     </html>
   );
 }

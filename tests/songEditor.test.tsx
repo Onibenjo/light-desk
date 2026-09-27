@@ -47,15 +47,16 @@ describe("the editor form", () => {
     // `disabled={busy}` never shows up in markup while busy is false at mount —
     // renderToStaticMarkup is a single synchronous pass, it cannot click Save and
     // observe busy turn true — so this pins the one part of that wiring visible
-    // at rest: the same disabled:opacity-50 affordance Save carries. A test that
+    // at rest: the same `.btn` disabled affordance Save carries. A test that
     // exercises the click and inspects Cancel mid-flight needs a DOM renderer
     // (e.g. @testing-library/react) driving a controllable mocked fetch.
     const html = render();
     const button = (label: string) => html.match(new RegExp(`<button[^>]*>${label}</button>`))?.[0];
     const save = button("Save");
     const cancel = button("Cancel");
-    expect(save, "Save button").toContain("disabled:opacity-50");
-    expect(cancel, "Cancel button").toContain("disabled:opacity-50");
+    // `.btn` in globals.css is where the disabled look lives.
+    expect(save, "Save button").toMatch(/class="btn[ "]/);
+    expect(cancel, "Cancel button").toMatch(/class="btn[ "]/);
   });
 });
 

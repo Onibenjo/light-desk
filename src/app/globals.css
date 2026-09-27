@@ -1,85 +1,242 @@
 @import "tailwindcss";
 
-/* Booth console. Warm charcoal rather than Tailwind's cool zinc, tinted just
-   enough toward the CLC orange that the two read as one palette. `ink-*` keeps
-   zinc's steps, so a shade swapped in for a zinc one lands at the same depth.
-   Contrast on the page (#0c0b0a): ink-100 17.5:1, muted 7.8:1, ink-500 4.1:1
-   (borders and disabled only, never text). On ink-800 panels muted is 6.5:1. */
-@theme {
-  --color-ink-50: #faf8f5;
-  --color-ink-100: #f4f1ec;
-  --color-ink-200: #e6e1da;
-  --color-ink-300: #d3cdc5;
-  --color-ink-400: #a8a29a;
-  --color-ink-500: #78716a;
-  --color-ink-600: #57504a;
-  --color-ink-700: #3a3530;
-  --color-ink-800: #221f1c;
-  --color-ink-900: #171513;
-  --color-ink-950: #0c0b0a;
-}
+/* ---------------------------------------------------------------------------
+   Two rooms, one palette.
 
-/* Two faces, loaded by next/font in layout.tsx. `font-ui` (Barlow Semi
-   Condensed) is the console: buttons, tabs, headings, badges. `font-text`
-   (Atkinson Hyperlegible Next) is anything the operator reads before it goes
-   to Mixlr, where I/l/1 and rn/m must never be mistaken; it is also the body
-   default, so hints and prose get it without asking. */
-@theme inline {
-  --font-ui: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
-  --font-text: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-text);
-}
+   The booth is dark: a warm charcoal tinted just enough toward the CLC orange
+   that the two read as one palette. The night before, on a phone, is light:
+   warm bone paper with charcoal ink. The theme follows the device, and the
+   header toggle pins either one (stored as `data-theme` on <html>, set before
+   first paint by the script in layout.tsx).
 
-:root {
-  --accent: #f26b3a; /* CLC orange from the Mixlr avatar. Reserved for "act here" and "you are here". */
-  /* Secondary text: ink-400, the dimmest tone that clears 4.5:1 on every
-     surface the desk draws (7.8:1 on the page, 6.5:1 on a raised panel).
-     Retune here, not per-class. */
-  --muted: var(--color-ink-400);
-  /* Native selects, checkboxes, scrollbars and the date picker follow this;
-     without it they opened white on the black page. */
+   Components never name a theme. They use the `ink-*` steps by role — 950 is
+   the page, 900 a panel, 800 a raised or hovered surface, 700 a border, 400
+   secondary text, 100 body text, 50 the brightest — and the light theme
+   inverts the steps, so every class lands at the same role in both rooms.
+
+   Contrast, dark (page #0e0d0c): ink-100 17.4:1, muted 7.5:1. Light (page
+   #f7f6f3): ink-100 11.9:1, muted 5.3:1. ink-500 is for borders and disabled
+   controls only, never text.
+   --------------------------------------------------------------------------- */
+
+:root,
+:root[data-theme="dark"] {
+  --ink-50: #faf8f5;
+  --ink-100: #f3f0eb;
+  --ink-200: #e4dfd8;
+  --ink-300: #cfc9c1;
+  --ink-400: #a39d95;
+  --ink-500: #6f6962;
+  --ink-600: #47423c;
+  --ink-700: #2f2c28;
+  --ink-800: #211f1c;
+  --ink-900: #171614;
+  --ink-950: #0e0d0c;
+
+  /* CLC orange, from the church's Mixlr avatar. Reserved for "act here" and
+     "you are here": one primary button per view, the cursor, the focus ring. */
+  --accent: #f26b3a;
+  --accent-ink: #f5855b; /* orange used as text or an icon */
+  --accent-soft: rgb(242 107 58 / 0.12);
+  --on-accent: #140c08;
+
+  /* State colours, muted: the words carry the meaning, the tint confirms it.
+     Loud only where text on screen might be wrong. */
+  --ok-bg: #122019;
+  --ok-line: #2c5a3c;
+  --ok-fg: #9ed9b0;
+  --warn-bg: #221a0c;
+  --warn-line: #6a511f;
+  --warn-fg: #f0cc7a;
+  --bad-bg: #2a1311;
+  --bad-line: #7c2e2a;
+  --bad-fg: #f5b1ab;
+  --bad-solid: #d2392f;
+  --info-bg: #0f1b25;
+  --info-line: #2a4f6e;
+  --info-fg: #a3cff0;
+
+  --glow: rgb(242 107 58 / 0.07);
+  --lift: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
   color-scheme: dark;
 }
 
-/* Keyboard users need to see where they are; the dark theme swallowed the
-   default ring. Applies to every control that isn't already handling focus.
-   Must sit in @layer base: Tailwind's utilities live in @layer utilities, and
-   an unlayered rule beats any layered one, so left outside this would override
-   `outline-none` (double ring on inputs that draw their own accent border) and
-   `rounded-*` (corners snap to 2px while focused). */
+/* The phone the night before, and any device set to light. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --ink-50: #111111;
+    --ink-100: #2b2f32;
+    --ink-200: #3b3e41;
+    --ink-300: #54534f;
+    --ink-400: #6b6964;
+    --ink-500: #a9a49c;
+    --ink-600: #d4cfc7;
+    --ink-700: #e6e2db;
+    --ink-800: #f0ede8;
+    --ink-900: #ffffff;
+    --ink-950: #f7f6f3;
+
+    --accent: #f26b3a;
+    --accent-ink: #c2461b;
+    --accent-soft: rgb(242 107 58 / 0.1);
+    --on-accent: #140c08;
+
+    --ok-bg: #edf3ec;
+    --ok-line: #cfe0cb;
+    --ok-fg: #346538;
+    --warn-bg: #fbf3db;
+    --warn-line: #ecd9a0;
+    --warn-fg: #7f5500;
+    --bad-bg: #fdebec;
+    --bad-line: #f1c4c5;
+    --bad-fg: #9f2f2d;
+    --bad-solid: #c8322b;
+    --info-bg: #e1f3fe;
+    --info-line: #b6dbf3;
+    --info-fg: #1f6c9f;
+
+    --glow: rgb(242 107 58 / 0.06);
+    --lift: 0 1px 2px rgb(0 0 0 / 0.03), 0 8px 24px rgb(0 0 0 / 0.04);
+    color-scheme: light;
+  }
+}
+
+/* Pinned light by the header toggle. Same values as the block above. */
+:root[data-theme="light"] {
+  --ink-50: #111111;
+  --ink-100: #2b2f32;
+  --ink-200: #3b3e41;
+  --ink-300: #54534f;
+  --ink-400: #6b6964;
+  --ink-500: #a9a49c;
+  --ink-600: #d4cfc7;
+  --ink-700: #e6e2db;
+  --ink-800: #f0ede8;
+  --ink-900: #ffffff;
+  --ink-950: #f7f6f3;
+
+  --accent: #f26b3a;
+  --accent-ink: #c2461b;
+  --accent-soft: rgb(242 107 58 / 0.1);
+  --on-accent: #140c08;
+
+  --ok-bg: #edf3ec;
+  --ok-line: #cfe0cb;
+  --ok-fg: #346538;
+  --warn-bg: #fbf3db;
+  --warn-line: #ecd9a0;
+  --warn-fg: #7f5500;
+  --bad-bg: #fdebec;
+  --bad-line: #f1c4c5;
+  --bad-fg: #9f2f2d;
+  --bad-solid: #c8322b;
+  --info-bg: #e1f3fe;
+  --info-line: #b6dbf3;
+  --info-fg: #1f6c9f;
+
+  --glow: rgb(242 107 58 / 0.06);
+  --lift: 0 1px 2px rgb(0 0 0 / 0.03), 0 8px 24px rgb(0 0 0 / 0.04);
+  color-scheme: light;
+}
+
+:root {
+  /* Secondary text. Retune here, not per class. */
+  --muted: var(--ink-400);
+}
+
+/* `inline` so utilities read the variables above at use time, which is what
+   lets one class serve both themes. */
+@theme inline {
+  --color-ink-50: var(--ink-50);
+  --color-ink-100: var(--ink-100);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-600: var(--ink-600);
+  --color-ink-700: var(--ink-700);
+  --color-ink-800: var(--ink-800);
+  --color-ink-900: var(--ink-900);
+  --color-ink-950: var(--ink-950);
+
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-line: var(--ok-line);
+  --color-ok-fg: var(--ok-fg);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-line: var(--warn-line);
+  --color-warn-fg: var(--warn-fg);
+  --color-bad-bg: var(--bad-bg);
+  --color-bad-line: var(--bad-line);
+  --color-bad-fg: var(--bad-fg);
+  --color-bad-solid: var(--bad-solid);
+  --color-info-bg: var(--info-bg);
+  --color-info-line: var(--info-line);
+  --color-info-fg: var(--info-fg);
+
+  /* Four faces, loaded by next/font in layout.tsx.
+     - font-display (Instrument Serif): page titles and the reference on a
+       verse card. The one editorial note; never on a control.
+     - font-ui (Geist): buttons, tabs, labels, badges. The console.
+     - font-text (Atkinson Hyperlegible Next): anything read before it goes
+       to Mixlr, where I/l/1 and rn/m must never be mistaken. Body default.
+     - font-mono (Geist Mono): keys, references typed as examples, timings. */
+  --font-display: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-ui: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-text: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-text);
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Keyboard users need to see where they are. Must sit in @layer base: an
+   unlayered rule beats Tailwind's layered utilities, so outside this it would
+   override `outline-none` and `rounded-*` on inputs that draw their own ring. */
 @layer base {
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 4px;
   }
 
   /* Controls speak in the console face. A button that carries copyable text
-     (a song section, a verse in the chapter) sets `font-text` on itself, and
-     the utility wins over this layer. */
+     (a song section, a verse in the chapter) sets `font-text` on itself. */
   button,
   select,
+  input,
   [role="tab"],
-  h1,
   h2,
   h3 {
     font-family: var(--font-ui);
   }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink-50);
+  }
+}
+
+html {
+  background: var(--ink-950);
+  /* The theme switch cross-fades instead of snapping. */
+  transition: background-color 300ms ease;
 }
 
 body {
+  background: var(--ink-950);
   /* Installed to the home screen the app draws under the notch and the rounded
-     corners, so the gutters come from the device, not the design. Zero on every
-     phone without them, and on every laptop. */
+     corners, so the gutters come from the device. Zero everywhere else. */
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
 
-/* iOS Safari zooms the whole page in when a control smaller than 16px takes
-   focus, and never zooms back out — mid-service that leaves the desk scrolled
-   sideways with the send buttons off-screen. The compact 14px controls are a
-   desktop-toolbar concern, so on touch devices every field gets a 16px floor
-   (fields already larger, like the 20px search box, keep their size). */
+/* iOS Safari zooms in when a field under 16px takes focus and never zooms
+   back out, leaving the desk scrolled sideways mid-service. */
 @media (pointer: coarse) {
   input,
   select,
@@ -88,46 +245,58 @@ body {
   }
 }
 
-/* The shared pieces. In the components layer so a utility on the element
-   (a width, a margin) still wins over them. */
 @layer components {
   .kbd {
-    @apply inline-block rounded border border-ink-600 bg-ink-800 px-1.5 py-0.5 font-mono text-[11px] text-ink-300;
+    @apply inline-flex min-w-[1.6em] items-center justify-center rounded border border-ink-700 bg-ink-800 px-1.5 py-px font-mono text-[11px] leading-4 font-medium text-ink-300;
+    box-shadow: inset 0 -1px 0 var(--ink-700);
   }
 
-  /* State labels (Pinned, Edited, Matched). 11px caps in the console face,
-     neutral by default: the words carry the meaning, so the accent stays free
-     for the one thing on screen to act on. */
+  /* State labels (Pinned, Edited, Active). Small caps in a soft pill,
+     neutral by default; the tone modifiers carry state colour. */
   .badge {
-    @apply inline-flex items-center gap-1 rounded border border-ink-600 px-1.5 py-px align-middle font-ui text-[11px] font-semibold tracking-wider whitespace-nowrap text-ink-200 uppercase;
+    @apply inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-800 px-2 py-px align-middle font-ui text-[10.5px] font-semibold tracking-[0.06em] whitespace-nowrap text-ink-300 uppercase;
+  }
+  .badge-ok {
+    @apply border-ok-line bg-ok-bg text-ok-fg;
+  }
+  .badge-warn {
+    @apply border-warn-line bg-warn-bg text-warn-fg;
+  }
+  .badge-bad {
+    @apply border-bad-line bg-bad-bg text-bad-fg;
+  }
+  .badge-accent {
+    @apply border-transparent bg-accent-soft text-accent-ink;
   }
 
-  /* Buttons. One outline style, one primary (the orange, at most one per
-     view), one quiet, one for destructive actions. 44px on touch, 34px where
-     there is a mouse, which is what the desk already measured out. */
+  /* Buttons. One outline, one primary (orange, at most one per view), one
+     quiet, one destructive. 44px on touch, 34px with a mouse. Press sinks. */
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-ink-700 px-3 py-1.5 font-ui text-[15px] leading-5 font-medium whitespace-nowrap text-ink-200 hover:border-ink-600 hover:bg-ink-800 disabled:pointer-events-none disabled:opacity-40 pointer-coarse:min-h-11;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 font-ui text-[14px] leading-5 font-medium whitespace-nowrap text-ink-200 transition-[background-color,border-color,color,transform] duration-150 select-none hover:border-ink-600 hover:bg-ink-800 hover:text-ink-100 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 pointer-coarse:min-h-11;
   }
   .btn-primary {
-    @apply border-transparent bg-[var(--accent)] font-semibold text-black hover:border-transparent hover:bg-[var(--accent)] hover:brightness-110;
+    @apply border-transparent bg-accent font-semibold text-on-accent hover:border-transparent hover:bg-accent hover:text-on-accent hover:brightness-105;
   }
   .btn-quiet {
-    @apply border-transparent text-ink-300 hover:border-transparent hover:text-ink-100;
+    @apply border-transparent bg-transparent text-ink-300 hover:border-transparent hover:bg-ink-800 hover:text-ink-100;
   }
   .btn-danger {
-    @apply text-red-300 hover:border-red-500/50 hover:bg-red-950;
+    @apply text-bad-fg hover:border-bad-line hover:bg-bad-bg hover:text-bad-fg;
   }
-  /* A toggle that is on (aria-pressed): white on ink, the same selected look
-     everywhere, so orange keeps meaning "act here". */
+  /* A toggle that is on (aria-pressed): ink on paper, inverted, so orange
+     keeps meaning "act here". */
   .btn-on {
-    @apply border-ink-100 bg-ink-100 text-black hover:border-ink-100 hover:bg-ink-50;
+    @apply border-ink-100 bg-ink-100 text-ink-950 hover:border-ink-50 hover:bg-ink-50 hover:text-ink-950;
   }
   /* The armed state of a two-press Delete: now it looks like it will delete. */
   .btn-armed {
-    @apply border-red-500 bg-red-600 font-semibold text-white hover:border-red-500 hover:bg-red-600;
+    @apply border-bad-solid bg-bad-solid font-semibold text-white hover:border-bad-solid hover:bg-bad-solid hover:text-white;
   }
   .btn-sm {
-    @apply px-2.5 py-1 text-sm;
+    @apply px-2.5 py-1 text-[13px];
+  }
+  .btn-lg {
+    @apply px-4 py-2.5 text-[15px];
   }
   /* A square icon-only button; carries its own aria-label. */
   .btn-icon {
@@ -135,11 +304,148 @@ body {
   }
 
   .field {
-    @apply rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-[15px] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] pointer-coarse:min-h-11;
+    @apply rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-[15px] transition-[border-color,box-shadow] duration-150 outline-none placeholder:text-[var(--muted)] focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)] pointer-coarse:min-h-11;
   }
 
-  /* Section headings inside a page: small caps in the console face. */
+  /* A surface: one hairline, no shadow at rest. */
+  .card {
+    @apply rounded-xl border border-ink-700 bg-ink-900;
+  }
+  /* A card you can press: lifts a hair on hover. */
+  .card-hover {
+    @apply transition-[border-color,box-shadow,transform] duration-200 hover:border-ink-600 hover:shadow-[var(--lift)];
+  }
+
+  /* Section labels inside a page: small caps in the console face. */
   .eyebrow {
-    @apply font-ui text-xs font-semibold tracking-widest text-[var(--muted)] uppercase;
+    @apply font-ui text-[11px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase;
+  }
+
+  /* Page and card titles in the editorial serif. */
+  .display {
+    @apply font-display font-normal tracking-[-0.02em] text-ink-50;
+    line-height: 1.05;
+  }
+
+  .link {
+    @apply font-medium text-ink-100 underline decoration-ink-500 decoration-1 underline-offset-[3px] transition-colors hover:decoration-accent;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion. Quiet: things arrive, they do not perform. Transform and opacity
+   only. Everything stops for prefers-reduced-motion.
+   --------------------------------------------------------------------------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The row or card that was just copied glows orange and settles. */
+@keyframes copied-flash {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-soft), inset 0 0 0 999px var(--accent-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent, inset 0 0 0 999px transparent;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(-8%, -4%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(8%, 6%, 0) scale(1.12);
+  }
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .rise {
+    animation: rise 560ms var(--ease-out-soft) both;
+    /* Lists pass --i for a cascade, capped so a long list does not crawl in. */
+    animation-delay: calc(min(var(--i, 0), 8) * 45ms);
+  }
+  .fade-in {
+    animation: fade 300ms ease-out both;
+  }
+  .pop {
+    animation: pop 380ms var(--ease-out-soft) both;
+  }
+  .copied-flash {
+    animation: copied-flash 900ms ease-out;
+  }
+  .toast-in {
+    animation: toast-in 380ms var(--ease-out-soft) both;
+  }
+  .caret-blink {
+    animation: caret 1.1s steps(1) infinite;
+  }
+}
+
+/* One slow warm light behind the header, fixed so it never scrolls. */
+.ambient {
+  position: fixed;
+  inset: -20vh -10vw auto;
+  height: 70vh;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(40% 60% at 50% 30%, var(--glow), transparent 70%);
+  animation: drift 28s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
   }
 }
