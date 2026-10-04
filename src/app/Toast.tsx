@@ -49,16 +49,18 @@ export function useToast() {
   return { toast, showToast };
 }
 
-const TONE: Record<Tone, { icon: IconName; chip: string }> = {
-  ok: { icon: "check", chip: "bg-ok-bg text-ok-fg" },
-  warn: { icon: "warn", chip: "bg-warn-bg text-warn-fg" },
-  err: { icon: "x", chip: "bg-bad-bg text-bad-fg" },
+const TONE: Record<Tone, { icon: IconName; chip: string; bar: string }> = {
+  ok: { icon: "check", chip: "bg-accent text-on-accent", bar: "bg-accent" },
+  warn: { icon: "warn", chip: "bg-warn-bg text-warn-fg", bar: "bg-warn-fg" },
+  err: { icon: "x", chip: "bg-bad-solid text-white", bar: "bg-bad-solid" },
 };
 
 /**
- * Floating, not in the flow: you're often scrolled to section 13 when this
- * fires, and an inline banner both sits off-screen and shoves the list down
- * under the cursor. pointer-events-none so it can never eat a click.
+ * A lower third: the strip a broadcast lays across the bottom of the picture,
+ * here saying what just happened and what to do next. Floating, not in the
+ * flow: you're often scrolled to section 13 when this fires, and an inline
+ * banner both sits off-screen and shoves the list down under the cursor.
+ * pointer-events-none so it can never eat a click. It clears the phone's dock.
  *
  * Centred by a full-width flex row rather than `left-1/2` and a transform, so
  * it stays on screen even when something on the page overflows. Solid, not
@@ -69,13 +71,14 @@ const TONE: Record<Tone, { icon: IconName; chip: string }> = {
  */
 export default function Toast({ toast }: { toast: ToastState | null }) {
   return (
-    <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
+    <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[max(calc(var(--dock)+0.75rem),max(1.25rem,env(safe-area-inset-bottom)))] z-40 flex justify-center px-4 lg:pl-[17rem]">
       {toast && (
-        <div key={toast.id} className="toast-in flex max-w-md items-center gap-3 rounded-xl border border-ink-700 bg-ink-900 py-2.5 pr-4 pl-2.5 text-[15px] text-ink-100 wrap-anywhere shadow-[var(--lift)]">
-          <span className={`pop grid h-7 w-7 shrink-0 place-items-center rounded-full ${TONE[toast.tone].chip}`}>
+        <div key={toast.id} className="toast-in relative flex max-w-lg items-center gap-3 overflow-hidden rounded-[14px] border border-ink-600 bg-ink-900 py-2.5 pr-5 pl-2.5 text-[15px] text-ink-50 wrap-anywhere shadow-[var(--lift)]">
+          <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-[3px] ${TONE[toast.tone].bar}`} />
+          <span className={`pop ml-1 grid h-7 w-7 shrink-0 place-items-center rounded-lg ${TONE[toast.tone].chip}`}>
             <Icon name={TONE[toast.tone].icon} className="h-3.5 w-3.5" />
           </span>
-          <span>{toast.text}</span>
+          <span className="font-ui font-medium">{toast.text}</span>
         </div>
       )}
     </div>

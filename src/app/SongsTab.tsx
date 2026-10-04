@@ -472,7 +472,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             <NoSetlistBar />
           )}
           <div className="relative">
-          <Icon name="search" className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
+          <Icon name="search" className="pointer-events-none absolute top-1/2 left-[1.15rem] z-10 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
           <input
             ref={inputRef}
             value={q}
@@ -497,11 +497,11 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             }}
             aria-label="Search the songbook"
             placeholder={keyboard ? "Search the songbook — ↑↓ to pick, ↵ to open" : "Search the songbook"}
-            className="w-full rounded-xl border border-ink-700 bg-ink-900 py-[18px] pr-4 pl-12 text-lg text-ink-50 outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[var(--muted)] focus:border-accent focus:shadow-[0_0_0_4px_var(--accent-soft)] sm:text-[21px]"
+            className="command peer"
           />
           </div>
           <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-ui text-xs text-[var(--muted)]">
-            <span className="font-mono whitespace-nowrap">{total !== null && `${total.toLocaleString("en-GB")} ${total === 1 ? "song" : "songs"} in the songbook`}</span>
+            <span className="flex items-center gap-2 font-mono whitespace-nowrap">{total !== null && <span aria-hidden="true" className="tally tally-ok h-1.5 w-1.5" />}{total !== null && `${total.toLocaleString("en-GB")} ${total === 1 ? "song" : "songs"} in the songbook`}</span>
             <span className="flex flex-wrap items-center gap-x-3">
               <button onClick={() => setAdding(true)} className="btn btn-sm btn-quiet">
                 + Quick add a song
@@ -519,10 +519,10 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                     onClick={() => openSong(m.song, m.section)}
                     onMouseEnter={() => setHit(hi)}
                     aria-current={hi === hit ? "true" : undefined}
-                    className={`relative min-w-0 flex-1 px-4 py-3 text-left font-text transition-colors hover:bg-ink-800 ${hi === hit ? "bg-ink-800 before:absolute before:inset-y-2.5 before:left-0 before:w-[3px] before:rounded-full before:bg-accent" : ""}`}
+                    className={`relative min-w-0 flex-1 px-4 py-3 text-left font-text transition-colors hover:bg-ink-800 ${hi === hit ? "bg-ink-800 before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full before:bg-accent before:shadow-[0_0_10px_var(--accent-glow)]" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="min-w-0 font-ui text-[16px] font-medium wrap-break-word text-ink-50">{m.song.title}</span>
+                      <span className="min-w-0 font-ui text-[16px] font-semibold wrap-break-word text-ink-50">{m.song.title}</span>
                       <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
                         {m.matched < m.words && <span className="text-warn-fg">{m.matched} of {m.words} words · </span>}
                         {m.fuzzy && <span className="whitespace-nowrap text-warn-fg">close spelling · </span>}
@@ -578,8 +578,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           )}
           {serverQ && !answered && hits.length === 0 && <p className="flex items-center gap-2 font-ui text-sm text-[var(--muted)]"><span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-600 border-t-accent motion-reduce:animate-none" />Searching the songbook…</p>}
           {q.trim() && hits.length === 0 && (local !== null || answered?.kind === "done") && (
-            <p className="rise rounded-xl border border-dashed border-ink-600 px-5 py-8 text-center text-[15px] text-ink-300">
-              <span className="display mb-1 block text-[24px]">No song matches.</span>
+            <p className="rise rounded-2xl border border-dashed border-ink-600 px-5 py-10 text-center text-[15px] text-ink-300">
+              <span className="display mb-2 block text-[30px]">No song matches.</span>
               Check the spelling, or{" "}
               <button onClick={() => setAdding(true)} className="link">
                 quick add a song
@@ -666,7 +666,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             </button>
           </div>
           {pinned !== null && (
-            <div className="rise flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 p-2">
+            <div className="rise flex flex-wrap items-center gap-2 rounded-2xl border border-ink-700 bg-ink-900 p-2 shadow-[var(--bevel)]">
               <span className="badge">
                 <Icon name="pin" filled className="h-3 w-3" />
                 Pinned

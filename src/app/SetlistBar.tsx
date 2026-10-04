@@ -36,7 +36,7 @@ function messageNote(row: MessageRow): string | null {
 /** Something in this row has been copied during this page session. */
 function CopiedTick() {
   return (
-    <span className="pop ml-2 inline-grid h-5 w-5 place-items-center rounded-full bg-ok-bg text-ok-fg">
+    <span className="pop ml-2.5 inline-grid h-5 w-5 place-items-center rounded-md bg-ok-bg text-ok-fg">
       <Icon name="check" className="h-3 w-3" />
       <span className="sr-only">copied</span>
     </span>
@@ -52,8 +52,11 @@ function CopiedTick() {
  */
 export function NoSetlistBar() {
   return (
-    <section aria-label="Service order" className="rise rounded-xl border border-dashed border-ink-600 px-5 py-4">
-      <h2 className="eyebrow">Service order</h2>
+    <section aria-label="Service order" className="rise relative overflow-hidden rounded-2xl border border-dashed border-ink-600 px-5 py-5">
+      <h2 className="eyebrow flex items-center gap-2">
+        <span aria-hidden="true" className="tally tally-off" />
+        Service order
+      </h2>
       <p className="mt-2 max-w-prose text-[15px] leading-relaxed text-ink-300">
         The songs and messages for one service, in the order they&rsquo;re needed — so nothing is searched for while the service is running.
       </p>
@@ -129,6 +132,25 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately excludes `rows`; see comment above.
   }, [copied]);
 
+  // The rundown's playhead: the first row nothing has been copied from yet.
+  const nextKey = rows.find((row) => !copied.has(row.key))?.key ?? null;
+  const done = rows.filter((row) => copied.has(row.key)).length;
+
+  const rowClass = (key: string) =>
+    `group relative flex min-h-12 w-full items-center justify-between gap-3 py-3 pr-4 pl-3 text-left font-text transition-colors hover:bg-ink-800 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent ${
+      key === nextKey ? "bg-accent-soft/50 before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full before:bg-accent before:shadow-[0_0_10px_var(--accent-glow)]" : ""
+    }`;
+  const number = (i: number, key: string) => (
+    <span className={`mr-3 inline-block w-6 text-right font-mono text-[12px] tabular-nums ${key === nextKey ? "text-accent-ink" : copied.has(key) ? "text-ink-500" : "text-[var(--muted)]"}`}>{String(i + 1).padStart(2, "0")}</span>
+  );
+  const nextTag = (key: string) =>
+    key === nextKey && (
+      <span className="badge badge-accent ml-2.5 hidden sm:inline-flex">
+        <span aria-hidden="true" className="tally h-1.5 w-1.5" />
+        Up next
+      </span>
+    );
+
   return (
     <section aria-label="Active service order" className="rise card overflow-hidden">
       {/* The name alone never said what kind of thing this is; the words beside it are
@@ -136,16 +158,21 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
           must not wrap: on a phone a long name pushed Change onto a line of its own,
           where it read as a stray row rather than an action on the header. Hide/Change
           share one shrink-0 group so a second control doesn't reopen that bug. */}
-      <div className="flex items-start justify-between gap-x-3 border-b border-ink-700 px-4 py-3">
+      <div className="relative flex items-start justify-between gap-x-3 border-b border-ink-700 px-4 pt-3.5 pb-4">
         <h2 className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
             <ActiveBadge />
             <span className="eyebrow">Service order</span>
             {staleNote && <span className="badge badge-warn normal-case tracking-normal">{staleNote}</span>}
           </span>
-          <span className="display mt-1.5 block text-[22px] wrap-anywhere sm:text-[24px]">{name}</span>
+          <span className="display mt-2 block text-[24px] wrap-anywhere sm:text-[28px]">{name}</span>
         </h2>
         <div className="-my-0.5 flex shrink-0 items-center gap-x-2">
+          {rows.length > 0 && (
+            <span aria-hidden="true" className="mr-1 hidden font-mono text-[11px] text-[var(--muted)] tabular-nums sm:inline">
+              <span className="text-ink-100">{done}</span>/{rows.length}
+            </span>
+          )}
           {rows.length > 0 && (
             // A disclosure control: without aria-expanded a screen reader hears "Hide"
             // as a plain button and is never told the list came back.
@@ -157,11 +184,19 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
             Change
           </Link>
         </div>
+        {/* The meter along the header's foot: how far through the order the service is. */}
+        {rows.length > 0 && (
+          <span aria-hidden="true" className="absolute inset-x-0 bottom-0 flex h-[2px] gap-px">
+            {rows.map((row) => (
+              <span key={row.key} className={`flex-1 transition-colors duration-500 ${copied.has(row.key) ? "bg-accent" : row.key === nextKey ? "bg-accent/35" : "bg-transparent"}`} />
+            ))}
+          </span>
+        )}
       </div>
       {rows.length === 0 ? (
         <p className="px-4 py-3 text-sm text-[var(--muted)]">Nothing in it yet — add songs or messages with +.</p>
       ) : collapsed ? null : (
-        <ol id={listId} ref={listRef} className="relative max-h-[45vh] divide-y divide-ink-700 overflow-y-auto">
+        <ol id={listId} ref={listRef} className="relative max-h-[45vh] divide-y divide-ink-700/70 overflow-y-auto">
           {rows.map((row, i) => (
             <li
               key={row.key}
@@ -171,16 +206,13 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
               }}
             >
               {row.kind === "song" ? (
-                <button
-                  onClick={() => onOpen(row)}
-                  disabled={row.missing}
-                  className="group flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left font-text transition-colors hover:bg-ink-800 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
-                >
+                <button onClick={() => onOpen(row)} disabled={row.missing} className={rowClass(row.key)}>
                   <span className="min-w-0 wrap-break-word">
-                    <span className="mr-3 inline-block w-5 font-mono text-xs text-[var(--muted)] tabular-nums">{i + 1}</span>
+                    {number(i, row.key)}
                     <Icon name="music" className="mr-2 h-4 w-4 -translate-y-px align-middle text-[var(--muted)]" />
                     <span className="sr-only">Song: </span>
-                    <span className="font-ui font-medium text-ink-100">{row.title}</span>
+                    <span className={`font-ui font-medium ${copied.has(row.key) ? "text-ink-300" : "text-ink-50"}`}>{row.title}</span>
+                    {nextTag(row.key)}
                   </span>
                   <span className="flex shrink-0 items-center font-ui text-xs text-[var(--muted)]">
                     {row.missing ? "no longer in the songbook" : row.author}
@@ -188,23 +220,20 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
                   </span>
                 </button>
               ) : (
-                <button
-                  onClick={() => onMessage(row)}
-                  disabled={row.parts === null}
-                  className="group flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left font-text transition-colors hover:bg-ink-800 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
-                >
+                <button onClick={() => onMessage(row)} disabled={row.parts === null} className={rowClass(row.key)}>
                   <span className="min-w-0 wrap-break-word">
-                    <span className="mr-3 inline-block w-5 font-mono text-xs text-[var(--muted)] tabular-nums">{i + 1}</span>
+                    {number(i, row.key)}
                     <Icon name="message" className="mr-2 h-4 w-4 -translate-y-px align-middle text-[var(--muted)]" />
                     <span className="sr-only">Message: </span>
-                    <span className="font-ui font-medium text-ink-100">{row.title}</span>
+                    <span className={`font-ui font-medium ${copied.has(row.key) ? "text-ink-300" : "text-ink-50"}`}>{row.title}</span>
                     {row.edited && (
                       <span className="badge ml-2">
                         edited<span className="sr-only"> for this service</span>
                       </span>
                     )}
+                    {nextTag(row.key)}
                   </span>
-                  <span className="flex shrink-0 items-center font-ui text-xs text-[var(--muted)]">
+                  <span className="flex shrink-0 items-center font-mono text-[11px] text-[var(--muted)]">
                     {messageNote(row) ?? (row.parts && row.parts.length > 1 ? `${row.parts.length} parts` : "")}
                     {copied.has(row.key) && <CopiedTick />}
                   </span>

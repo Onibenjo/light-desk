@@ -33,13 +33,13 @@ export function OpenHeader({
   label: "section" | "part";
 }) {
   return (
-    <div className="sticky top-0 z-10 -mx-1 space-y-3 border-b border-ink-700 bg-ink-950 px-1 pt-3 pb-3">
+    <div className="sticky top-0 z-10 -mx-1 space-y-3 border-b border-ink-700 bg-ink-950/90 px-1 pt-3 pb-3 backdrop-blur-xl">
       <div className="flex items-center gap-2">
         <button onClick={onBack} className="btn btn-sm btn-quiet group -ml-1 shrink-0">
           <Icon name="back" className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /> {backLabel}
         </button>
         {/* Two lines at most on a phone, where beside two buttons one line left a few letters; one on a wider screen. */}
-        <h2 title={title} className="display line-clamp-2 min-w-0 flex-1 pb-0.5 text-[24px] wrap-break-word sm:line-clamp-1 sm:text-[30px]">
+        <h2 title={title} className="display line-clamp-2 min-w-0 flex-1 pb-0.5 text-[26px] wrap-break-word sm:line-clamp-1 sm:text-[34px]">
           {title}
         </h2>
         {badge}
@@ -85,14 +85,14 @@ export function EndOfList({
         <button
           onClick={onNext}
           disabled={!openable}
-          className="group flex min-h-16 w-full items-center gap-4 rounded-xl bg-accent px-5 py-3.5 text-left text-on-accent transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.99] disabled:bg-ink-800 disabled:text-ink-400"
+          className="group flex min-h-16 w-full items-center gap-4 rounded-2xl bg-accent bg-[linear-gradient(180deg,rgb(255_255_255/0.18),transparent_60%)] px-5 py-4 text-left text-on-accent shadow-[inset_0_-3px_0_var(--accent-deep),0_14px_36px_-14px_var(--accent-glow)] transition-[filter,transform] duration-150 hover:brightness-105 active:translate-y-px disabled:bg-ink-800 disabled:bg-none disabled:text-ink-400 disabled:shadow-none"
         >
           <Icon name={next.kind === "song" ? "music" : "message"} className="h-5 w-5 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="block font-ui text-[11px] font-semibold tracking-[0.1em] uppercase opacity-80">
+            <span className="block font-mono text-[10.5px] font-semibold tracking-[0.14em] uppercase opacity-75">
               Next in {setlistName} · {place!.nextPosition} of {place!.count}
             </span>
-            <span className="mt-0.5 block truncate font-display text-[24px] leading-tight">
+            <span className="mt-1 block truncate font-display text-[26px] leading-tight font-bold tracking-[-0.03em]">
               <span className="sr-only">{next.kind === "song" ? "Song: " : "Message: "}</span>
               {next.title}
             </span>
