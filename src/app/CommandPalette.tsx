@@ -146,14 +146,14 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
   const titleId = `${listId}-title`;
 
   return (
-    <div className="fade-in fixed inset-0 z-50 flex items-start justify-center bg-ink-950/80 p-4 pt-[12dvh]" onMouseDown={close}>
+    <div className="fade-in fixed inset-0 z-50 flex items-start justify-center bg-ink-950/75 p-4 pt-[12dvh] backdrop-blur-md" onMouseDown={close}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={view === "guide" ? onGuideKey : undefined}
-        className="rise w-full max-w-lg overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-[var(--lift)]"
+        className="rise w-full max-w-xl overflow-hidden rounded-2xl border border-ink-600 bg-ink-900 shadow-[var(--lift),0_30px_80px_-30px_var(--accent-glow)]"
       >
         {view === "palette" ? (
           <>
@@ -175,7 +175,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               }}
               onKeyDown={onPaletteKey}
               placeholder="Search messages, songs to open, places to go…"
-              className="w-full border-b border-ink-700 bg-transparent px-5 py-4 text-[17px] text-ink-50 outline-none placeholder:text-[var(--muted)]"
+              className="w-full border-b border-ink-700 bg-transparent px-5 py-5 text-[19px] text-ink-50 outline-none placeholder:text-[var(--muted)]"
             />
             <ul id={listId} role="listbox" aria-label="Commands" className="max-h-[45dvh] overflow-y-auto p-1.5">
               {results.map((a, i) => (
@@ -189,11 +189,11 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
                     run(a);
                   }}
                   onMouseEnter={() => setActive(i)}
-                  className={`relative flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 font-ui text-[14px] ${i === active ? "bg-ink-800 text-ink-50" : "text-ink-300"}`}
+                  className={`relative flex cursor-pointer items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 font-ui text-[14px] ${i === active ? "bg-ink-800 text-ink-50 shadow-[var(--bevel)]" : "text-ink-300"}`}
                 >
-                  {i === active && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-accent" />}
+                  {i === active && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-accent shadow-[0_0_10px_var(--accent-glow)]" />}
                   <span className="min-w-0">
-                    {a.group && <span className="mr-2.5 text-[11px] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase">{a.group}</span>}
+                    {a.group && <span className="mr-2.5 font-mono text-[10px] font-medium tracking-[0.14em] text-[var(--muted)] uppercase">{a.group}</span>}
                     {a.title}
                   </span>
                   {a.chord && <span className="kbd shrink-0">{chord(a.chord)}</span>}
@@ -201,7 +201,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
               ))}
               {results.length === 0 && <li className="px-4 py-6 text-center text-sm text-[var(--muted)]">Nothing matches.</li>}
             </ul>
-            <p role="status" aria-live="polite" className="border-t border-ink-700 bg-ink-950/40 px-5 py-2.5 font-ui text-xs text-[var(--muted)]">
+            <p role="status" aria-live="polite" className="border-t border-ink-700 bg-ink-950/50 px-5 py-2.5 font-mono text-[11px] text-[var(--muted)]">
               {results.length} {results.length === 1 ? "result" : "results"} · <span className="kbd">↑</span> <span className="kbd">↓</span> move ·{" "}
               <span className="kbd">↵</span> run · <span className="kbd">?</span> all shortcuts
             </p>
@@ -209,7 +209,7 @@ export default function CommandPalette({ actions, guide = [] }: { actions: Actio
         ) : (
           <>
             <div className="flex items-center justify-between border-b border-ink-700 px-5 py-4">
-              <h2 id={titleId} className="display text-[26px]">
+              <h2 id={titleId} className="display text-[30px]">
                 Keyboard shortcuts
               </h2>
               <button autoFocus onClick={close} className="btn btn-sm">

@@ -284,7 +284,7 @@ export default function SetlistsPage() {
                   <li key={key} className="px-3 py-1.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-1">
-                        <span className="w-5 shrink-0 text-center font-ui text-sm font-semibold text-[var(--muted)] tabular-nums">{i + 1}</span>
+                        <span className="w-6 shrink-0 text-right font-mono text-[12px] text-[var(--muted)] tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                         <Icon name={item.kind === "song" ? "music" : "message"} className="h-4 w-4 text-[var(--muted)]" />
                         <span className="sr-only">{item.kind === "song" ? "Song: " : "Message: "}</span>
                         <span className="min-w-0 flex-1 text-[15px] wrap-anywhere sm:truncate">

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next, Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Atkinson_Hyperlegible_Next, Bricolage_Grotesque, Doto, Geist, Geist_Mono } from "next/font/google";
 import { THEME_BOOT } from "./themeBoot";
 import "./globals.css";
 
@@ -7,7 +7,8 @@ import "./globals.css";
 // has its fonts. Roles are set in globals.css.
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
-const instrument = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument" });
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], axes: ["wdth", "opsz"], variable: "--font-bricolage" });
+const doto = Doto({ subsets: ["latin"], weight: ["700", "900"], variable: "--font-doto" });
 const atkinson = Atkinson_Hyperlegible_Next({ subsets: ["latin"], variable: "--font-atkinson" });
 
 export const metadata: Metadata = {
@@ -19,8 +20,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0e0d0c" },
-    { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0908" },
+    { media: "(prefers-color-scheme: light)", color: "#f3efe8" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -34,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     // suppressHydrationWarning: THEME_BOOT sets data-theme before React loads,
     // so the attribute differs from the server's markup by design.
-    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable} ${instrument.variable} ${atkinson.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable} ${bricolage.variable} ${doto.variable} ${atkinson.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>

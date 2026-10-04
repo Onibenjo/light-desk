@@ -51,7 +51,7 @@ function isLogRow(v: unknown): v is LogRow {
 /** A server sentence after a lead-in: ends with exactly one full stop. */
 const sentence = (message: string) => (/[.!?]$/.test(message) ? message : `${message}.`);
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 export default function LogPage() {
   const router = useRouter();

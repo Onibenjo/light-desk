@@ -42,7 +42,7 @@ export default function WhatsNew() {
     // The row must not wrap: with justify-between, a full-width line of text pushes
     // Dismiss onto a line of its own where it reads as a stray control, and a one-line
     // note becomes three at the top of a screen that is working during a service.
-    <p className="rise flex items-center justify-between gap-x-3 rounded-xl border border-ink-700 bg-ink-900 py-1.5 pr-1.5 pl-2 text-sm text-ink-300">
+    <p className="rise relative flex items-center justify-between gap-x-3 overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 py-2 pr-2 pl-2.5 text-sm text-ink-300 shadow-[var(--bevel)]">
       <span className="badge badge-accent shrink-0">New</span>
       <span className="min-w-0 flex-1">
         {/* The badge says "New", so the note's own "New:" is not read twice. */}

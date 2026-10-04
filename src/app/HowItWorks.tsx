@@ -55,8 +55,8 @@ export default function HowItWorks({
       <div className="flex items-start justify-between gap-x-3 px-5 pt-5">
         <div>
           <p className="eyebrow">How the desk works</p>
-          <h2 id={`${HOW_IT_WORKS_ID}-heading`} className="display mt-1.5 text-[30px] sm:text-[34px]">
-            Three moves, <em className="text-accent-ink">then it&rsquo;s in the chat</em>.
+          <h2 id={`${HOW_IT_WORKS_ID}-heading`} className="display mt-2 text-[32px] sm:text-[42px]">
+            Three moves, <span className="text-accent-ink">then it&rsquo;s in the chat.</span>
           </h2>
         </div>
         {/* Quiet, not primary: reading this is the action on screen, closing it is not. */}
@@ -133,12 +133,12 @@ export default function HowItWorks({
   );
 }
 
-/** A numbered step card. The numeral is set large in the serif: reading order carries the sequence, colour is not asked to. */
+/** A numbered step card. The numeral is set large in the dot-matrix face: reading order carries the sequence, colour is not asked to. */
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
-    <li style={{ "--i": n } as React.CSSProperties} className="rise rounded-lg border border-ink-700 bg-ink-950/40 p-4">
-      <span aria-hidden="true" className="block font-display text-[34px] leading-none text-ink-500">
-        {n}
+    <li style={{ "--i": n } as React.CSSProperties} className="rise relative overflow-hidden rounded-xl border border-ink-700 bg-ink-950/40 p-4 shadow-[var(--bevel)]">
+      <span aria-hidden="true" className="flex items-center gap-2 font-dot text-[40px] leading-none font-black text-ink-500">
+        {String(n).padStart(2, "0")}
       </span>
       <span className="mt-3 block text-[15px] leading-relaxed text-ink-200">{children}</span>
     </li>

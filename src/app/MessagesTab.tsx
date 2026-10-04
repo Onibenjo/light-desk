@@ -260,7 +260,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         <NoSetlistBar />
       )}
       <div className="relative">
-      <Icon name="search" className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
+      <Icon name="search" className="pointer-events-none absolute top-1/2 left-[1.15rem] z-10 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
       <input
         ref={inputRef}
         value={q}
@@ -283,11 +283,11 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         }}
         aria-label="Search messages"
         placeholder={wide ? "Search messages — e.g. sound restored, tithe" : "Search messages"}
-        className="w-full rounded-xl border border-ink-700 bg-ink-900 py-[18px] pr-4 pl-12 text-lg text-ink-50 outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[var(--muted)] focus:border-accent focus:shadow-[0_0_0_4px_var(--accent-soft)] sm:text-[21px]"
+        className="command peer"
       />
       </div>
       <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-ui text-xs text-[var(--muted)]">
-        <span className="font-mono whitespace-nowrap">{library && `${library.messages.length} ${library.messages.length === 1 ? "message" : "messages"} in the library`}</span>
+        <span className="flex items-center gap-2 font-mono whitespace-nowrap">{library && <span aria-hidden="true" className="tally tally-ok h-1.5 w-1.5" />}{library && `${library.messages.length} ${library.messages.length === 1 ? "message" : "messages"} in the library`}</span>
         <span className="flex flex-wrap items-center gap-x-3">
           <Link href="/messages" className="btn btn-sm btn-quiet">
             Edit the library

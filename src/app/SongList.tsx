@@ -25,7 +25,7 @@ interface Props {
  * (75ms against 175ms), which is not where the scrolling is.
  */
 /** "#" is a fine thing to show and a useless thing to put in an id. */
-const groupId = (letter: string) => `letter-${/^[A-Z]$/.test(letter) ? letter.toLowerCase() : "other"}`;
+export const groupId = (letter: string) => `letter-${/^[A-Z]$/.test(letter) ? letter.toLowerCase() : "other"}`;
 
 function SongList({ book, onOpen }: Props) {
   const groups = useMemo(() => groupByLetter(book.map((b) => b.song)), [book]);
@@ -35,15 +35,16 @@ function SongList({ book, onOpen }: Props) {
     <div className="card overflow-hidden">
       {groups.map((group) => (
         <section key={group.letter} aria-labelledby={groupId(group.letter)}>
-          <h3 id={groupId(group.letter)} className="sticky top-0 z-10 border-y border-ink-700 bg-ink-950 px-4 py-2 font-display text-[18px] leading-none text-ink-300">
-            {group.letter}
+          <h3 id={groupId(group.letter)} className="sticky top-0 z-10 flex items-center gap-3 border-y border-ink-700 bg-ink-950/95 px-4 py-2 backdrop-blur">
+            <span className="font-dot text-[22px] leading-none font-black text-accent-ink">{group.letter}</span>
+            <span aria-hidden="true" className="h-px flex-1 bg-ink-700" />
           </h3>
-          <ul className="divide-y divide-ink-700">
+          <ul className="divide-y divide-ink-700/70">
             {group.songs.map((song) => (
               <li key={song.guid ?? song.id}>
                 <button onClick={() => onOpen(song)} className="flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left font-text transition-colors hover:bg-ink-800">
                   <span className="min-w-0 font-ui text-[15px] font-medium wrap-break-word text-ink-100">{song.title}</span>
-                  <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
+                  <span className="max-w-1/2 shrink-0 text-right font-mono text-[11px] wrap-break-word text-[var(--muted)]">
                     {song.author ? `${song.author} · ` : ""}
                     {song.sections.length} section{song.sections.length === 1 ? "" : "s"}
                     {song.source === "manual" ? " · quick-added" : ""}
