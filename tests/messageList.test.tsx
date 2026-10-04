@@ -30,6 +30,6 @@ describe("the message library the operator browses", () => {
   it("marks the row the keyboard is on, and ticks what was copied", () => {
     const html = render({ active: 20, copied: ["message:20"] });
     expect(html).toContain('aria-current="true"');
-    expect(html.match(/✓/g)).toHaveLength(1);
+    expect(html.match(/<span class="sr-only">copied<\/span>/g)).toHaveLength(1);
   });
 });

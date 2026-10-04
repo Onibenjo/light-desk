@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
+import Icon from "../../Icon";
 import PageShell from "../../PageShell";
 import { count, ENTRY, Footnotes, LISTS, SONG, TitleList, type Summary } from "./Footnotes";
 
@@ -110,7 +111,8 @@ export default function ImportPage() {
         <>
           {/* The input stays in the tab order (sr-only, not display:none) so Enter or
               Space opens the picker; the dashed box draws the focus ring for it. */}
-          <label className="block cursor-pointer rounded-xl border-2 border-dashed border-ink-700 p-10 text-center text-ink-400 hover:border-ink-500 hover:text-ink-200 has-focus-visible:border-[var(--accent)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-[var(--accent)]">
+          <label className="rise flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-ink-700 p-10 text-center text-ink-400 hover:border-ink-500 hover:text-ink-200 has-focus-visible:border-accent has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent">
+            <Icon name="upload" className="h-6 w-6" />
             <span aria-live="polite">{busy === "preview" ? "Reading the file…" : "Choose a .json or .vpc file"}</span>
             <input
               type="file"
@@ -133,36 +135,39 @@ export default function ImportPage() {
       )}
 
       {error && (
-        <div role="alert" className="space-y-2 rounded-lg border border-red-500/40 bg-red-600/20 px-4 py-3 text-sm text-red-200">
-          <p className="wrap-anywhere">{error.message}</p>
-          {error.kind === "denied" && (
-            <p>
-              <Link href={unlockHref("/songs/import")} className="underline">
-                Enter the admin PIN
-              </Link>
-              , then choose the file again.
-            </p>
-          )}
-          {error.kind === "locked" && (
-            <p>
-              <Link href={unlockHref("/songs/import")} className="underline">
-                Enter the PIN
-              </Link>
-              , then choose the file again.
-            </p>
-          )}
-          {file && !preview && error.kind !== "file" && error.kind !== "refused" && error.kind !== "locked" && error.kind !== "denied" && (
-            <button onClick={() => choose(file)} disabled={busy !== null} className="btn border-red-400/40 text-red-100 hover:bg-red-600/20">
-              Try again
-            </button>
-          )}
+        <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-bad-line bg-bad-bg px-4 py-3 text-sm text-bad-fg">
+          <Icon name="warn" className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="space-y-2">
+            <p className="wrap-anywhere">{error.message}</p>
+            {error.kind === "denied" && (
+              <p>
+                <Link href={unlockHref("/songs/import")} className="link">
+                  Enter the admin PIN
+                </Link>
+                , then choose the file again.
+              </p>
+            )}
+            {error.kind === "locked" && (
+              <p>
+                <Link href={unlockHref("/songs/import")} className="link">
+                  Enter the PIN
+                </Link>
+                , then choose the file again.
+              </p>
+            )}
+            {file && !preview && error.kind !== "file" && error.kind !== "refused" && error.kind !== "locked" && error.kind !== "denied" && (
+              <button onClick={() => choose(file)} disabled={busy !== null} className="btn border-bad-line text-bad-fg hover:bg-bad-bg">
+                Try again
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {preview && file && (
-        <div className="space-y-4 rounded-xl border border-ink-800 bg-ink-900 p-4">
+        <div className="card rise space-y-4 p-4">
           <div>
-            <h2 className="text-xl font-semibold wrap-anywhere">{file.name}</h2>
+            <h2 className="display text-xl wrap-anywhere">{file.name}</h2>
             <p className="text-xs text-[var(--muted)]">
               {count(preview.totalEntries, ENTRY)} in the file · {preview.unchanged} already up to date · nothing saved yet
             </p>
@@ -185,8 +190,9 @@ export default function ImportPage() {
       )}
 
       {result && (
-        <div className="space-y-4">
-          <div className="rounded-lg border border-emerald-500/40 bg-emerald-600/20 px-4 py-3 text-sm text-emerald-200">
+        <div className="rise space-y-4">
+          <div className="flex items-center gap-2 rounded-lg border border-ok-line bg-ok-bg px-4 py-3 text-sm text-ok-fg">
+            <Icon name="check" className="h-4 w-4 shrink-0" />
             Imported {count(result.added.length + result.updated.length, SONG)}.
           </div>
           <TitleList noun={LISTS.added} titles={result.added} />

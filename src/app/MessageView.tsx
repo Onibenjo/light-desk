@@ -58,14 +58,13 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
           </button>
         </div>
       )}
-      <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-        <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part ·{" "}
+      <p className="hidden font-ui text-xs leading-7 text-[var(--muted)] pointer-fine:block">
+        <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part
         {place?.next && canOpenRow(place.next) && (
           <>
-            <span className="kbd">N</span> next in the service order ·{" "}
+            {" "}· <span className="kbd">N</span> next in the service order
           </>
         )}
-        <span className="kbd">Esc</span> back
       </p>
       <ol className="space-y-2">
         {parts.map((part, i) => (

@@ -2,6 +2,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Icon from "./Icon";
 import { digitToIndex, moveCursor } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
@@ -258,6 +259,8 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
       ) : (
         <NoSetlistBar />
       )}
+      <div className="relative">
+      <Icon name="search" className="pointer-events-none absolute top-1/2 left-[1.15rem] z-10 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
       <input
         ref={inputRef}
         value={q}
@@ -280,28 +283,29 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
         }}
         aria-label="Search messages"
         placeholder={wide ? "Search messages — e.g. sound restored, tithe" : "Search messages"}
-        className="w-full rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+        className="command peer"
       />
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
-        <span className="whitespace-nowrap">{library && `${library.messages.length} ${library.messages.length === 1 ? "message" : "messages"} in the library`}</span>
+      </div>
+      <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-ui text-xs text-[var(--muted)]">
+        <span className="flex items-center gap-2 font-mono whitespace-nowrap">{library && <span aria-hidden="true" className="tally tally-ok h-1.5 w-1.5" />}{library && `${library.messages.length} ${library.messages.length === 1 ? "message" : "messages"} in the library`}</span>
         <span className="flex flex-wrap items-center gap-x-3">
-          <Link href="/messages" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+          <Link href="/messages" className="btn btn-sm btn-quiet">
             Edit the library
           </Link>
         </span>
       </div>
       {failed && (
-        <p role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+        <p role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-warn-line bg-warn-bg px-4 py-2.5 text-sm text-warn-fg">
           <span className="min-w-0">
             Couldn&rsquo;t load the library. {sentence(failed.message)}
           </span>
           {/* Try again cannot get past the PIN gate; only unlocking again can. */}
           {failed.kind === "locked" ? (
-            <Link href={unlockHref("/")} className="inline-flex shrink-0 items-center rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
+            <Link href={unlockHref("/")} className="btn btn-sm shrink-0 border-warn-line bg-transparent text-warn-fg hover:border-warn-line hover:bg-warn-bg hover:text-warn-fg">
               Enter the PIN
             </Link>
           ) : (
-            <button onClick={onRetry} className="shrink-0 rounded-md border border-amber-500/40 px-3 py-1 hover:bg-amber-500/10 pointer-coarse:min-h-11">
+            <button onClick={onRetry} className="btn btn-sm shrink-0 border-warn-line bg-transparent text-warn-fg hover:border-warn-line hover:bg-warn-bg hover:text-warn-fg">
               Try again
             </button>
           )}
@@ -310,7 +314,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
       {!library && !failed && <p className="text-sm text-[var(--muted)]">Loading the library…</p>}
       {library && library.messages.length === 0 && (
         <p className="text-sm text-[var(--muted)]">
-          The library is empty. <Link href="/messages" className="underline">Load the starter messages</Link> with the admin PIN.
+          The library is empty. <Link href="/messages" className="link">Load the starter messages</Link> with the admin PIN.
         </p>
       )}
       {library && deferredQ.trim() && hits.length === 0 && <p className="text-sm text-[var(--muted)]">No message has all of those words.</p>}

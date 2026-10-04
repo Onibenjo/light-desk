@@ -45,7 +45,7 @@ export function TitleList({ noun, titles }: { noun: Noun; titles: string[] }) {
   return (
     <div className="space-y-1.5">
       <h3 className="eyebrow">{count(titles.length, noun)}</h3>
-      <ul className="max-h-72 overflow-y-auto rounded-lg border border-ink-800 bg-ink-950/40">
+      <ul className="max-h-72 overflow-y-auto rounded-lg border border-ink-700 bg-ink-950/40">
         {shown.map((title, i) => (
           <li key={i} className="truncate px-3 py-1.5 text-sm text-ink-300">
             {title}
@@ -53,7 +53,7 @@ export function TitleList({ noun, titles }: { noun: Noun; titles: string[] }) {
         ))}
       </ul>
       {!all && titles.length > SHOWN && (
-        <button onClick={() => setAll(true)} className="text-xs text-[var(--muted)] underline hover:text-ink-300">
+        <button onClick={() => setAll(true)} className="link text-xs text-[var(--muted)]">
           Show all {titles.length}
         </button>
       )}

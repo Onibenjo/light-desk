@@ -4,7 +4,8 @@ import { useCallback, useState } from "react";
 import { partLabel, type OpenMessage } from "@/lib/messageLibrary";
 
 interface Deps {
-  copyText: (t: string) => Promise<boolean>;
+  /** `label` is how Last copied names what was copied. */
+  copyText: (t: string, label?: string) => Promise<boolean>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   logSend: (kind: string, label: string, body: string, meta?: unknown) => void;
 }
@@ -23,15 +24,15 @@ export function useMessageCopy({ copyText, showToast, logSend }: Deps) {
       const text = message.parts[index];
       if (text === undefined) return false;
       // A throw from the clipboard is the same as a refusal: no tick, no log, a toast.
+      const count = message.parts.length;
       let ok = false;
       try {
-        ok = await copyText(text);
+        ok = await copyText(text, partLabel(message.label, index, count));
       } catch {}
       if (!ok) {
         showToast("Couldn't copy — try again", "err");
         return false;
       }
-      const count = message.parts.length;
       showToast(count > 1 ? `Copied part ${index + 1} of ${count} — paste in Mixlr` : `Copied "${message.label}" — paste in Mixlr`);
       logSend("message", partLabel(message.label, index, count), text, { part: index + 1, parts: count });
       setCopied((prev) => new Set(prev).add(message.key));

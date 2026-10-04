@@ -22,6 +22,7 @@ The words the interface uses, so every screen says the same thing the same way. 
 | Use | Means | Don't use |
 |---|---|---|
 | desk | the main screen with Verses, Songs, Engagement | home, dashboard |
+| how it works | the panel that opens on a device new to the desk and explains the copy-and-paste loop; "Help" where a phone header has no room for the full label | tour, onboarding, tutorial, getting started |
 | copy | what the app does: puts text on the clipboard | send (the app does not send anything) |
 | paste in Mixlr | what the operator does next | post it, send it |
 | verse, passage, chapter | Bible text; a passage is a range | |
@@ -49,6 +50,7 @@ The code does not follow this sheet. Identifiers, files, routes and API paths st
 
 | Situation | Label |
 |---|---|
+| Opening or closing how it works | How it works, beside a ? icon (the icon alone under sm, named "How the desk works" for screen readers) |
 | Back from a secondary page | ← Desk |
 | Back from an open song / message | ← Songs, ← Engagement |
 | Retry after a failure | Try again |
@@ -58,6 +60,8 @@ The code does not follow this sheet. Identifiers, files, routes and API paths st
 | Two-press delete, armed | Confirm delete |
 | Clipboard refused | Couldn't copy — try again |
 | Page titles (h1) | Log · Verse sources · Engagement library · Service orders · Import a songbook |
+| Opening the command palette from the header | Search, with the chord beside it (⌘K on a Mac, Ctrl+K elsewhere) |
+| Examples under the verse box before a lookup | Try (they fill the box; they never look up or copy) |
 
 ## States
 

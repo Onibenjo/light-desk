@@ -1,8 +1,9 @@
 "use client";
 
 import type { RecentVerse } from "@/lib/recentVerses";
+import Icon from "./Icon";
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 /**
  * What fills the Verses tab between lookups: the verses looked up today, so
@@ -13,21 +14,24 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-di
 export default function RecentVerses({ verses, disabled, onChoose }: { verses: RecentVerse[]; disabled: boolean; onChoose: (v: RecentVerse) => void }) {
   if (verses.length === 0) return null;
   return (
-    <section aria-labelledby="recent-verses" className="space-y-2">
-      <h2 id="recent-verses" className="eyebrow">
-        Earlier today
+    <section aria-labelledby="recent-verses" className="space-y-2.5">
+      <h2 id="recent-verses" className="eyebrow flex items-center gap-2">
+        Earlier today <span className="rounded bg-ink-800 px-1.5 py-0.5 tracking-normal text-ink-300">{verses.length}</span>
       </h2>
-      <ul className="divide-y divide-ink-800 overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
-        {verses.map((v) => (
-          <li key={`${v.reference} ${v.translation}`}>
+      <ul className="card divide-y divide-ink-700/70 overflow-hidden">
+        {verses.map((v, i) => (
+          <li key={`${v.reference} ${v.translation}`} style={{ "--i": i } as React.CSSProperties} className="rise">
             <button
               onClick={() => onChoose(v)}
               disabled={disabled}
-              className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-ink-800 disabled:opacity-50"
+              title={`Copy ${v.reference} (${v.translation}) again`}
+              className="group flex min-h-12 w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-ink-800 disabled:opacity-50"
             >
-              <span className="min-w-0 flex-1 truncate font-text text-[17px] font-bold text-ink-50">{v.reference}</span>
-              <span className="shrink-0 text-[13px] font-semibold tracking-wide text-ink-300">{v.translation}</span>
-              <span className="w-12 shrink-0 text-right text-sm text-[var(--muted)] tabular-nums">{time(v.at)}</span>
+              {/* The log's own order: the time first, like a rundown. */}
+              <span className="w-12 shrink-0 font-mono text-xs text-[var(--muted)] tabular-nums">{time(v.at)}</span>
+              <span className="min-w-0 flex-1 truncate font-display text-[20px] leading-tight font-semibold tracking-[-0.02em] text-ink-50">{v.reference}</span>
+              <span className="badge shrink-0">{v.translation}</span>
+              <Icon name="copy" className="h-4 w-4 shrink-0 text-ink-500 transition-[color,transform] group-hover:scale-110 group-hover:text-accent-ink" />
             </button>
           </li>
         ))}

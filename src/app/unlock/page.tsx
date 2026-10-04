@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import Icon from "../Icon";
 import { failureFrom, OFFLINE } from "@/lib/apiError";
 
 const ERROR_ID = "unlock-error";
@@ -53,16 +54,23 @@ function UnlockForm() {
   }
 
   return (
-    <form onSubmit={submit} className="w-full max-w-sm space-y-4">
-      <div className="flex items-center gap-3">
-        <Image src="/brand/clc-logo.png" alt="" width={48} height={48} priority className="h-12 w-12 shrink-0 rounded-full" />
+    <form onSubmit={submit} className="rise relative w-full max-w-sm space-y-6">
+      <div className="flex flex-col items-center gap-5 text-center">
+        {/* The mark, lit from behind like a lamp warming up. */}
+        <span className="relative grid place-items-center">
+          <span aria-hidden="true" className="absolute h-40 w-40 rounded-full bg-[radial-gradient(circle,var(--accent-glow),transparent_65%)] opacity-60 blur-xl" />
+          <span aria-hidden="true" className="absolute h-[5.5rem] w-[5.5rem] rounded-full border border-accent/30" />
+          <span aria-hidden="true" className="absolute h-[7.5rem] w-[7.5rem] rounded-full border border-accent/10" />
+          <Image src="/brand/clc-logo.png" alt="" width={64} height={64} priority className="relative h-16 w-16 shrink-0 rounded-full" />
+        </span>
         <div>
-          <h1 className="text-2xl font-semibold leading-tight tracking-wide uppercase">Lightdesk</h1>
-          <p className="text-sm text-ink-400">Citizens of Light Church · Mixlr chat desk</p>
+          <h1 className="display text-[52px]">Lightdesk</h1>
+          <p className="mt-2 font-mono text-[11px] tracking-[0.12em] text-ink-400 uppercase">Citizens of Light Church · Mixlr chat desk</p>
         </div>
       </div>
-      <div className="space-y-1.5">
-        <label htmlFor={FIELD_ID} className="block text-sm text-ink-300">
+      <div className="card space-y-2 p-5">
+        <label htmlFor={FIELD_ID} className="eyebrow flex items-center gap-2">
+          <span aria-hidden="true" className="tally tally-off" />
           Church or admin PIN
         </label>
         <input
@@ -75,18 +83,19 @@ function UnlockForm() {
           aria-describedby={error ? ERROR_ID : undefined}
           value={pin}
           onChange={(e) => setPin(e.target.value)}
-          className="w-full rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-lg outline-none focus:border-[var(--accent)] aria-invalid:border-red-500/60"
+          className="field w-full py-3 text-center font-mono text-2xl tracking-[0.5em] aria-invalid:border-bad-line"
         />
         {error && (
-          <p id={ERROR_ID} role="alert" className="text-sm text-red-400">
+          <p id={ERROR_ID} role="alert" className="flex items-center gap-1.5 text-sm text-bad-fg">
+            <Icon name="warn" className="h-4 w-4 shrink-0" />
             {error}
           </p>
         )}
+        <button disabled={busy || !pin} className="btn btn-primary btn-lg mt-2 w-full">
+          {busy ? "Checking the PIN…" : "Unlock this device"}
+        </button>
       </div>
-      <button disabled={busy || !pin} className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-lg font-semibold text-black disabled:opacity-50">
-        {busy ? "Checking the PIN…" : "Unlock this device"}
-      </button>
-      <p className="text-xs text-[var(--muted)]">Ask the media lead for the PIN. This device stays unlocked for a year.</p>
+      <p className="text-center text-xs text-[var(--muted)]">Ask the media lead for the PIN. This device stays unlocked for a year.</p>
     </form>
   );
 }

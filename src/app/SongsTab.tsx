@@ -12,7 +12,8 @@ import { messagesById, type Library } from "@/lib/messageLibrary";
 import { failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { MatchedLine } from "./MatchedLine";
 import SongEditor, { readSong, songFromBody } from "./SongEditor";
-import SongList from "./SongList";
+import SongList, { groupId } from "./SongList";
+import { groupByLetter } from "@/lib/songGroups";
 import SetlistBar, { NoSetlistBar } from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
@@ -76,7 +77,8 @@ function readServerSearch(body: unknown): { songs: SongMatch[]; total: number | 
 }
 
 interface Props {
-  copyText: (t: string) => Promise<boolean>;
+  /** `label` is how Last copied names what was copied. */
+  copyText: (t: string, label?: string) => Promise<boolean>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   logSend: (kind: string, label: string, body: string, meta?: unknown) => void;
   /** Owned by the desk, so the Songs and Messages tabs show one setlist. */
@@ -104,6 +106,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   const deferredQ = useDeferredValue(q);
   const [book, setBook] = useState<IndexedSong[] | null>(null);
   const byId = useMemo(() => songsById(book), [book]);
+  // The letters the book actually has, for the jump bar over the A–Z list.
+  const letters = useMemo(() => (book ? groupByLetter(book.map((b) => b.song)).map((g) => g.letter) : []), [book]);
   const libraryById = useMemo(() => messagesById(library), [library]);
   const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, libraryById) : []), [setlist, byId, libraryById]);
   // Results from the server, used only until the local book has arrived.
@@ -291,7 +295,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   async function copySection(i: number, advance = false) {
     if (!song) return;
     const text = formatSection(song.sections[i]);
-    const ok = await copyText(text);
+    const ok = await copyText(text, `${song.title} · section ${i + 1}`);
     if (ok) {
       markSent(songKey(song), i);
       showToast(`Copied section ${i + 1} of ${song.sections.length} — paste in Mixlr`);
@@ -384,7 +388,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     if (!song) return;
     const text = formatTitle(song.title);
     if (!text) return;
-    const ok = await copyText(text);
+    const ok = await copyText(text, `${song.title} · title`);
     if (ok) {
       showToast(`Copied the title "${song.title}" — paste in Mixlr`);
       logSend("song", `${song.title} · title`, text);
@@ -471,6 +475,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
           ) : (
             <NoSetlistBar />
           )}
+          <div className="relative">
+          <Icon name="search" className="pointer-events-none absolute top-1/2 left-[1.15rem] z-10 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
           <input
             ref={inputRef}
             value={q}
@@ -495,34 +501,35 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             }}
             aria-label="Search the songbook"
             placeholder={keyboard ? "Search the songbook — ↑↓ to pick, ↵ to open" : "Search the songbook"}
-            className="w-full rounded-xl border border-ink-700 bg-ink-900 px-4 py-4 text-xl outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+            className="command peer"
           />
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
-            <span className="whitespace-nowrap">{total !== null && `${total.toLocaleString("en-GB")} ${total === 1 ? "song" : "songs"} in the songbook`}</span>
+          </div>
+          <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-ui text-xs text-[var(--muted)]">
+            <span className="flex items-center gap-2 font-mono whitespace-nowrap">{total !== null && <span aria-hidden="true" className="tally tally-ok h-1.5 w-1.5" />}{total !== null && `${total.toLocaleString("en-GB")} ${total === 1 ? "song" : "songs"} in the songbook`}</span>
             <span className="flex flex-wrap items-center gap-x-3">
-              <button onClick={() => setAdding(true)} className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+              <button onClick={() => setAdding(true)} className="btn btn-sm btn-quiet">
                 + Quick add a song
               </button>
-              <Link href="/songs/import" className="-my-1 inline-flex items-center py-1 underline hover:text-ink-300 pointer-coarse:my-0 pointer-coarse:min-h-11">
+              <Link href="/songs/import" className="btn btn-sm btn-quiet">
                 Import a songbook
               </Link>
             </span>
           </div>
           {hits.length > 0 && (
-            <ul className="divide-y divide-ink-800 rounded-xl border border-ink-800 bg-ink-900/60">
+            <ul className="card divide-y divide-ink-700 overflow-hidden">
               {hits.map((m, hi) => (
                 <li key={m.song.guid ?? m.song.id} className="flex items-stretch">
                   <button
                     onClick={() => openSong(m.song, m.section)}
                     onMouseEnter={() => setHit(hi)}
                     aria-current={hi === hit ? "true" : undefined}
-                    className={`min-w-0 flex-1 px-4 py-3 text-left font-text hover:bg-ink-800/60 ${hi === hit ? "bg-ink-800/60" : ""}`}
+                    className={`relative min-w-0 flex-1 px-4 py-3 text-left font-text transition-colors hover:bg-ink-800 ${hi === hit ? "bg-ink-800 before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full before:bg-accent before:shadow-[0_0_10px_var(--accent-glow)]" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="min-w-0 font-medium wrap-break-word">{m.song.title}</span>
+                      <span className="min-w-0 font-ui text-[16px] font-semibold wrap-break-word text-ink-50">{m.song.title}</span>
                       <span className="max-w-1/2 shrink-0 text-right text-xs wrap-break-word text-[var(--muted)]">
-                        {m.matched < m.words && <span className="text-amber-400/80">{m.matched} of {m.words} words · </span>}
-                        {m.fuzzy && <span className="whitespace-nowrap text-amber-400/80">close spelling · </span>}
+                        {m.matched < m.words && <span className="text-warn-fg">{m.matched} of {m.words} words · </span>}
+                        {m.fuzzy && <span className="whitespace-nowrap text-warn-fg">close spelling · </span>}
                         {m.song.author ? `${m.song.author} · ` : ""}
                         {m.song.sections.length} section{m.song.sections.length === 1 ? "" : "s"}
                         {m.song.source === "manual" ? " · quick-added" : ""}
@@ -538,9 +545,9 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                     onClick={() => addToSetlist(m.song)}
                     aria-label={`Add ${m.song.title} to the service order`}
                     title="Add to the service order"
-                    className="grid min-h-11 min-w-11 shrink-0 place-items-center self-start text-lg text-[var(--muted)] hover:bg-ink-800 hover:text-ink-200"
+                    className="grid min-h-11 min-w-12 shrink-0 place-items-center self-stretch border-l border-ink-700 text-[var(--muted)] transition-colors hover:bg-accent-soft hover:text-accent-ink"
                   >
-                    +
+                    <Icon name="plus" className="h-4 w-4" />
                   </button>
                 </li>
               ))}
@@ -550,13 +557,29 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
               rebuilding them every time the search box is cleared is the one
               cost `content-visibility` cannot skip. */}
           {book && book.length > 0 && (
-            <div hidden={!!q.trim()}>
+            <div hidden={!!q.trim()} className="space-y-3">
+              {/* A–Z: jump to a letter instead of scrolling past 2,000 songs to reach W. */}
+              <nav aria-label="Jump to a letter" className="flex flex-wrap gap-1">
+                {letters.map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() =>
+                      document.getElementById(groupId(l))?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" })
+                    }
+                    aria-label={l === "#" ? "Songs starting with a number or symbol" : `Songs starting with ${l}`}
+                    className="grid h-8 min-w-8 place-items-center rounded-md font-mono text-[12.5px] font-semibold text-ink-300 transition-colors hover:bg-ink-800 hover:text-accent-ink pointer-coarse:h-10 pointer-coarse:min-w-10"
+                  >
+                    {l}
+                  </button>
+                ))}
+              </nav>
               <SongList book={book} onOpen={openSong} />
             </div>
           )}
           {answered?.kind === "failed" && (
             <p role="status" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-              <span className="text-amber-400">Couldn&rsquo;t search. {answered.failure.message.replace(/[.!]$/, "")}.</span>
+              <span className="text-warn-fg">Couldn&rsquo;t search. {answered.failure.message.replace(/[.!]$/, "")}.</span>
               {answered.failure.kind === "locked" && (
                 <Link href={unlockHref("/")} className="-my-1 inline-flex items-center py-1 underline pointer-coarse:my-0 pointer-coarse:min-h-11">
                   Enter the PIN
@@ -573,11 +596,12 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
               </button>
             </p>
           )}
-          {serverQ && !answered && hits.length === 0 && <p className="text-sm text-[var(--muted)]">Searching the songbook…</p>}
+          {serverQ && !answered && hits.length === 0 && <p className="flex items-center gap-2 font-ui text-sm text-[var(--muted)]"><span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-600 border-t-accent motion-reduce:animate-none" />Searching the songbook…</p>}
           {q.trim() && hits.length === 0 && (local !== null || answered?.kind === "done") && (
-            <p className="text-sm text-[var(--muted)]">
-              No song matches — check the spelling, or{" "}
-              <button onClick={() => setAdding(true)} className="underline">
+            <p className="rise rounded-2xl border border-dashed border-ink-600 px-5 py-10 text-center text-[15px] text-ink-300">
+              <span className="display mb-2 block text-[30px]">No song matches.</span>
+              Check the spelling, or{" "}
+              <button onClick={() => setAdding(true)} className="link">
                 quick add a song
               </button>
               .
@@ -587,10 +611,10 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
       )}
 
       {adding && (
-        <div className="space-y-3 rounded-xl border border-ink-800 bg-ink-900/60 p-4">
+        <div className="rise card space-y-3 p-5">
           <div className="flex items-center justify-between">
-            <h2 className="font-medium">Quick add a song</h2>
-            <button onClick={() => setAdding(false)} className="-mr-2 shrink-0 rounded-md px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200 pointer-coarse:min-h-11">
+            <h2 className="display text-[26px]">Quick add a song</h2>
+            <button onClick={() => setAdding(false)} className="btn btn-sm btn-quiet -mr-2 shrink-0">
               Cancel
             </button>
           </div>
@@ -600,7 +624,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             onChange={(e) => setAddTitle(e.target.value)}
             aria-label="Song title"
             placeholder="Song title"
-            className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 outline-none focus:border-[var(--accent)]"
+            className="field w-full"
           />
           <textarea
             value={addLyrics}
@@ -608,9 +632,9 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             aria-label="Song lyrics"
             placeholder="Paste the lyrics as they are — they'll be tidied and split into sections"
             rows={10}
-            className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            className="field w-full font-text text-sm leading-relaxed"
           />
-          <button onClick={quickAdd} disabled={busy || !addTitle.trim() || !addLyrics.trim()} className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-black disabled:opacity-50">
+          <button onClick={quickAdd} disabled={busy || !addTitle.trim() || !addLyrics.trim()} className="btn btn-primary">
             {busy ? "Splitting and saving…" : "Save and open"}
           </button>
         </div>
@@ -645,7 +669,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             title={song.title}
             action={
               <button onClick={() => void copyTitle()} title={`Copies ${formatTitle(song.title)}`} className="btn btn-sm shrink-0">
-                Copy title
+                Copy title <span aria-hidden="true" className="kbd ml-0.5 hidden pointer-fine:inline-flex">T</span>
               </button>
             }
             count={song.sections.length}
@@ -662,26 +686,24 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             </button>
           </div>
           {pinned !== null && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 p-2">
+            <div className="rise flex flex-wrap items-center gap-2 rounded-2xl border border-ink-700 bg-ink-900 p-2 shadow-[var(--bevel)]">
               <span className="badge">
                 <Icon name="pin" filled className="h-3 w-3" />
                 Pinned
               </span>
-              <button onClick={() => copySection(pinned)} className="min-w-0 rounded-md border border-ink-600 bg-ink-800 px-3 py-1 text-left text-[15px] font-medium text-ink-100 hover:bg-ink-700 pointer-coarse:min-h-11">
-                <span className="sr-only">Copy again: </span>↻ {pinned + 1} · <span className="font-text">{Array.from(song.sections[pinned].split("\n")[0]).slice(0, 28).join("")}</span>
+              <button onClick={() => copySection(pinned)} className="btn min-w-0 justify-start text-left">
+                <span className="sr-only">Copy again: </span><span className="font-mono text-xs text-[var(--muted)]">{pinned + 1}</span> <span className="font-text">{Array.from(song.sections[pinned].split("\n")[0]).slice(0, 28).join("")}</span>
               </button>
               <span className="kbd">C</span>
             </div>
           )}
-          <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
-            <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that section ·{" "}
-            <span className="kbd">P</span> pin · <span className="kbd">C</span> copy the pinned one · <span className="kbd">T</span> copy the title ·{" "}
+          <p className="hidden font-ui text-xs leading-7 text-[var(--muted)] pointer-fine:block">
+            <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that section · <span className="kbd">P</span> pin the chorus · <span className="kbd">C</span> copy the pinned one
             {canOpenNext && (
               <>
-                <span className="kbd">N</span> next in the service order ·{" "}
+                {" "}· <span className="kbd">N</span> next in the service order
               </>
             )}
-            <span className="kbd">Esc</span> back
           </p>
           {song.sections.length === 0 && <p className="text-sm text-[var(--muted)]">This song has no sections. Edit it to add the lyrics.</p>}
           <ol className="space-y-2">
@@ -725,7 +747,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
                     aria-pressed={pinned === i}
                     aria-label={`Pin section ${i + 1}`}
                     title="Pin to copy again quickly (the chorus)"
-                    className={`grid min-h-11 min-w-11 shrink-0 place-items-center self-start rounded-md ${pinned === i ? "bg-ink-100 text-black" : "text-ink-400 hover:bg-ink-700 hover:text-ink-100"}`}
+                    className={`grid min-h-11 min-w-11 shrink-0 place-items-center self-start rounded-lg transition-colors ${pinned === i ? "bg-ink-100 text-ink-950" : "text-ink-500 hover:bg-ink-800 hover:text-ink-100"}`}
                   >
                     <Icon name="pin" filled={pinned === i} className="h-5 w-5" />
                   </button>

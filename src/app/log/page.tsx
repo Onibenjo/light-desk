@@ -51,7 +51,7 @@ function isLogRow(v: unknown): v is LogRow {
 /** A server sentence after a lead-in: ends with exactly one full stop. */
 const sentence = (message: string) => (/[.!?]$/.test(message) ? message : `${message}.`);
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 export default function LogPage() {
   const router = useRouter();
@@ -156,7 +156,7 @@ export default function LogPage() {
       <CommandPalette actions={actions} />
 
       {/* Day picker */}
-      <section className="space-y-3 rounded-xl border border-ink-800 bg-ink-900 p-3 sm:p-4">
+      <section className="card rise space-y-3 p-3 sm:p-4">
         {/* Below sm the arrows and the label take a row of their own, so
             "Wed 30 Sep 2026" never wraps; the date input, Today and All dates
             drop to a second row. From sm up everything sits on one row. */}
@@ -225,7 +225,7 @@ export default function LogPage() {
                 }}
                 title={`${formatDayLabel(d.iso)} · ${d.count} ${d.count === 1 ? "entry" : "entries"}`}
                 aria-pressed={scope === "day" && d.iso === date}
-                className={`btn btn-sm shrink-0 ${scope === "day" && d.iso === date ? "btn-on" : isSunday(d.iso) ? "bg-ink-800 text-ink-100" : "border-ink-800 text-ink-400"}`}
+                className={`btn btn-sm shrink-0 ${scope === "day" && d.iso === date ? "btn-on" : isSunday(d.iso) ? "bg-ink-800 text-ink-100" : "border-ink-700 text-ink-400"}`}
               >
                 {formatDayLabel(d.iso).slice(0, 10)}
                 <span className={`ml-1.5 tabular-nums ${scope === "day" && d.iso === date ? "text-ink-700" : "text-[var(--muted)]"}`}>{d.count}</span>
@@ -257,7 +257,7 @@ export default function LogPage() {
               key={k}
               onClick={() => setKind(k)}
               aria-pressed={kind === k}
-              className={`btn btn-sm rounded-full ${kind === k ? "btn-on" : "border-ink-800 text-ink-300"}`}
+              className={`btn btn-sm rounded-full ${kind === k ? "btn-on" : "border-ink-700 text-ink-300"}`}
             >
               {KIND_CHIP[k]}
             </button>
@@ -266,8 +266,8 @@ export default function LogPage() {
       </section>
 
       {/* Results */}
-      <section className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
-        <div className="flex items-center justify-between gap-3 border-b border-ink-800 px-4 py-2 text-sm text-[var(--muted)]">
+      <section className="card rise overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-ink-700 px-4 py-2 text-sm text-[var(--muted)]">
           <span role="status" aria-live="polite" className="shrink-0">
             {busy ? "Loading the log…" : `${failure ? "" : `${rows.length >= SERVER_LIMIT ? "Latest " : ""}${rows.length} ${rows.length === 1 ? "entry" : "entries"} · `}${scope === "day" ? formatDayLabel(date) : "all dates"}`}
           </span>
@@ -276,7 +276,10 @@ export default function LogPage() {
 
         {failure && (
           <div role="alert" className="space-y-3 px-4 py-8 text-center">
-            <p className="text-sm text-red-300">Couldn&rsquo;t load the log. {sentence(failure.message)}</p>
+            <p className="flex items-center justify-center gap-2 text-sm text-bad-fg">
+              <Icon name="warn" className="h-4 w-4" />
+              Couldn&rsquo;t load the log. {sentence(failure.message)}
+            </p>
             <div className="flex flex-wrap justify-center gap-2">
               {failure.kind === "locked" && (
                 <Link href={unlockHref("/log")} className="btn btn-primary">
@@ -308,9 +311,9 @@ export default function LogPage() {
           </div>
         )}
 
-        <ul className="divide-y divide-ink-800">
-          {!failure && rows.map((row) => (
-            <li key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
+        <ul className="divide-y divide-ink-700">
+          {!failure && rows.map((row, i) => (
+            <li key={row.id} style={{ "--i": i } as React.CSSProperties} className="rise flex items-start justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="badge">
@@ -322,7 +325,7 @@ export default function LogPage() {
                 {row.body && <p className="mt-1 line-clamp-2 text-sm wrap-anywhere text-[var(--muted)]">{row.body}</p>}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="font-ui text-sm text-[var(--muted)] tabular-nums">
+                <span className="font-mono text-xs text-[var(--muted)] tabular-nums">
                   {scope === "all" && <span className="mr-1.5">{formatDayLabel(toISODate(new Date(row.createdAt))).slice(0, 10)}</span>}
                   {time(row.createdAt)}
                 </span>
