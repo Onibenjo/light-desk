@@ -37,6 +37,8 @@ export function OpenHeader({
       <div className="flex items-center gap-2">
         <button onClick={onBack} className="btn btn-sm btn-quiet group -ml-1 shrink-0">
           <Icon name="back" className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /> {backLabel}
+          {/* The key sits on the control it presses, not in a legend further down. */}
+          <span aria-hidden="true" className="kbd ml-1 hidden pointer-fine:inline-flex">Esc</span>
         </button>
         {/* Two lines at most on a phone, where beside two buttons one line left a few letters; one on a wider screen. */}
         <h2 title={title} className="display line-clamp-2 min-w-0 flex-1 pb-0.5 text-[26px] wrap-break-word sm:line-clamp-1 sm:text-[34px]">

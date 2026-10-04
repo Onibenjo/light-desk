@@ -184,11 +184,11 @@ export default function SetlistBar({ name, staleNote, rows, copied, onOpen, onMe
             Change
           </Link>
         </div>
-        {/* The meter along the header's foot: how far through the order the service is. */}
+        {/* The meter along the header's foot: green for what's been copied, orange for what's next. */}
         {rows.length > 0 && (
           <span aria-hidden="true" className="absolute inset-x-0 bottom-0 flex h-[2px] gap-px">
             {rows.map((row) => (
-              <span key={row.key} className={`flex-1 transition-colors duration-500 ${copied.has(row.key) ? "bg-accent" : row.key === nextKey ? "bg-accent/35" : "bg-transparent"}`} />
+              <span key={row.key} className={`flex-1 transition-colors duration-500 ${copied.has(row.key) ? "bg-ok-fg/80" : row.key === nextKey ? "bg-accent" : "bg-transparent"}`} />
             ))}
           </span>
         )}

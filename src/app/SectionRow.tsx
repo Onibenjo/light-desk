@@ -39,7 +39,7 @@ export function SectionRow({
 }) {
   return (
     <li
-      className={`relative flex gap-1 rounded-2xl border p-1 transition-[background-color,border-color,box-shadow] duration-300 ${flash ? "copied-flash border-accent/60 bg-ink-900" : cursor ? "border-ink-600 bg-ink-800 shadow-[var(--lift)]" : "border-ink-700 bg-ink-900 shadow-[var(--bevel)]"}`}
+      className={`relative flex gap-1 rounded-2xl border p-1 transition-[background-color,border-color,box-shadow] duration-300 ${flash ? "copied-flash border-ok-line bg-ink-900" : cursor ? "border-ink-600 bg-ink-800 shadow-[var(--lift)]" : "border-ink-700 bg-ink-900 shadow-[var(--bevel)]"}`}
     >
       {cursor && <span aria-hidden="true" className="pop absolute inset-y-3 -left-px w-[3px] rounded-r-full bg-accent shadow-[0_0_12px_var(--accent-glow)]" />}
       <button
@@ -66,6 +66,12 @@ export function SectionRow({
             {text}
           </span>
         </span>
+        {/* Enter copies the row the cursor is on, so the key is shown on that row. */}
+        {cursor && (
+          <span aria-hidden="true" className="hidden shrink-0 items-center gap-1.5 self-start pt-1 font-mono text-[11px] text-[var(--muted)] pointer-fine:flex">
+            <span className="kbd">↵</span> copy
+          </span>
+        )}
       </button>
       {trailing}
     </li>

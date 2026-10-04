@@ -9,8 +9,9 @@
    `data-theme` on <html>, set before first paint by the script in layout.tsx).
 
    Orange is the tally light. On a TV set the red lamp on a camera says "this
-   one is live"; here the CLC orange says "this is on the clipboard", "this is
-   next", "act here". It is never decoration, so it can always be trusted.
+   one is live"; here the CLC orange says "you are here", "this is next", "act
+   here". Copied is green, as it always was on the desk. Orange is never
+   decoration, so it can always be trusted.
 
    Components never name a theme. They use the `ink-*` steps by role — 950 is
    the page, 900 a panel, 800 a raised or hovered surface, 700 a hairline, 400
@@ -157,6 +158,8 @@
 :root {
   /* Secondary text. Retune here, not per class. */
   --muted: var(--ink-400);
+  /* The copied sweep, in the copied colour of whichever room is showing. */
+  --ok-glow: color-mix(in srgb, var(--ok-fg) 14%, transparent);
   /* Height of the phone's bottom tab bar, so toasts and page ends clear it. */
   --dock: 0px;
 }
@@ -425,8 +428,8 @@ body {
 
 /* ---------------------------------------------------------------------------
    Motion. Things arrive, they do not perform — except the one moment that
-   matters: something reaching the clipboard, which sweeps a band of orange
-   light across the card like a tally coming on. Transform and opacity only.
+   matters: something being copied, which sweeps a band of green light across
+   the card. Transform and opacity only.
    Everything stops for prefers-reduced-motion.
    --------------------------------------------------------------------------- */
 
@@ -463,14 +466,14 @@ body {
   }
 }
 
-/* The row or card that was just copied: a warm band sweeps across it. */
+/* The row or card that was just copied: a band of green light sweeps across it. */
 @keyframes copied-flash {
   0% {
     background-position: 120% 0;
-    box-shadow: 0 0 0 0 var(--accent-soft);
+    box-shadow: 0 0 0 0 var(--ok-glow);
   }
   30% {
-    box-shadow: 0 0 0 4px var(--accent-soft);
+    box-shadow: 0 0 0 4px var(--ok-glow);
   }
   100% {
     background-position: -40% 0;
@@ -535,7 +538,7 @@ body {
     animation: pop 380ms var(--ease-out-soft) both;
   }
   .copied-flash {
-    background-image: linear-gradient(100deg, transparent 30%, var(--accent-soft) 45%, rgb(242 107 58 / 0.22) 50%, var(--accent-soft) 55%, transparent 70%);
+    background-image: linear-gradient(100deg, transparent 30%, var(--ok-glow) 45%, color-mix(in srgb, var(--ok-fg) 24%, transparent) 50%, var(--ok-glow) 55%, transparent 70%);
     background-size: 250% 100%;
     background-repeat: no-repeat;
     animation: copied-flash 900ms var(--ease-out-soft);

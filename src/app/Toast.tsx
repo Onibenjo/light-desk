@@ -50,7 +50,7 @@ export function useToast() {
 }
 
 const TONE: Record<Tone, { icon: IconName; chip: string; bar: string }> = {
-  ok: { icon: "check", chip: "bg-accent text-on-accent", bar: "bg-accent" },
+  ok: { icon: "check", chip: "bg-ok-fg text-ok-bg", bar: "bg-ok-fg" },
   warn: { icon: "warn", chip: "bg-warn-bg text-warn-fg", bar: "bg-warn-fg" },
   err: { icon: "x", chip: "bg-bad-solid text-white", bar: "bg-bad-solid" },
 };

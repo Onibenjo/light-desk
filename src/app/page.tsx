@@ -19,7 +19,7 @@ import { recentVerses, withRecent, type RecentVerse } from "@/lib/recentVerses";
 import SongsTab from "./SongsTab";
 import WhatsNew from "./WhatsNew";
 import LiveClock from "./LiveClock";
-import OnClipboard, { type OnAir } from "./OnClipboard";
+import LastCopied, { type LastCopy } from "./LastCopied";
 import HowItWorks, { HOW_IT_WORKS_ID } from "./HowItWorks";
 import { useFirstRun } from "./useFirstRun";
 import MessagesTab from "./MessagesTab";
@@ -75,21 +75,45 @@ const SOURCE_LABEL: Record<Passage["source"], string> = {
  * the one on the clipboard, and anything not starting with the header is shown
  * whole rather than guessed at.
  */
-function PostPreview({ text, header }: { text: string; header: string }) {
+function PostPreview({ text, header, children }: { text: string; header: string; children?: React.ReactNode }) {
   const hasHeader = text.startsWith(header + "\n");
   const [reference, translation] = header.split("\n");
+  const body = hasHeader ? text.slice(header.length + 1) : text;
+  const lines = body.split("\n");
   return (
     <div className="px-5 pt-5 pb-7 sm:px-7 sm:pt-6 sm:pb-8">
       {hasHeader && (
         <p className="mb-5">
           <span className="display block text-[40px] sm:text-[56px]">{reference}</span>
           <span className="mt-3 flex items-center gap-2.5 font-mono text-[11px] tracking-[0.14em] text-[var(--muted)] uppercase">
-            <span aria-hidden="true" className="h-px w-6 bg-accent" />
+            <span aria-hidden="true" className="h-px w-6 bg-ink-500" />
             {translation}
           </span>
         </p>
       )}
-      <pre className="wrap-anywhere whitespace-pre-wrap font-text text-lg leading-[1.7] text-ink-100 sm:text-[20px]">{hasHeader ? text.slice(header.length + 1) : text}</pre>
+      {/* The actions come before the text, so on a phone Copy again and Next
+          verse are on screen without scrolling past a long passage. */}
+      {children}
+      {/* Each verse's number is set apart so the eye can find verse 29 in a
+          long passage. Display only: the characters are the clipboard's. */}
+      <pre className="mt-6 wrap-anywhere whitespace-pre-wrap font-text text-lg leading-[1.7] text-ink-100 sm:text-[20px]">
+        {lines.map((line, i) => {
+          const m = /^(\d+)\./.exec(line);
+          return (
+            <span key={i}>
+              {i > 0 && "\n"}
+              {m ? (
+                <>
+                  <span className="font-mono text-[0.78em] font-semibold text-[var(--muted)] tabular-nums">{m[1]}.</span>
+                  {line.slice(m[0].length)}
+                </>
+              ) : (
+                line
+              )}
+            </span>
+          );
+        })}
+      </pre>
     </div>
   );
 }
@@ -159,11 +183,20 @@ export default function Desk() {
   const [result, setResult] = useState<PassageResult | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const { toast, showToast } = useToast();
-  // The last thing that reached the clipboard from any tab, for the monitor in the rail.
-  const [onAir, setOnAir] = useState<OnAir | null>(null);
-  const copyTracked = useCallback(async (text: string) => {
+  // The last thing the desk copied, from any tab, for the Last copied chip and panel.
+  const [lastCopy, setLastCopy] = useState<LastCopy | null>(null);
+  /** The same text again, from the Last copied chip. Like Copy again on a verse, it is not logged a second time. */
+  const copyAgain = useCallback(
+    async (last: LastCopy) => {
+      const ok = await copyText(last.text);
+      if (ok) setLastCopy({ ...last, at: Date.now() });
+      showToast(ok ? `Copied ${last.label} again — paste in Mixlr` : COPY_FAILED, ok ? "ok" : "err");
+    },
+    [showToast],
+  );
+  const copyTracked = useCallback(async (text: string, label?: string) => {
     const ok = await copyText(text);
-    if (ok) setOnAir({ text, at: Date.now() });
+    if (ok) setLastCopy({ text, label: label ?? text.split("\n").find((l) => l.trim()) ?? text, at: Date.now() });
     return ok;
   }, []);
   // Opens itself on a device that has not seen this version of the panel, and
@@ -429,7 +462,7 @@ export default function Desk() {
           if (opts?.select !== false) setInput("");
           return;
         }
-        const ok = await copyTracked(r.chunks[0]);
+        const ok = await copyTracked(r.chunks[0], r.chunks.length > 1 ? `${tag} · part 1 of ${r.chunks.length}` : tag);
         setCopiedOk(ok);
         if (ok) {
           showToast(
@@ -567,12 +600,12 @@ export default function Desk() {
 
   async function copyChunk(i: number) {
     if (!result) return;
-    const ok = await copyTracked(result.chunks[i]);
+    const n = result.chunks.length;
+    const tag = `${result.passage.reference} (${result.passage.translationCode})`;
+    const ok = await copyTracked(result.chunks[i], n > 1 ? `${tag} · part ${i + 1} of ${n}` : tag);
     setCopiedChunk(i);
     setCopiedOk(ok);
     if (ok) setCopyPulse((n) => n + 1);
-    const n = result.chunks.length;
-    const tag = `${result.passage.reference} (${result.passage.translationCode})`;
     const copied = n === 1 ? `Copied ${tag} — paste in Mixlr` : `Copied ${tag} part ${i + 1} of ${n}${i + 1 < n ? ` — paste in Mixlr, then copy part ${i + 2}` : " — paste in Mixlr"}`;
     showToast(ok ? copied : COPY_FAILED, ok ? "ok" : "err");
     refocus();
@@ -580,7 +613,7 @@ export default function Desk() {
 
   async function copyWhole() {
     if (!result) return;
-    const ok = await copyTracked(result.text);
+    const ok = await copyTracked(result.text, `${result.passage.reference} (${result.passage.translationCode}) · whole passage`);
     if (ok) setCopyPulse((n) => n + 1);
     const chars = result.text.length;
     showToast(ok ? `Copied the whole passage (${chars.toLocaleString("en")} ${chars === 1 ? "character" : "characters"})` : COPY_FAILED, ok ? "ok" : "err");
@@ -703,7 +736,7 @@ export default function Desk() {
           top, and on a phone the drawers move to a dock under the thumb. */}
       <aside className="relative z-20 mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pt-4 sm:px-6 sm:pt-6 lg:sticky lg:mx-0 lg:max-w-none lg:top-0 lg:h-dvh lg:gap-5 lg:overflow-y-auto lg:border-r lg:border-ink-700 lg:bg-ink-950/70 lg:px-5 lg:pt-6 lg:pb-5 lg:backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="group flex min-w-0 items-center gap-3 rounded-xl">
+          <Link href="/" className="group flex min-w-0 items-center gap-3 rounded-xl sm:shrink-0">
             {/* The mark from the church website until CLC's own file arrives. */}
             <span className="relative shrink-0">
               <Image src="/brand/clc-logo.png" alt="" width={40} height={40} priority className="h-10 w-10 rounded-full shadow-[0_0_24px_-4px_var(--accent-glow)]" />
@@ -714,8 +747,12 @@ export default function Desk() {
             </span>
           </Link>
           {/* Below the rail's width the tools live here, in the bar. */}
-          <nav aria-label="Desk tools" className="flex shrink-0 items-center gap-1 lg:hidden">
-            <span className="mr-2 hidden sm:inline-flex">
+          <nav aria-label="Desk tools" className="flex min-w-0 items-center justify-end gap-1 lg:hidden">
+            <span className="mr-1 hidden min-w-0 sm:flex sm:max-w-[15rem]">
+              <LastCopied last={lastCopy} onCopyAgain={(l) => void copyAgain(l)} />
+            </span>
+            {/* The rail has the full clock; beside Mixlr the bar only has room for it once the chip is placed. */}
+            <span className="mx-2 hidden shrink-0 xl:inline-flex">
               <LiveClock compact />
             </span>
             <button type="button" onClick={openPalette} className="btn btn-quiet gap-2 sm:border-ink-700 sm:bg-ink-900 sm:pr-1.5 sm:pl-3" aria-label="Search everything">
@@ -739,6 +776,13 @@ export default function Desk() {
             <ThemeToggle />
           </nav>
         </div>
+
+        {/* On a phone the chip gets a row of its own, and only once there is something to copy again. */}
+        {lastCopy && (
+          <div className="flex sm:hidden">
+            <LastCopied last={lastCopy} onCopyAgain={(l) => void copyAgain(l)} />
+          </div>
+        )}
 
         <div className="hidden rounded-2xl border border-ink-700 bg-ink-900 px-4 pt-3.5 pb-3 shadow-[var(--bevel)] lg:block">
           <LiveClock />
@@ -804,7 +848,7 @@ export default function Desk() {
         </div>
 
         <div className="hidden lg:block">
-          <OnClipboard item={onAir} />
+          <LastCopied variant="panel" last={lastCopy} onCopyAgain={(l) => void copyAgain(l)} />
         </div>
 
         <nav aria-label="Elsewhere" className="hidden lg:block">
@@ -909,10 +953,10 @@ export default function Desk() {
 
         <div role="tabpanel" id={panelId("verses")} aria-labelledby={tabId("verses")} className={tab === "verses" ? "contents" : "hidden"}>
           <form onSubmit={onSubmit} className="card group/form relative overflow-hidden rounded-[1.25rem] transition-[border-color,box-shadow] duration-200 focus-within:border-accent focus-within:shadow-[0_0_0_4px_var(--accent-soft),0_18px_48px_-20px_var(--accent-glow)]">
-            <div className="flex items-center gap-2 pr-2">
+            <div className="flex items-center gap-2 pr-3">
               <div className="relative min-w-0 flex-1">
                 {/* The prompt: an orange chevron, like a console waiting for a line. */}
-                <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg border border-ink-700 bg-ink-800 text-[var(--muted)] transition-colors group-focus-within/form:border-accent/50 group-focus-within/form:bg-accent-soft group-focus-within/form:text-accent-ink sm:h-9 sm:w-9">
+                <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 hidden h-8 w-8 -translate-y-1/2 place-items-center sm:grid rounded-lg border border-ink-700 bg-ink-800 text-[var(--muted)] transition-colors group-focus-within/form:border-accent/50 group-focus-within/form:bg-accent-soft group-focus-within/form:text-accent-ink sm:h-9 sm:w-9">
                   <Icon name="book" className="h-[18px] w-[18px]" />
                 </span>
                 {/* The three input attributes stop a phone keyboard from "helpfully"
@@ -929,7 +973,7 @@ export default function Desk() {
                   enterKeyHint="go"
                   aria-label="Bible reference or description"
                   placeholder="rom 8 28  ·  or describe it"
-                  className={`w-full min-w-0 bg-transparent py-5 pr-3 pl-16 font-text text-[17px] text-ink-50 outline-none placeholder:text-[var(--muted)] disabled:opacity-60 min-[400px]:text-[19px] sm:py-6 sm:pl-[4.25rem] sm:text-[24px] ${showBusy && busy ? "pr-12 sm:pr-44" : ""}`}
+                  className={`w-full min-w-0 bg-transparent py-5 pr-3 pl-5 font-text text-[17px] text-ink-50 outline-none placeholder:text-[var(--muted)] disabled:opacity-60 min-[400px]:text-[19px] sm:py-6 sm:pl-[4.25rem] sm:text-[24px] ${showBusy && busy ? "pr-12 sm:pr-44" : ""}`}
                 />
                 {/* Busy shows inside the box, never as a line above it that would
                     shove the box down while the operator is looking at it. The live
@@ -943,26 +987,19 @@ export default function Desk() {
                   )}
                 </p>
               </div>
-              {/* On a laptop Enter has always done this. A touch device has no
-                  visible way to submit at all, so it gets one. */}
-              <button type="submit" disabled={!input.trim() || !!busy} className="btn btn-primary btn-lg shrink-0 rounded-xl pointer-fine:hidden">
-                Go
-              </button>
-              <span aria-hidden="true" className={`kbd mr-3 hidden h-7 px-2 text-[12px] transition-[opacity,transform] duration-200 pointer-fine:inline-flex ${input.trim() && !busy ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}>
-                Enter ↵
-              </span>
-            </div>
-            {showBusy && busy && <span aria-hidden="true" className="scanline" />}
-            {/* The verse settings sit on the box they change, not in the page
-                header where they read as settings for the whole desk. */}
-            <div className="flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-ink-700 bg-ink-950/50 px-2 py-1.5">
-              {/* A label drawn in the page's own type with the native select laid
-                  invisibly over it: the select keeps the keyboard, the phone picker
-                  and the screen-reader name, and the chip is only as wide as its word. */}
-              <label className="relative flex items-center gap-2 rounded-lg px-2.5 py-1 font-ui text-[13px] text-ink-400 has-focus-visible:outline-2 has-focus-visible:outline-accent hover:bg-ink-800 hover:text-ink-200 pointer-coarse:min-h-11">
-                <span className="eyebrow">Translation</span>
-                <span className="font-mono text-[13px] font-semibold text-ink-50">{translation}</span>
-                <Icon name="down" className="h-3.5 w-3.5" />
+              {input.trim() && !busy && (
+                <span aria-hidden="true" className="kbd pop hidden h-7 shrink-0 px-2 text-[12px] pointer-fine:inline-flex">
+                  Enter ↵
+                </span>
+              )}
+              {/* The translation lives in the box it changes: the one setting
+                  touched mid-service, a glance from the reference being typed.
+                  A label in the page's own type with the native select laid
+                  invisibly over it: the select keeps the keyboard, the phone
+                  picker and the screen-reader name. */}
+              <label className="relative flex shrink-0 items-center gap-1.5 rounded-lg border border-ink-700 bg-ink-800 px-2.5 py-1.5 font-mono text-[13px] font-semibold text-ink-50 shadow-[var(--bevel)] transition-colors has-focus-visible:outline-2 has-focus-visible:outline-accent hover:border-ink-600 pointer-coarse:min-h-11">
+                {translation}
+                <Icon name="down" className="h-3.5 w-3.5 text-[var(--muted)]" />
                 <select
                   aria-label="Translation"
                   value={translation}
@@ -979,7 +1016,19 @@ export default function Desk() {
                   ))}
                 </select>
               </label>
-              <span aria-hidden="true" className="h-4 w-px bg-ink-700" />
+              {/* On a laptop Enter has always done this. A touch device has no
+                  visible way to submit at all, so it gets one. */}
+              <button type="submit" disabled={!input.trim() || !!busy} className="btn btn-primary btn-lg shrink-0 rounded-xl pointer-fine:hidden">
+                Go
+              </button>
+            </div>
+            {showBusy && busy && <span aria-hidden="true" className="scanline" />}
+            {/* The verse settings sit on the box they change, not in the page
+                header where they read as settings for the whole desk. */}
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-ink-700 bg-ink-950/50 px-2 py-1.5">
+              {/* A label drawn in the page's own type with the native select laid
+                  invisibly over it: the select keeps the keyboard, the phone picker
+                  and the screen-reader name, and the chip is only as wide as its word. */}
               <label
                 title="Auto tries saved verses, YouVersion, API.Bible, BibleGateway, then AI-quoted text. Choose one to use only that source."
                 className={`relative flex items-center gap-2 rounded-lg px-2.5 py-1 font-ui text-[13px] has-focus-visible:outline-2 has-focus-visible:outline-accent pointer-coarse:min-h-11 ${sourceChoice === "auto" ? "text-ink-400 hover:bg-ink-800 hover:text-ink-200" : sourceChoice === "llm" ? "bg-bad-bg text-bad-fg" : "bg-warn-bg text-warn-fg"}`}
@@ -1074,9 +1123,9 @@ export default function Desk() {
                       Not copied — read it first
                     </span>
                   ) : copiedOk ? (
-                    <span className="flex items-center gap-2.5 font-mono text-[11px] font-medium tracking-[0.14em] text-ink-100 uppercase">
-                      <span className="tally pop" />
-                      On clipboard{result.chunks.length > 1 ? ` · part ${copiedChunk + 1} of ${result.chunks.length}` : ""}
+                    <span className="flex items-center gap-2.5 font-mono text-[11px] font-medium tracking-[0.14em] text-ok-fg uppercase">
+                      <span className="tally tally-ok pop" />
+                      Copied{result.chunks.length > 1 ? ` · part ${copiedChunk + 1} of ${result.chunks.length}` : ""}
                       <span className="hidden text-[var(--muted)] sm:inline">· paste in Mixlr</span>
                     </span>
                   ) : (
@@ -1092,47 +1141,46 @@ export default function Desk() {
                   )}
                 </div>
 
-                <PostPreview text={result.chunks[copiedChunk]} header={`${result.passage.reference}\n${result.passage.translationName}`} />
-              </div>
-
-              {result.chunks.length > 1 && (
-                <div className="flex flex-wrap items-center gap-2 border-t border-ink-700 px-5 py-3 sm:px-7" role="group" aria-label="Parts">
-                  <span className="eyebrow mr-1">Parts</span>
-                  {result.chunks.map((_, i) => (
-                    <button key={i} onClick={() => copyChunk(i)} aria-current={i === copiedChunk ? "true" : undefined} className={`btn btn-sm min-w-9 font-mono ${i === copiedChunk ? "btn-on" : ""}`}>
-                      {i + 1}
+                <PostPreview text={result.chunks[copiedChunk]} header={`${result.passage.reference}\n${result.passage.translationName}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Copies the part on screen, the same one "Copy again" in ⌘K copies. */}
+                    <button onClick={() => copyChunk(copiedChunk)} className="btn btn-primary">
+                      <Icon name="copy" className="h-4 w-4" />
+                      {/* An AI-quoted verse was never copied, so there is nothing to copy "again". */}
+                      {result.passage.source === "llm" ? "Copy" : "Copy again"}
                     </button>
-                  ))}
-                  <span className="font-mono text-[11px] text-[var(--muted)]">one post each</span>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2 border-t border-ink-700 bg-ink-950/30 px-5 py-3.5 sm:px-7">
-                {/* Copies the part on screen, the same one "Copy again" in ⌘K copies. */}
-                <button onClick={() => copyChunk(copiedChunk)} className="btn btn-primary">
-                  <Icon name="copy" className="h-4 w-4" />
-                  {/* An AI-quoted verse was never copied, so there is nothing to copy "again". */}
-                  {result.passage.source === "llm" ? "Copy" : "Copy again"}
-                </button>
-                <button onClick={nextVerse} className="btn">
-                  Next verse <span className="kbd ml-0.5 hidden pointer-fine:inline-flex">+</span>
-                </button>
-                <button onClick={copyWhole} className="btn">
-                  Copy whole passage
-                </button>
-                <button onClick={openChapter} className="btn btn-quiet">
-                  Open chapter
-                </button>
+                    <button onClick={nextVerse} className="btn">
+                      Next verse <span className="kbd ml-0.5 hidden pointer-fine:inline-flex">+</span>
+                    </button>
+                    <button onClick={copyWhole} className="btn">
+                      Copy whole passage
+                    </button>
+                    <button onClick={openChapter} className="btn btn-quiet">
+                      Open chapter
+                    </button>
+                  </div>
+                  {result.chunks.length > 1 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Parts">
+                      <span className="eyebrow mr-1">Parts</span>
+                      {result.chunks.map((_, i) => (
+                        <button key={i} onClick={() => copyChunk(i)} aria-current={i === copiedChunk ? "true" : undefined} className={`btn btn-sm min-w-9 font-mono ${i === copiedChunk ? "btn-on" : ""}`}>
+                          {i + 1}
+                        </button>
+                      ))}
+                      <span className="font-mono text-[11px] text-[var(--muted)]">one post each</span>
+                    </div>
+                  )}
+                </PostPreview>
               </div>
 
               {/* "Let's see it in TPT": one press copies this same reference in it.
-                  Below the text: the verse is what gets read. A strip of channels,
-                  scrolled sideways on a phone rather than wrapped into a wall. */}
-              <div className="flex items-center gap-2 border-t border-ink-700 bg-ink-950/50 py-2.5 pl-5 sm:pl-7" role="group" aria-label={`Copy ${result.passage.reference} in another translation`}>
-                <span aria-hidden="true" className="eyebrow shrink-0">
-                  Copy in
+                  Below the text: the verse is what gets read. The codes wrap rather
+                  than scroll, so every translation is in view on a phone. */}
+              <div className="flex items-start gap-3 border-t border-ink-700 bg-ink-950/50 px-5 py-3 sm:px-7" role="group" aria-label={`Copy ${result.passage.reference} in another translation`}>
+                <span aria-hidden="true" className="eyebrow shrink-0 pt-1.5 pointer-coarse:pt-3.5">
+                  Also in
                 </span>
-                <div className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto pr-5 [mask-image:linear-gradient(90deg,#000_90%,transparent)]">
+                <div className="flex min-w-0 flex-1 flex-wrap gap-1">
                   {TRANSLATIONS.map((t) => {
                     const current = t.code === result.passage.translationCode;
                     return (

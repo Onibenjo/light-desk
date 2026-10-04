@@ -12,7 +12,8 @@ import { messagesById, type Library } from "@/lib/messageLibrary";
 import { failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { MatchedLine } from "./MatchedLine";
 import SongEditor, { readSong, songFromBody } from "./SongEditor";
-import SongList from "./SongList";
+import SongList, { groupId } from "./SongList";
+import { groupByLetter } from "@/lib/songGroups";
 import SetlistBar, { NoSetlistBar } from "./SetlistBar";
 import StartSetlist from "./StartSetlist";
 import { addToast, type SetlistApi } from "./useSetlist";
@@ -76,7 +77,8 @@ function readServerSearch(body: unknown): { songs: SongMatch[]; total: number | 
 }
 
 interface Props {
-  copyText: (t: string) => Promise<boolean>;
+  /** `label` is how Last copied names what was copied. */
+  copyText: (t: string, label?: string) => Promise<boolean>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   logSend: (kind: string, label: string, body: string, meta?: unknown) => void;
   /** Owned by the desk, so the Songs and Messages tabs show one setlist. */
@@ -104,6 +106,8 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   const deferredQ = useDeferredValue(q);
   const [book, setBook] = useState<IndexedSong[] | null>(null);
   const byId = useMemo(() => songsById(book), [book]);
+  // The letters the book actually has, for the jump bar over the A–Z list.
+  const letters = useMemo(() => (book ? groupByLetter(book.map((b) => b.song)).map((g) => g.letter) : []), [book]);
   const libraryById = useMemo(() => messagesById(library), [library]);
   const setlistRows = useMemo(() => (setlist ? resolveSetlist(setlist.items, byId, libraryById) : []), [setlist, byId, libraryById]);
   // Results from the server, used only until the local book has arrived.
@@ -291,7 +295,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
   async function copySection(i: number, advance = false) {
     if (!song) return;
     const text = formatSection(song.sections[i]);
-    const ok = await copyText(text);
+    const ok = await copyText(text, `${song.title} · section ${i + 1}`);
     if (ok) {
       markSent(songKey(song), i);
       showToast(`Copied section ${i + 1} of ${song.sections.length} — paste in Mixlr`);
@@ -384,7 +388,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     if (!song) return;
     const text = formatTitle(song.title);
     if (!text) return;
-    const ok = await copyText(text);
+    const ok = await copyText(text, `${song.title} · title`);
     if (ok) {
       showToast(`Copied the title "${song.title}" — paste in Mixlr`);
       logSend("song", `${song.title} · title`, text);
@@ -553,7 +557,23 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
               rebuilding them every time the search box is cleared is the one
               cost `content-visibility` cannot skip. */}
           {book && book.length > 0 && (
-            <div hidden={!!q.trim()}>
+            <div hidden={!!q.trim()} className="space-y-3">
+              {/* A–Z: jump to a letter instead of scrolling past 2,000 songs to reach W. */}
+              <nav aria-label="Jump to a letter" className="flex flex-wrap gap-1">
+                {letters.map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() =>
+                      document.getElementById(groupId(l))?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" })
+                    }
+                    aria-label={l === "#" ? "Songs starting with a number or symbol" : `Songs starting with ${l}`}
+                    className="grid h-8 min-w-8 place-items-center rounded-md font-mono text-[12.5px] font-semibold text-ink-300 transition-colors hover:bg-ink-800 hover:text-accent-ink pointer-coarse:h-10 pointer-coarse:min-w-10"
+                  >
+                    {l}
+                  </button>
+                ))}
+              </nav>
               <SongList book={book} onOpen={openSong} />
             </div>
           )}
@@ -649,7 +669,7 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             title={song.title}
             action={
               <button onClick={() => void copyTitle()} title={`Copies ${formatTitle(song.title)}`} className="btn btn-sm shrink-0">
-                Copy title
+                Copy title <span aria-hidden="true" className="kbd ml-0.5 hidden pointer-fine:inline-flex">T</span>
               </button>
             }
             count={song.sections.length}
@@ -678,14 +698,12 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             </div>
           )}
           <p className="hidden font-ui text-xs leading-7 text-[var(--muted)] pointer-fine:block">
-            <span className="kbd">↵</span> copy and move on · <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that section ·{" "}
-            <span className="kbd">P</span> pin · <span className="kbd">C</span> copy the pinned one · <span className="kbd">T</span> copy the title ·{" "}
+            <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that section · <span className="kbd">P</span> pin the chorus · <span className="kbd">C</span> copy the pinned one
             {canOpenNext && (
               <>
-                <span className="kbd">N</span> next in the service order ·{" "}
+                {" "}· <span className="kbd">N</span> next in the service order
               </>
             )}
-            <span className="kbd">Esc</span> back
           </p>
           {song.sections.length === 0 && <p className="text-sm text-[var(--muted)]">This song has no sections. Edit it to add the lyrics.</p>}
           <ol className="space-y-2">

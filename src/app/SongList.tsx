@@ -25,7 +25,7 @@ interface Props {
  * (75ms against 175ms), which is not where the scrolling is.
  */
 /** "#" is a fine thing to show and a useless thing to put in an id. */
-const groupId = (letter: string) => `letter-${/^[A-Z]$/.test(letter) ? letter.toLowerCase() : "other"}`;
+export const groupId = (letter: string) => `letter-${/^[A-Z]$/.test(letter) ? letter.toLowerCase() : "other"}`;
 
 function SongList({ book, onOpen }: Props) {
   const groups = useMemo(() => groupByLetter(book.map((b) => b.song)), [book]);
