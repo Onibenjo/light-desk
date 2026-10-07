@@ -40,7 +40,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const current = await findSetlist(branchId, id);
     if (!current) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
     const added = addedMessageIds(current.items, parsed.items);
-    const refused = refusedMessage(added, await factsForMessages(added));
+    const refused = refusedMessage(added, await factsForMessages(session.branchId, added));
     if (refused) return NextResponse.json({ error: refused }, { status: 400 });
   }
 

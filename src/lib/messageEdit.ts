@@ -22,16 +22,21 @@ export interface SectionPatch {
   move?: -1 | 1;
 }
 
+/** Shared messages show in every branch; branch ones only in the branch that wrote them. */
+export type MessageScope = "shared" | "branch";
+
 export interface MessageCreate {
   sectionId: number;
   title: string;
   parts: string[];
+  scope: MessageScope;
 }
 
 export interface MessagePatch {
   sectionId?: number;
   title?: string;
   parts?: string[];
+  scope?: MessageScope;
   /** Swap with the message above (-1) or below (1) in its section. */
   move?: -1 | 1;
 }
@@ -44,6 +49,7 @@ const LENGTH_ERROR = `A part can be at most ${MAX_PART_CHARS} characters — spl
 const SECTION_ERROR = "Choose a section for the message";
 const FLAG_ERROR = "“Can go in a service order” must be true or false";
 const MOVE_ERROR = "Move a message or section one place up or down at a time";
+const SCOPE_ERROR = "Choose whether the message is shared with every branch or only this one";
 const NOTHING = "Nothing to save — change something first";
 
 function oneLine(value: unknown, max: number): string | null {
@@ -136,7 +142,8 @@ export function parseMessageCreate(body: unknown): MessageCreate | string {
   if (title === null) return TITLE_ERROR;
   const parts = partsFromText(b.text);
   if (typeof parts === "string") return parts;
-  return { sectionId, title, parts };
+  if (b.scope !== undefined && b.scope !== "shared" && b.scope !== "branch") return SCOPE_ERROR;
+  return { sectionId, title, parts, scope: b.scope === "branch" ? "branch" : "shared" };
 }
 
 export function parseMessagePatch(body: unknown): MessagePatch | string {
@@ -157,6 +164,10 @@ export function parseMessagePatch(body: unknown): MessagePatch | string {
     const parts = partsFromText(b.text);
     if (typeof parts === "string") return parts;
     patch.parts = parts;
+  }
+  if (has(body, "scope")) {
+    if (b.scope !== "shared" && b.scope !== "branch") return SCOPE_ERROR;
+    patch.scope = b.scope;
   }
   if (has(body, "move")) {
     if (b.move !== -1 && b.move !== 1) return MOVE_ERROR;

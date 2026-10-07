@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureSchema } from "@/db";
 import { deleteMessage, updateMessage } from "@/db/messages";
 import { parseMessagePatch } from "@/lib/messageEdit";
-import { isAdmin } from "@/lib/adminGate";
+import { currentSession, isAdmin } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
@@ -15,9 +15,11 @@ async function messageId(params: Promise<{ id: string }>): Promise<number | null
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-/** PATCH { sectionId?, title?, text?, move? } — admin. */
+/** PATCH { sectionId?, title?, text?, scope?, move? } — admin. */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
   const id = await messageId(params);
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 
@@ -25,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
   await ensureSchema();
-  const result = await updateMessage(id, parsed);
+  const result = await updateMessage(session.branchId, id, parsed);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
   if (result === "no-section") return NextResponse.json({ error: "That section is gone — reload the page" }, { status: 400 });
   return NextResponse.json({ ok: true, message: result });
@@ -37,10 +39,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
  */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
   const id = await messageId(params);
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 
   await ensureSchema();
-  if (!(await deleteMessage(id))) return NextResponse.json({ error: MISSING }, { status: 404 });
+  if (!(await deleteMessage(session.branchId, id))) return NextResponse.json({ error: MISSING }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

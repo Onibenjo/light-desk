@@ -41,8 +41,8 @@ async function fixture() {
   const apologies = await lib.createSection({ name: "Apologies", inService: false });
   const welcoming = await lib.createSection({ name: "Welcoming Ambience Jewel", inService: true });
   if (apologies === "duplicate" || welcoming === "duplicate") throw new Error("duplicate");
-  const sorry = await lib.createMessage({ sectionId: apologies.id, title: "Sound restored", parts: ["Sorry"] });
-  const sunday = await lib.createMessage({ sectionId: welcoming.id, title: "Sunday", parts: ["As we gather"] });
+  const sorry = await lib.createMessage(1, { sectionId: apologies.id, title: "Sound restored", parts: ["Sorry"], scope: "shared" });
+  const sunday = await lib.createMessage(1, { sectionId: welcoming.id, title: "Sunday", parts: ["As we gather"], scope: "shared" });
   if (sorry === "no-section" || sunday === "no-section") throw new Error("no-section");
   return { welcoming, sorry, sunday, setlist: await setlists.createSetlist(1, "Sunday") };
 }

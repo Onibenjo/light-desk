@@ -16,9 +16,13 @@ export interface LibraryMessage {
   /** One Mixlr post each. */
   parts: string[];
   sort: number;
+  /** True when every branch sees it; false when it belongs to this branch alone. */
+  shared: boolean;
 }
 
 export interface Library {
+  /** The branch this library was loaded for. */
+  branch: { id: number; name: string; tokens: Record<string, string> };
   sections: LibrarySection[];
   messages: LibraryMessage[];
 }
