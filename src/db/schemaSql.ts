@@ -1,4 +1,5 @@
 import type { Client } from "@libsql/client";
+import { hashPin } from "../lib/pinHash";
 
 /**
  * The whole schema as plain DDL, kept free of any client so scripts can create
@@ -9,6 +10,12 @@ import type { Client } from "@libsql/client";
  * time, so this file still pulls in none of the client's runtime code.
  */
 export const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS branches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    church_pin_hash TEXT UNIQUE, admin_pin_hash TEXT UNIQUE,
+    pin_version INTEGER NOT NULL DEFAULT 0, tokens TEXT NOT NULL DEFAULT '{}',
+    created_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS verse_cache (
     translation TEXT NOT NULL, book INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
     text TEXT NOT NULL, source TEXT NOT NULL, fetched_at INTEGER NOT NULL,
@@ -16,13 +23,14 @@ export const SCHEMA_SQL = `
   );
   CREATE TABLE IF NOT EXISTS sent_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, label TEXT NOT NULL,
-    body TEXT, meta TEXT, created_at INTEGER NOT NULL
+    body TEXT, meta TEXT, created_at INTEGER NOT NULL,
+    branch_id INTEGER NOT NULL DEFAULT 1
   );
   CREATE INDEX IF NOT EXISTS sent_log_created_at ON sent_log (created_at);
   CREATE TABLE IF NOT EXISTS songs (
     id INTEGER PRIMARY KEY AUTOINCREMENT, guid TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
     author TEXT, sections TEXT NOT NULL, source TEXT NOT NULL,
-    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, edited_at INTEGER
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, edited_at INTEGER, edited_by INTEGER
   );
   CREATE TABLE IF NOT EXISTS message_sections (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
@@ -31,13 +39,13 @@ export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT, section_id INTEGER NOT NULL REFERENCES message_sections(id),
     title TEXT NOT NULL, parts TEXT NOT NULL, sort INTEGER NOT NULL,
-    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, branch_id INTEGER
   );
   CREATE TABLE IF NOT EXISTS setlists (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, items TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    active INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+    branch_id INTEGER NOT NULL DEFAULT 1
   );
-  CREATE UNIQUE INDEX IF NOT EXISTS setlists_one_active ON setlists (active) WHERE active = 1;
 `;
 
 /**
@@ -45,7 +53,40 @@ export const SCHEMA_SQL = `
  * to a table that already exists, and SQLite has no ADD COLUMN IF NOT EXISTS, so
  * each one is checked against the live table. Still no migration files to run.
  */
-const ADDED_COLUMNS = [{ table: "songs", column: "edited_at", type: "INTEGER" }] as const;
+const ADDED_COLUMNS = [
+  { table: "songs", column: "edited_at", type: "INTEGER" },
+  { table: "songs", column: "edited_by", type: "INTEGER" },
+  { table: "setlists", column: "branch_id", type: "INTEGER NOT NULL DEFAULT 1" },
+  { table: "sent_log", column: "branch_id", type: "INTEGER NOT NULL DEFAULT 1" },
+  { table: "messages", column: "branch_id", type: "INTEGER" },
+] as const;
+
+/**
+ * Indexes over the added columns. Run after the column loop: an old database
+ * has no branch_id until then. One active setlist per branch replaces the old
+ * one-per-database index.
+ */
+const POST_COLUMN_SQL = `
+  DROP INDEX IF EXISTS setlists_one_active;
+  CREATE UNIQUE INDEX IF NOT EXISTS setlists_one_active_per_branch ON setlists (branch_id) WHERE active = 1;
+  CREATE INDEX IF NOT EXISTS messages_branch ON messages (branch_id);
+  CREATE INDEX IF NOT EXISTS sent_log_branch_created ON sent_log (branch_id, created_at);
+`;
+
+/**
+ * Today's data becomes branch 1. PINs come from the env the app used before
+ * branches existed; unset means null (no PIN yet). OR IGNORE on id 1 makes two
+ * instances booting together safe.
+ */
+async function ensureFirstBranch(client: Client): Promise<void> {
+  // Trimmed like the unlock screen trims what is typed; blank after trimming means no PIN.
+  const church = process.env.CHURCH_PIN?.trim();
+  const admin = process.env.ADMIN_PIN?.trim();
+  await client.execute({
+    sql: "INSERT OR IGNORE INTO branches (id, name, church_pin_hash, admin_pin_hash, created_at) VALUES (1, ?, ?, ?, ?)",
+    args: [process.env.FIRST_BRANCH_NAME ?? "CLC Ilorin", church ? await hashPin(church) : null, admin ? await hashPin(admin) : null, Date.now()],
+  });
+}
 
 /**
  * True when `e` is SQLite's refusal to add a column that's already there. Two
@@ -92,4 +133,6 @@ export async function applySchema(client: Client): Promise<void> {
       if (!isDuplicateColumnError(e)) throw e;
     }
   }
+  await client.executeMultiple(POST_COLUMN_SQL);
+  await ensureFirstBranch(client);
 }

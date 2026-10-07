@@ -85,6 +85,7 @@ describe("a message", () => {
       sectionId: 3,
       title: "Sunday · Worship",
       parts: ["Arms wide"],
+      scope: "shared",
     });
     expect(parseMessageCreate({ title: "Sunday", text: "x" })).toMatch(/section/i);
     expect(parseMessageCreate({ sectionId: 1.5, title: "Sunday", text: "x" })).toMatch(/section/i);
@@ -101,5 +102,13 @@ describe("a message", () => {
     expect(parseMessagePatch({ sectionId: 0 })).toMatch(/section/i);
     expect(parseMessagePatch({})).toMatch(/nothing/i);
     expect(parseMessagePatch(null)).toMatch(/nothing/i);
+  });
+});
+
+describe("message scope", () => {
+  it("defaults to shared, passes branch through, refuses anything else", () => {
+    expect(parseMessageCreate({ sectionId: 1, title: "t", text: "x" })).toMatchObject({ scope: "shared" });
+    expect(parseMessageCreate({ sectionId: 1, title: "t", text: "x", scope: "branch" })).toMatchObject({ scope: "branch" });
+    expect(typeof parseMessageCreate({ sectionId: 1, title: "t", text: "x", scope: "everyone" })).toBe("string");
   });
 });

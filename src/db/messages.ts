@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "./index";
 import { messageSections, messages } from "./schema";
+import type { Branch } from "./branches";
 import type { Library, LibraryMessage, LibrarySection } from "@/lib/messageLibrary";
 import type { MessageCreate, MessagePatch, SectionCreate, SectionPatch } from "@/lib/messageEdit";
 import type { ParsedSeed } from "@/lib/messageSeed";
@@ -13,7 +14,12 @@ function toSection(row: SectionRow): LibrarySection {
 }
 
 function toMessage(row: MessageRow): LibraryMessage {
-  return { id: row.id, sectionId: row.sectionId, title: row.title, parts: JSON.parse(row.parts) as string[], sort: row.sort };
+  return { id: row.id, sectionId: row.sectionId, title: row.title, parts: JSON.parse(row.parts) as string[], sort: row.sort, shared: row.branchId === null };
+}
+
+/** Shared messages, and this branch's own. */
+function visibleTo(branchId: number) {
+  return or(isNull(messages.branchId), eq(messages.branchId, branchId));
 }
 
 /**
@@ -28,12 +34,16 @@ function isUniqueViolation(e: unknown): boolean {
 }
 
 /** Everything, one payload. The library is a few dozen rows and always read whole. */
-export async function loadLibrary(): Promise<Library> {
+export async function loadLibrary(branch: Branch): Promise<Library> {
   const [sectionRows, messageRows] = await Promise.all([
     db.select().from(messageSections).orderBy(asc(messageSections.sort), asc(messageSections.id)),
-    db.select().from(messages).orderBy(asc(messages.sort), asc(messages.id)),
+    db.select().from(messages).where(visibleTo(branch.id)).orderBy(asc(messages.sort), asc(messages.id)),
   ]);
-  return { sections: sectionRows.map(toSection), messages: messageRows.map(toMessage) };
+  return {
+    branch: { id: branch.id, name: branch.name, tokens: branch.tokens },
+    sections: sectionRows.map(toSection),
+    messages: messageRows.map(toMessage),
+  };
 }
 
 async function nextSectionSort(): Promise<number> {
@@ -54,8 +64,8 @@ async function findSectionRow(id: number): Promise<SectionRow | undefined> {
   return row;
 }
 
-async function findMessageRow(id: number): Promise<MessageRow | undefined> {
-  const [row] = await db.select().from(messages).where(eq(messages.id, id));
+async function findMessageRow(branchId: number, id: number): Promise<MessageRow | undefined> {
+  const [row] = await db.select().from(messages).where(and(eq(messages.id, id), visibleTo(branchId)));
   return row;
 }
 
@@ -117,20 +127,28 @@ export async function updateSection(id: number, patch: SectionPatch): Promise<Li
  * Only an empty section can go. Checked in code rather than by a foreign key,
  * because SQLite only enforces those when a connection asks it to.
  */
-export async function deleteSection(id: number): Promise<"deleted" | "gone" | "not-empty"> {
+export async function deleteSection(id: number, branchId: number): Promise<"deleted" | "gone" | "not-empty" | "not-empty-elsewhere"> {
   const [used] = await db.select({ id: messages.id }).from(messages).where(eq(messages.sectionId, id)).limit(1);
-  if (used) return "not-empty";
+  if (used) {
+    const [visible] = await db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(and(eq(messages.sectionId, id), or(isNull(messages.branchId), eq(messages.branchId, branchId))))
+      .limit(1);
+    return visible ? "not-empty" : "not-empty-elsewhere";
+  }
   const [row] = await db.delete(messageSections).where(eq(messageSections.id, id)).returning({ id: messageSections.id });
   return row ? "deleted" : "gone";
 }
 
-export async function createMessage(input: MessageCreate): Promise<LibraryMessage | "no-section"> {
+export async function createMessage(branchId: number, input: MessageCreate): Promise<LibraryMessage | "no-section"> {
   if (!(await findSectionRow(input.sectionId))) return "no-section";
   const now = new Date();
   const [row] = await db
     .insert(messages)
     .values({
       sectionId: input.sectionId,
+      branchId: input.scope === "branch" ? branchId : null,
       title: input.title,
       parts: JSON.stringify(input.parts),
       sort: await nextMessageSort(input.sectionId),
@@ -142,11 +160,11 @@ export async function createMessage(input: MessageCreate): Promise<LibraryMessag
 }
 
 /** Trade `sort` with the nearest message above or below, within the same section. */
-async function swapMessage(current: MessageRow, delta: -1 | 1): Promise<void> {
+async function swapMessage(branchId: number, current: MessageRow, delta: -1 | 1): Promise<void> {
   const [neighbour] = await db
     .select()
     .from(messages)
-    .where(and(eq(messages.sectionId, current.sectionId), delta < 0 ? lt(messages.sort, current.sort) : gt(messages.sort, current.sort)))
+    .where(and(eq(messages.sectionId, current.sectionId), visibleTo(branchId), delta < 0 ? lt(messages.sort, current.sort) : gt(messages.sort, current.sort)))
     .orderBy(delta < 0 ? desc(messages.sort) : asc(messages.sort))
     .limit(1);
   if (!neighbour) return;
@@ -156,29 +174,30 @@ async function swapMessage(current: MessageRow, delta: -1 | 1): Promise<void> {
   ]);
 }
 
-export async function updateMessage(id: number, patch: MessagePatch): Promise<LibraryMessage | "gone" | "no-section"> {
-  const current = await findMessageRow(id);
+export async function updateMessage(branchId: number, id: number, patch: MessagePatch): Promise<LibraryMessage | "gone" | "no-section"> {
+  const current = await findMessageRow(branchId, id);
   if (!current) return "gone";
 
-  const values: { updatedAt: Date; title?: string; parts?: string; sectionId?: number; sort?: number } = { updatedAt: new Date() };
+  const values: { updatedAt: Date; title?: string; parts?: string; sectionId?: number; sort?: number; branchId?: number | null } = { updatedAt: new Date() };
   if (patch.sectionId !== undefined && patch.sectionId !== current.sectionId) {
     if (!(await findSectionRow(patch.sectionId))) return "no-section";
     values.sectionId = patch.sectionId;
     // Arrives at the end of its new section; a move within the old one is moot.
     values.sort = await nextMessageSort(patch.sectionId);
   } else if (patch.move) {
-    await swapMessage(current, patch.move);
+    await swapMessage(branchId, current, patch.move);
   }
   if (patch.title !== undefined) values.title = patch.title;
   if (patch.parts !== undefined) values.parts = JSON.stringify(patch.parts);
+  if (patch.scope !== undefined) values.branchId = patch.scope === "branch" ? branchId : null;
 
   await db.update(messages).set(values).where(eq(messages.id, id));
-  const saved = await findMessageRow(id);
+  const saved = await findMessageRow(branchId, id);
   return saved ? toMessage(saved) : "gone";
 }
 
-export async function deleteMessage(id: number): Promise<boolean> {
-  const [row] = await db.delete(messages).where(eq(messages.id, id)).returning({ id: messages.id });
+export async function deleteMessage(branchId: number, id: number): Promise<boolean> {
+  const [row] = await db.delete(messages).where(and(eq(messages.id, id), visibleTo(branchId))).returning({ id: messages.id });
   return !!row;
 }
 
@@ -215,12 +234,12 @@ export interface MessageFacts {
 }
 
 /** What the setlist route needs to know before letting a message in. Unknown ids are simply absent. */
-export async function factsForMessages(ids: number[]): Promise<Map<number, MessageFacts>> {
+export async function factsForMessages(branchId: number, ids: number[]): Promise<Map<number, MessageFacts>> {
   if (!ids.length) return new Map();
   const rows = await db
     .select({ id: messages.id, inService: messageSections.inService, sectionName: messageSections.name })
     .from(messages)
     .innerJoin(messageSections, eq(messages.sectionId, messageSections.id))
-    .where(inArray(messages.id, ids));
+    .where(and(inArray(messages.id, ids), visibleTo(branchId)));
   return new Map(rows.map((r) => [r.id, { inService: r.inService, sectionName: r.sectionName }]));
 }

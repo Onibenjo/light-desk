@@ -29,13 +29,15 @@ interface Props {
   setlistApi: SetlistApi;
   copied: ReadonlySet<string>;
   copyPart: Copy;
+  /** The branch's own values for `{key}` in a message. */
+  tokens: Record<string, string>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   pending: OpenMessage | null;
   onPendingDone: () => void;
   onOpenSong: (row: SongRow) => void;
 }
 
-export default function MessagesTab({ library, failed, onRetry, setlistApi, copied, copyPart, showToast, pending, onPendingDone, onOpenSong }: Props) {
+export default function MessagesTab({ library, failed, onRetry, setlistApi, copied, copyPart, tokens, showToast, pending, onPendingDone, onOpenSong }: Props) {
   const { setlist, addItem, startSetlist } = setlistApi;
   const [q, setQ] = useState("");
   const deferredQ = useDeferredValue(q);
@@ -226,6 +228,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
       <MessageView
         label={open.label}
         parts={open.parts}
+        tokens={tokens}
         edited={open.edited}
         sent={sent}
         cursor={cursor}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { fillTokens } from "@/lib/branchTokens";
 import { partLabel, type OpenMessage } from "@/lib/messageLibrary";
 
 interface Deps {
@@ -8,6 +9,8 @@ interface Deps {
   copyText: (t: string, label?: string) => Promise<boolean>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   logSend: (kind: string, label: string, body: string, meta?: unknown) => void;
+  /** The branch's own values for `{key}` in a message. Keep the reference stable. */
+  tokens: Record<string, string>;
 }
 
 /**
@@ -16,13 +19,18 @@ interface Deps {
  * the log entry and the ✓ tick never disagree. The ticks live only in this
  * page session; they are not progress anyone else sees.
  */
-export function useMessageCopy({ copyText, showToast, logSend }: Deps) {
+export function useMessageCopy({ copyText, showToast, logSend, tokens }: Deps) {
   const [copied, setCopied] = useState<ReadonlySet<string>>(new Set());
 
   const copyPart = useCallback(
     async (message: Pick<OpenMessage, "key" | "label" | "parts">, index: number): Promise<boolean> => {
-      const text = message.parts[index];
-      if (text === undefined) return false;
+      const part = message.parts[index];
+      if (part === undefined) return false;
+      const { text, missing } = fillTokens(part, tokens);
+      if (missing.length > 0) {
+        showToast(`No value for {${missing[0]}} in this branch — set it in Branch settings`, "err");
+        return false;
+      }
       // A throw from the clipboard is the same as a refusal: no tick, no log, a toast.
       const count = message.parts.length;
       let ok = false;
@@ -38,7 +46,7 @@ export function useMessageCopy({ copyText, showToast, logSend }: Deps) {
       setCopied((prev) => new Set(prev).add(message.key));
       return true;
     },
-    [copyText, showToast, logSend],
+    [copyText, showToast, logSend, tokens],
   );
 
   return { copied, copyPart };

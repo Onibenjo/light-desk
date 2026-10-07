@@ -21,6 +21,7 @@ const render = (over: Partial<Parameters<typeof MessageView>[0]> = {}) =>
       place={null}
       onNext={() => {}}
       partRef={() => {}}
+      tokens={{}}
       {...over}
     />,
   );
@@ -99,5 +100,17 @@ describe("finding the way on from a long message", () => {
     expect(t).not.toContain("Next in");
     expect(t).not.toContain("last item");
     expect(t).toContain("End of the message");
+  });
+});
+
+describe("branch tokens in a message", () => {
+  it("shows a part with its branch's value filled in", () => {
+    const t = text(render({ parts: ["Give via {offeringAccounts}"], tokens: { offeringAccounts: "Zenith 123" } }));
+    expect(t).toContain("Give via Zenith 123");
+    expect(t).not.toContain("No value for");
+  });
+  it("says which value this branch has not set", () => {
+    const t = text(render({ parts: ["Give via {offeringAccounts}"], tokens: {} }));
+    expect(t).toContain("No value for {offeringAccounts} in this branch");
   });
 });

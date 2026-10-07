@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureSchema } from "@/db";
 import { deleteSetlist, findSetlist, updateSetlist } from "@/db/setlists";
 import { factsForMessages } from "@/db/messages";
+import { currentSession } from "@/lib/adminGate";
 import { addedMessageIds, parseSetlistPatch, refusedMessage } from "@/lib/setlistEdit";
 
 export const runtime = "nodejs";
@@ -21,6 +22,9 @@ async function setlistId(params: Promise<{ id: string }>): Promise<number | null
  * single addition to that.
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
+  const branchId = session.branchId;
   const id = await setlistId(params);
   if (id === null) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
 
@@ -33,27 +37,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // if its section has since been switched out of service, so flipping a toggle
   // cannot make Sunday's prepared order unsaveable.
   if (parsed.items) {
-    const current = await findSetlist(id);
+    const current = await findSetlist(branchId, id);
     if (!current) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
     const added = addedMessageIds(current.items, parsed.items);
-    const refused = refusedMessage(added, await factsForMessages(added));
+    const refused = refusedMessage(added, await factsForMessages(session.branchId, added));
     if (refused) return NextResponse.json({ error: refused }, { status: 400 });
   }
 
-  const result = await updateSetlist(id, parsed);
+  const result = await updateSetlist(branchId, id, parsed);
   if (result === "gone") return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
   if (result === "stale") {
-    return NextResponse.json({ error: "Someone else changed this service order first", setlist: await findSetlist(id) }, { status: 409 });
+    return NextResponse.json({ error: "Someone else changed this service order first", setlist: await findSetlist(branchId, id) }, { status: 409 });
   }
   return NextResponse.json({ ok: true, setlist: result });
 }
 
 /** DELETE /api/setlists/:id. If it was the active one, nothing is promoted in its place. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
+  const branchId = session.branchId;
   const id = await setlistId(params);
   if (id === null) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
 
   await ensureSchema();
-  if (!(await deleteSetlist(id))) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
+  if (!(await deleteSetlist(branchId, id))) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
