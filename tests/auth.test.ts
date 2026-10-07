@@ -61,6 +61,29 @@ describe("sessions", () => {
     expect(await auth.sessionFromToken(old("church:2222"))).toBeNull();
   });
 
+  it("maps a single-PIN admin cookie (no ADMIN_PIN) to branch 1 admin", async () => {
+    delete env.ADMIN_PIN;
+    const old = createHmac("sha256", "test-secret").update("admin:").digest("hex");
+    expect(await auth.sessionFromToken(old)).toEqual({
+      session: { branchId: 1, role: "admin", pinVersion: 0 },
+      legacy: true,
+    });
+    env.ADMIN_PIN = "9999";
+    expect(await auth.sessionFromToken(old)).toBeNull();
+  });
+
+  it("fails closed in production without SESSION_SECRET", async () => {
+    const token = await auth.signSession({ branchId: 1, role: "admin", pinVersion: 0 });
+    const devDefault = createHmac("sha256", "dev-secret-change-me").update("church:1111").digest("hex");
+    env.NODE_ENV = "production";
+    delete env.SESSION_SECRET;
+    await expect(auth.signSession({ branchId: 1, role: "admin", pinVersion: 0 })).rejects.toThrow(/SESSION_SECRET/);
+    expect(await auth.sessionFromToken(token)).toBeNull();
+    expect(await auth.sessionFromToken(devDefault)).toBeNull();
+    env.SESSION_SECRET = "test-secret";
+    expect((await auth.sessionFromToken(token))?.session.role).toBe("admin");
+  });
+
   it("is open only outside production when no PINs are set", async () => {
     delete env.CHURCH_PIN;
     delete env.ADMIN_PIN;

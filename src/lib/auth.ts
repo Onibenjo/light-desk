@@ -31,8 +31,18 @@ export function isOpenMode(): boolean {
   return process.env.NODE_ENV !== "production" && !process.env.CHURCH_PIN && !process.env.ADMIN_PIN;
 }
 
-async function hmac(value: string): Promise<string> {
-  const secret = process.env.SESSION_SECRET ?? "dev-secret-change-me";
+/**
+ * The signing secret, or null in production when none is set: the signed
+ * payload alone decides branch and role, so the public dev fallback would let
+ * anyone mint an admin session. Fail closed instead.
+ */
+function secret(): string | null {
+  const configured = process.env.SESSION_SECRET;
+  if (configured) return configured;
+  return process.env.NODE_ENV === "production" ? null : "dev-secret-change-me";
+}
+
+async function hmac(value: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
   return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -63,8 +73,10 @@ function fromBase64url(value: string): string | null {
 }
 
 export async function signSession(s: Session): Promise<string> {
+  const key = secret();
+  if (key === null) throw new Error("SESSION_SECRET is not set");
   const payload = base64url(JSON.stringify({ b: s.branchId, r: s.role, v: s.pinVersion }));
-  return `${payload}.${await hmac(payload)}`;
+  return `${payload}.${await hmac(payload, key)}`;
 }
 
 function parsePayload(json: string): Session | null {
@@ -84,12 +96,15 @@ function parsePayload(json: string): Session | null {
  * branch 1 (whose PINs came from those same env vars) so devices stay unlocked
  * across the deploy; proxy.ts swaps it for a signed session.
  */
-async function legacyRole(token: string): Promise<Role | null> {
+async function legacyRole(token: string, key: string): Promise<Role | null> {
   if (!/^[0-9a-f]{64}$/.test(token)) return null;
   const admin = process.env.ADMIN_PIN;
   const church = process.env.CHURCH_PIN;
-  if (admin && sameString(token, await hmac(`admin:${admin}`))) return "admin";
-  if (church && sameString(token, await hmac(`church:${church}`))) return "church";
+  if (admin && sameString(token, await hmac(`admin:${admin}`, key))) return "admin";
+  // Single-PIN mode: the church PIN unlocked as admin, and the old cookie was
+  // minted from an empty ADMIN_PIN, i.e. hmac("admin:").
+  if (!admin && church && sameString(token, await hmac("admin:", key))) return "admin";
+  if (church && sameString(token, await hmac(`church:${church}`, key))) return "church";
   return null;
 }
 
@@ -101,15 +116,17 @@ async function legacyRole(token: string): Promise<Role | null> {
 export async function sessionFromToken(token: string | undefined): Promise<{ session: Session; legacy: boolean } | null> {
   if (isOpenMode()) return { session: { ...OPEN_SESSION }, legacy: false };
   if (!token) return null;
+  const key = secret();
+  if (key === null) return null;
 
   const dot = token.indexOf(".");
   if (dot === -1) {
-    const role = await legacyRole(token);
+    const role = await legacyRole(token, key);
     return role ? { session: { branchId: 1, role, pinVersion: 0 }, legacy: true } : null;
   }
 
   const payload = token.slice(0, dot);
-  if (!sameString(token.slice(dot + 1), await hmac(payload))) return null;
+  if (!sameString(token.slice(dot + 1), await hmac(payload, key))) return null;
   const json = fromBase64url(payload);
   const session = json === null ? null : parsePayload(json);
   return session ? { session, legacy: false } : null;

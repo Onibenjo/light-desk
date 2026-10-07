@@ -24,7 +24,14 @@ export async function POST(req: Request) {
   const found = await findBranchByPin(cleaned);
   if (!found) return NextResponse.json({ error: "Wrong PIN" }, { status: 401 });
   const { branch, role } = found;
+  let token: string;
+  try {
+    token = await signSession({ branchId: branch.id, role, pinVersion: branch.pinVersion });
+  } catch (e) {
+    console.error("unlock: cannot sign a session", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "This desk isn't set up to unlock yet — ask whoever runs it to set SESSION_SECRET" }, { status: 500 });
+  }
   const res = NextResponse.json({ ok: true, role, branch: branch.name });
-  res.cookies.set(SESSION_COOKIE, await signSession({ branchId: branch.id, role, pinVersion: branch.pinVersion }), SESSION_COOKIE_OPTIONS);
+  res.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
   return res;
 }
