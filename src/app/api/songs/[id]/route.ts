@@ -37,9 +37,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
  * which is what keeps a songbook re-import from writing over the correction.
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
   const session = await currentSession();
   if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
+  if (session.role !== "admin") return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 

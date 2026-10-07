@@ -205,6 +205,15 @@ describe("branches", () => {
     expect(b[0].tokens).toBe("{}");
   });
 
+  it("seeds branch 1 from env PINs trimmed, and skips ones blank after trimming", async () => {
+    process.env.CHURCH_PIN = " 123 ";
+    process.env.ADMIN_PIN = "   ";
+    await applySchema(client);
+    const b = (await client.execute("SELECT * FROM branches")).rows[0];
+    expect(b.church_pin_hash).toBe(await hashPin("123"));
+    expect(b.admin_pin_hash).toBeNull();
+  });
+
   it("adds songs.edited_by", async () => {
     await applySchema(client);
     expect(await columns()).toContain("edited_by");

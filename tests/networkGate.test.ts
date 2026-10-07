@@ -39,38 +39,45 @@ describe("networkPinOk", () => {
   });
 
   it("accepts only the exact PIN", () => {
-    env.NETWORK_PIN = "7777";
-    expect(networkPinOk(req({ "x-network-pin": "7777" }))).toBe(true);
+    env.NETWORK_PIN = "network-pin-7777";
+    expect(networkPinOk(req({ "x-network-pin": "network-pin-7777" }))).toBe(true);
     expect(networkPinOk(req({ "x-network-pin": "777" }))).toBe(false);
     expect(networkPinOk(req({ "x-network-pin": "77777" }))).toBe(false);
     expect(networkPinOk(req({}))).toBe(false);
   });
 
   it("refuses even the right PIN after too many wrong ones from one address", () => {
-    env.NETWORK_PIN = "7777";
+    env.NETWORK_PIN = "network-pin-7777";
     const from = "10.9.9.9";
     for (let i = 0; i < 10; i++) expect(networkPinOk(req({ "x-network-pin": `000${i}` }, from))).toBe(false);
-    expect(networkPinOk(req({ "x-network-pin": "7777" }, from))).toBe(false);
-    expect(networkPinOk(req({ "x-network-pin": "7777" }))).toBe(true);
+    expect(networkPinOk(req({ "x-network-pin": "network-pin-7777" }, from))).toBe(false);
+    expect(networkPinOk(req({ "x-network-pin": "network-pin-7777" }))).toBe(true);
   });
 
   it("doesn't count right PINs against the limit", () => {
-    env.NETWORK_PIN = "7777";
+    env.NETWORK_PIN = "network-pin-7777";
     const from = "10.8.8.8";
-    for (let i = 0; i < 15; i++) expect(networkPinOk(req({ "x-network-pin": "7777" }, from))).toBe(true);
+    for (let i = 0; i < 15; i++) expect(networkPinOk(req({ "x-network-pin": "network-pin-7777" }, from))).toBe(true);
   });
 
   it("refuses even the right PIN once wrong PINs from many addresses pass the shared cap", () => {
-    env.NETWORK_PIN = "7777";
+    env.NETWORK_PIN = "network-pin-7777";
     for (let i = 0; i < 31; i++) expect(networkPinOk(req({ "x-network-pin": "0000" }, `10.7.${i}.1`))).toBe(false);
-    expect(networkPinOk(req({ "x-network-pin": "7777" }, "10.6.6.6"))).toBe(false);
+    expect(networkPinOk(req({ "x-network-pin": "network-pin-7777" }, "10.6.6.6"))).toBe(false);
     vi.setSystemTime(clock + 60_001);
-    expect(networkPinOk(req({ "x-network-pin": "7777" }, "10.6.6.6"))).toBe(true);
+    expect(networkPinOk(req({ "x-network-pin": "network-pin-7777" }, "10.6.6.6"))).toBe(true);
   });
 
   it("doesn't trip the shared cap below 30 wrong PINs", () => {
-    env.NETWORK_PIN = "7777";
+    env.NETWORK_PIN = "network-pin-7777";
     for (let i = 0; i < 29; i++) expect(networkPinOk(req({ "x-network-pin": "0000" }, `10.5.${i}.1`))).toBe(false);
-    expect(networkPinOk(req({ "x-network-pin": "7777" }, "10.4.4.4"))).toBe(true);
+    expect(networkPinOk(req({ "x-network-pin": "network-pin-7777" }, "10.4.4.4"))).toBe(true);
+  });
+
+  it("treats a NETWORK_PIN under 12 characters as unset", () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    env.NETWORK_PIN = "7777";
+    expect(networkPinOk(req({ "x-network-pin": "7777" }))).toBe(false);
+    err.mockRestore();
   });
 });

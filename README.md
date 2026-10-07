@@ -34,9 +34,10 @@ With no keys at all you still get KJV and the log (SQLite file `local.db`). With
 2. **Vercel**: import the GitHub repo, add the environment variables from `.env.example`, deploy. Node runtime is used for API routes (cheerio + libsql).
 3. **PINs and secrets**:
    - `SESSION_SECRET` (any long random string) is required in production: without it no device can unlock, because sessions are refused rather than signed with a known default. Changing it logs every device out.
-   - `CHURCH_PIN` (give to the media lead) and optional `ADMIN_PIN` only seed branch 1 on first boot, when the database has no branch. After that, PINs are changed at `/branches`. Devices unlocked before the upgrade stay unlocked. `FIRST_BRANCH_NAME` (default "CLC Ilorin") names branch 1 on that first boot only.
-   - `NETWORK_PIN` opens `/branches`, where you add a branch, rename it or change its PINs. It is typed into the page each visit and never stored; keep it off church devices. Wrong guesses are capped at 10 a minute per client and 30 a minute across all clients.
+   - `CHURCH_PIN` (give to the media lead) and optional `ADMIN_PIN` only seed branch 1 on first boot, when the database has no branch. After that, PINs are changed at `/branches`. Devices unlocked before the upgrade stay unlocked. Keep both set: they seed branch 1 on first boot and keep pre-upgrade devices unlocked; changing them later does not change branch 1's PINs (use `/branches`). `FIRST_BRANCH_NAME` (default "CLC Ilorin") names branch 1 on that first boot only.
+   - `NETWORK_PIN` opens `/branches`, where you add a branch, rename it or change its PINs. It is typed into the page each visit and never stored; keep it off church devices. It must be at least 12 characters, otherwise `/branches` stays closed. Wrong guesses are capped at 10 a minute per client and 30 a minute across all clients; like the unlock caps, these counts are per server instance.
    - A production deploy with no PINs stays locked.
+   - Rolling back to the pre-branch build is only safe before a second branch is live: the old build recreates a single global active-service-order index and would mix branches' data.
    - PIN hashes are unsalted SHA-256 and are included in database backups, so treat backups as secret.
 4. On the church laptop: open the URL in Chrome, enter the PIN once, then Chrome menu → *Install Lightdesk* so it opens as its own window next to Mixlr.
 

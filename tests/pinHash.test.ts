@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hashPin, cleanPin } from "../src/lib/pinHash";
+import { hashPin, cleanPin, cleanPinForUnlock } from "../src/lib/pinHash";
 
 describe("pinHash", () => {
   it("hashes the same PIN the same way and different PINs differently", async () => {
@@ -12,5 +12,14 @@ describe("pinHash", () => {
     expect(cleanPin("123")).toBeNull();
     expect(cleanPin("x".repeat(33))).toBeNull();
     expect(cleanPin(1234)).toBeNull();
+  });
+
+  it("cleanPinForUnlock accepts any trimmed PIN of 1 to 32 characters", () => {
+    expect(cleanPinForUnlock(" 123 ")).toBe("123");
+    expect(cleanPinForUnlock("1")).toBe("1");
+    expect(cleanPinForUnlock("")).toBeNull();
+    expect(cleanPinForUnlock("   ")).toBeNull();
+    expect(cleanPinForUnlock("x".repeat(33))).toBeNull();
+    expect(cleanPinForUnlock(5)).toBeNull();
   });
 });

@@ -57,7 +57,7 @@ export async function createSetlist(branchId: number, name: string): Promise<Set
  * songs were built on a version someone else has since replaced.
  *
  * Activating clears the old active row first and does it in one batch. The
- * order is not optional: `setlists_one_active` is a unique index, so setting a
+ * order is not optional: `setlists_one_active_per_branch` is a unique index, so setting a
  * second active row before clearing the first is rejected. A batch is used
  * rather than an interactive transaction because libsql runs a batch inside an
  * implicit transaction over plain HTTP, which is how Turso is reached in

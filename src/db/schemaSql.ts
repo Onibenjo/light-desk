@@ -79,8 +79,9 @@ const POST_COLUMN_SQL = `
  * instances booting together safe.
  */
 async function ensureFirstBranch(client: Client): Promise<void> {
-  const church = process.env.CHURCH_PIN;
-  const admin = process.env.ADMIN_PIN;
+  // Trimmed like the unlock screen trims what is typed; blank after trimming means no PIN.
+  const church = process.env.CHURCH_PIN?.trim();
+  const admin = process.env.ADMIN_PIN?.trim();
   await client.execute({
     sql: "INSERT OR IGNORE INTO branches (id, name, church_pin_hash, admin_pin_hash, created_at) VALUES (1, ?, ?, ?, ?)",
     args: [process.env.FIRST_BRANCH_NAME ?? "CLC Ilorin", church ? await hashPin(church) : null, admin ? await hashPin(admin) : null, Date.now()],

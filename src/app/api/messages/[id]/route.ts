@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureSchema } from "@/db";
 import { deleteMessage, updateMessage } from "@/db/messages";
 import { parseMessagePatch } from "@/lib/messageEdit";
-import { currentSession, isAdmin } from "@/lib/adminGate";
+import { currentSession } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
@@ -17,9 +17,9 @@ async function messageId(params: Promise<{ id: string }>): Promise<number | null
 
 /** PATCH { sectionId?, title?, text?, scope?, move? } — admin. */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
   const session = await currentSession();
   if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
+  if (session.role !== "admin") return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await messageId(params);
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 
@@ -38,9 +38,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
  * edited text it still copies, without it the row greys out (src/lib/setlist.ts).
  */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
   const session = await currentSession();
   if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
+  if (session.role !== "admin") return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await messageId(params);
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 

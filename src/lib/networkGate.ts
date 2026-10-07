@@ -5,6 +5,8 @@ const MAX_WRONG = 10;
 const MAX_WRONG_ALL = 30;
 const ALL_KEY = "network:all";
 const WINDOW_MS = 60_000;
+const MIN_NETWORK_PIN = 12;
+let warnedShort = false;
 
 /** Compares without stopping at the first different character. */
 function sameString(a: string, b: string): boolean {
@@ -24,8 +26,15 @@ function sameString(a: string, b: string): boolean {
  * makes the network admin wait a minute, which is the price of the cap.
  */
 export function networkPinOk(req: Request): boolean {
-  const pin = process.env.NETWORK_PIN;
+  const pin = process.env.NETWORK_PIN?.trim();
   if (!pin) return false;
+  if (pin.length < MIN_NETWORK_PIN) {
+    if (!warnedShort) {
+      warnedShort = true;
+      console.error(`NETWORK_PIN must be at least ${MIN_NETWORK_PIN} characters; /branches stays closed until it is.`);
+    }
+    return false;
+  }
   const key = `network:${clientKey(req)}`;
   if (isLimited(key, MAX_WRONG, WINDOW_MS) || isLimited(ALL_KEY, MAX_WRONG_ALL, WINDOW_MS)) return false;
   if (sameString(req.headers.get("x-network-pin") ?? "", pin)) return true;

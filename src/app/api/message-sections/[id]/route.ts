@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureSchema } from "@/db";
 import { deleteSection, updateSection } from "@/db/messages";
 import { parseSectionPatch } from "@/lib/messageEdit";
-import { isAdmin } from "@/lib/adminGate";
+import { currentSession, isAdmin } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
@@ -37,13 +37,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 /** DELETE — admin, and only an empty section. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
+  if (session.role !== "admin") return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await sectionId(params);
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 
   await ensureSchema();
-  const result = await deleteSection(id);
+  const result = await deleteSection(id, session.branchId);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
+  if (result === "not-empty-elsewhere") return NextResponse.json({ error: "Other branches still have messages in this section, so it can't be deleted" }, { status: 409 });
   if (result === "not-empty") return NextResponse.json({ error: "Move or delete this section's messages first" }, { status: 409 });
   return NextResponse.json({ ok: true });
 }

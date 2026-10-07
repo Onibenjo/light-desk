@@ -127,9 +127,16 @@ export async function updateSection(id: number, patch: SectionPatch): Promise<Li
  * Only an empty section can go. Checked in code rather than by a foreign key,
  * because SQLite only enforces those when a connection asks it to.
  */
-export async function deleteSection(id: number): Promise<"deleted" | "gone" | "not-empty"> {
+export async function deleteSection(id: number, branchId: number): Promise<"deleted" | "gone" | "not-empty" | "not-empty-elsewhere"> {
   const [used] = await db.select({ id: messages.id }).from(messages).where(eq(messages.sectionId, id)).limit(1);
-  if (used) return "not-empty";
+  if (used) {
+    const [visible] = await db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(and(eq(messages.sectionId, id), or(isNull(messages.branchId), eq(messages.branchId, branchId))))
+      .limit(1);
+    return visible ? "not-empty" : "not-empty-elsewhere";
+  }
   const [row] = await db.delete(messageSections).where(eq(messageSections.id, id)).returning({ id: messageSections.id });
   return row ? "deleted" : "gone";
 }

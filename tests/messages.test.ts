@@ -80,10 +80,18 @@ describe("sections", () => {
   it("cannot be deleted while they still hold messages, so one click never wipes twenty", async () => {
     const a = await section("Apologies");
     await message(a.id, "Sound restored");
-    expect(await lib.deleteSection(a.id)).toBe("not-empty");
+    expect(await lib.deleteSection(a.id, 1)).toBe("not-empty");
     const empty = await section("Empty");
-    expect(await lib.deleteSection(empty.id)).toBe("deleted");
-    expect(await lib.deleteSection(empty.id)).toBe("gone");
+    expect(await lib.deleteSection(empty.id, 1)).toBe("deleted");
+    expect(await lib.deleteSection(empty.id, 1)).toBe("gone");
+  });
+
+  it("say so when only other branches' private messages keep a section from being deleted", async () => {
+    const a = await section("Apologies");
+    const m = await lib.createMessage(2, { sectionId: a.id, title: "Private", parts: ["x"], scope: "branch" });
+    if (m === "no-section") throw new Error("unexpected");
+    expect(await lib.deleteSection(a.id, 1)).toBe("not-empty-elsewhere");
+    expect(await lib.deleteSection(a.id, 2)).toBe("not-empty");
   });
 });
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureSchema } from "@/db";
 import { findBranchByPin, getBranch } from "@/db/branches";
 import { isOpenMode, signSession, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/auth";
-import { cleanPin } from "@/lib/pinHash";
+import { cleanPinForUnlock } from "@/lib/pinHash";
 import { clientKey, rateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     await ensureSchema();
     return NextResponse.json({ ok: true, role: "admin", branch: (await getBranch(1))?.name ?? "" });
   }
-  const cleaned = cleanPin(pin);
+  const cleaned = cleanPinForUnlock(pin);
   if (!cleaned) return NextResponse.json({ error: "Wrong PIN" }, { status: 401 });
   await ensureSchema();
   const found = await findBranchByPin(cleaned);

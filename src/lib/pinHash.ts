@@ -9,7 +9,14 @@ export async function hashPin(pin: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** A PIN as typed: trimmed, 4 to 32 characters, otherwise null. */
+/** A PIN typed at the unlock screen: trimmed, 1 to 32 characters. Shorter env-seeded PINs must still unlock. */
+export function cleanPinForUnlock(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const pin = value.trim();
+  return pin.length >= 1 && pin.length <= 32 ? pin : null;
+}
+
+/** A PIN as typed when creating or changing one: trimmed, 4 to 32 characters, otherwise null. */
 export function cleanPin(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const pin = value.trim();

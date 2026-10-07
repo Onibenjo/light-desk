@@ -19,7 +19,7 @@ beforeEach(async () => {
   delete process.env.TURSO_AUTH_TOKEN;
   process.env.CHURCH_PIN = "1111";
   process.env.ADMIN_PIN = "9999";
-  process.env.NETWORK_PIN = "7777";
+  process.env.NETWORK_PIN = "network-pin-7777";
   delete (globalThis as GlobalWithClient).__ldClient;
   vi.resetModules();
   const { ensureSchema } = await import("../src/db");
@@ -58,7 +58,7 @@ describe("branches", () => {
 
   it("refuses a PIN another branch or the network uses", async () => {
     expect(await lib.createBranch({ name: "CLC Lagos", churchPin: "9999", adminPin: null })).toBe("pin-taken");
-    expect(await lib.createBranch({ name: "CLC Lagos", churchPin: "7777", adminPin: null })).toBe("pin-taken");
+    expect(await lib.createBranch({ name: "CLC Lagos", churchPin: "network-pin-7777", adminPin: null })).toBe("pin-taken");
     expect(await lib.createBranch({ name: "CLC Lagos", churchPin: "2222", adminPin: "1111" })).toBe("pin-taken");
     expect(await lib.createBranch({ name: "clc ilorin", churchPin: "3333", adminPin: null })).toBe("name-taken");
     const lagos = await create({ name: "CLC Lagos", churchPin: "2222", adminPin: "3333" });
