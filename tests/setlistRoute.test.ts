@@ -6,6 +6,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// The route reads the session from cookies, which need a request scope.
+vi.mock("../src/lib/adminGate", () => ({
+  currentSession: async () => ({ branchId: 1, role: "admin", pinVersion: 1 }),
+}));
+
 type GlobalWithClient = { __ldClient?: { close?: () => unknown } };
 
 let dir: string;
@@ -39,7 +44,7 @@ async function fixture() {
   const sorry = await lib.createMessage({ sectionId: apologies.id, title: "Sound restored", parts: ["Sorry"] });
   const sunday = await lib.createMessage({ sectionId: welcoming.id, title: "Sunday", parts: ["As we gather"] });
   if (sorry === "no-section" || sunday === "no-section") throw new Error("no-section");
-  return { welcoming, sorry, sunday, setlist: await setlists.createSetlist("Sunday") };
+  return { welcoming, sorry, sunday, setlist: await setlists.createSetlist(1, "Sunday") };
 }
 
 async function patch(id: number, body: unknown) {

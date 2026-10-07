@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { and, desc, eq, gte, lt, or, sql, type Column, type SQL } from "drizzle-orm";
 import { db, ensureSchema } from "@/db";
 import { sentLog } from "@/db/schema";
+import { currentSession } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
@@ -12,10 +13,12 @@ const MAX_LIMIT = 1000;
 const DAYS_SCAN_LIMIT = 5000;
 
 export async function POST(req: Request) {
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
   await ensureSchema();
   const { kind, label, body, meta } = (await req.json().catch(() => ({}))) as { kind?: string; label?: string; body?: string; meta?: unknown };
   if (!kind || !label) return NextResponse.json({ error: "kind and label required" }, { status: 400 });
-  await db.insert(sentLog).values({ kind, label, body: body ?? null, meta: meta ? JSON.stringify(meta) : null, createdAt: new Date() });
+  await db.insert(sentLog).values({ branchId: session.branchId, kind, label, body: body ?? null, meta: meta ? JSON.stringify(meta) : null, createdAt: new Date() });
   return NextResponse.json({ ok: true });
 }
 
@@ -27,6 +30,8 @@ function epoch(raw: string | null): number | undefined {
 }
 
 export async function GET(req: Request) {
+  const session = await currentSession();
+  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
   await ensureSchema();
   const p = new URL(req.url).searchParams;
 
@@ -40,11 +45,11 @@ export async function GET(req: Request) {
   // Day list for the date sidebar: raw timestamps, grouped into local days by the
   // client for the same reason — only it knows which day a UTC instant fell on.
   if (p.get("days")) {
-    const rows = await db.select({ createdAt: sentLog.createdAt }).from(sentLog).orderBy(desc(sentLog.id)).limit(DAYS_SCAN_LIMIT);
+    const rows = await db.select({ createdAt: sentLog.createdAt }).from(sentLog).where(eq(sentLog.branchId, session.branchId)).orderBy(desc(sentLog.id)).limit(DAYS_SCAN_LIMIT);
     return NextResponse.json({ days: rows.map((r) => Math.floor(r.createdAt.getTime() / 1000)) });
   }
 
-  const where: SQL[] = [];
+  const where: SQL[] = [eq(sentLog.branchId, session.branchId)];
   if (from !== undefined) where.push(gte(sentLog.createdAt, new Date(from * 1000)));
   if (to !== undefined) where.push(lt(sentLog.createdAt, new Date(to * 1000)));
   if (kind && kind !== "all") where.push(eq(sentLog.kind, kind));
@@ -62,7 +67,7 @@ export async function GET(req: Request) {
   const rows = await db
     .select()
     .from(sentLog)
-    .where(where.length ? and(...where) : undefined)
+    .where(and(...where))
     .orderBy(desc(sentLog.id))
     .limit(limit);
   return NextResponse.json({ rows });

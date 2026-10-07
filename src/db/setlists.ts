@@ -32,22 +32,22 @@ function toRecord(row: Row): SetlistRecord {
 }
 
 /** Newest first: the one you are about to use is the one you just made. */
-export async function loadSetlists(): Promise<SetlistRecord[]> {
-  const rows = await db.select().from(setlists).orderBy(desc(setlists.createdAt));
+export async function loadSetlists(branchId: number): Promise<SetlistRecord[]> {
+  const rows = await db.select().from(setlists).where(eq(setlists.branchId, branchId)).orderBy(desc(setlists.createdAt));
   return rows.map(toRecord);
 }
 
-export async function findSetlist(id: number): Promise<SetlistRecord | null> {
-  const [row] = await db.select().from(setlists).where(eq(setlists.id, id));
+export async function findSetlist(branchId: number, id: number): Promise<SetlistRecord | null> {
+  const [row] = await db.select().from(setlists).where(and(eq(setlists.branchId, branchId), eq(setlists.id, id)));
   return row ? toRecord(row) : null;
 }
 
 /** Created empty and inactive; activating is a separate, deliberate decision. */
-export async function createSetlist(name: string): Promise<SetlistRecord> {
+export async function createSetlist(branchId: number, name: string): Promise<SetlistRecord> {
   const now = new Date();
   const [row] = await db
     .insert(setlists)
-    .values({ name, items: "[]", active: false, createdAt: now, updatedAt: now })
+    .values({ branchId, name, items: "[]", active: false, createdAt: now, updatedAt: now })
     .returning();
   return toRecord(row);
 }
@@ -76,8 +76,8 @@ export async function createSetlist(name: string): Promise<SetlistRecord> {
  * together and loses the race, since the two statements in one batch cannot be
  * made conditional on each other.
  */
-export async function updateSetlist(id: number, patch: SetlistPatch): Promise<SetlistRecord | "gone" | "stale"> {
-  const current = await findSetlist(id);
+export async function updateSetlist(branchId: number, id: number, patch: SetlistPatch): Promise<SetlistRecord | "gone" | "stale"> {
+  const current = await findSetlist(branchId, id);
   if (!current) return "gone";
   if (patch.items && current.updatedAt !== patch.updatedAt) return "stale";
 
@@ -89,13 +89,13 @@ export async function updateSetlist(id: number, patch: SetlistPatch): Promise<Se
   // case where silently applying a stale write discards someone else's songs.
   const expectedVersion = patch.items !== undefined ? new Date(patch.updatedAt as string) : null;
   const rowMatch = expectedVersion
-    ? and(eq(setlists.id, id), eq(setlists.updatedAt, expectedVersion))
-    : eq(setlists.id, id);
+    ? and(eq(setlists.branchId, branchId), eq(setlists.id, id), eq(setlists.updatedAt, expectedVersion))
+    : and(eq(setlists.branchId, branchId), eq(setlists.id, id));
 
   let matched: { id: number }[];
   if (patch.active === true) {
     const results = await db.batch([
-      db.update(setlists).set({ active: false }).where(and(eq(setlists.active, true), ne(setlists.id, id))),
+      db.update(setlists).set({ active: false }).where(and(eq(setlists.branchId, branchId), eq(setlists.active, true), ne(setlists.id, id))),
       db
         .update(setlists)
         .set({ ...values, active: true })
@@ -110,11 +110,11 @@ export async function updateSetlist(id: number, patch: SetlistPatch): Promise<Se
 
   if (expectedVersion && matched.length === 0) return "stale";
 
-  const saved = await findSetlist(id);
+  const saved = await findSetlist(branchId, id);
   return saved ?? "gone";
 }
 
-export async function deleteSetlist(id: number): Promise<boolean> {
-  const [row] = await db.delete(setlists).where(eq(setlists.id, id)).returning({ id: setlists.id });
+export async function deleteSetlist(branchId: number, id: number): Promise<boolean> {
+  const [row] = await db.delete(setlists).where(and(eq(setlists.branchId, branchId), eq(setlists.id, id))).returning({ id: setlists.id });
   return !!row;
 }
