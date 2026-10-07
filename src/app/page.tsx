@@ -314,7 +314,8 @@ export default function Desk() {
     if (tab === "songs" || tab === "messages") void reloadSetlist();
   }, [tab, reloadSetlist]);
   const { library, failed: libraryFailed, reload: reloadLibrary } = useMessages();
-  const { copied, copyPart } = useMessageCopy({ copyText: copyTracked, showToast, logSend });
+  const branchTokens = useMemo(() => library?.branch.tokens ?? {}, [library]);
+  const { copied, copyPart } = useMessageCopy({ copyText: copyTracked, showToast, logSend, tokens: branchTokens });
   const [pendingSong, setPendingSong] = useState<SongRow | null>(null);
   const [pendingMessage, setPendingMessage] = useState<OpenMessage | null>(null);
   const clearPendingSong = useCallback(() => setPendingSong(null), []);
@@ -940,6 +941,7 @@ export default function Desk() {
               setlistApi={setlistApi}
               copied={setlistCopied}
               copyPart={copyPart}
+              tokens={branchTokens}
               showToast={showToast}
               pending={pendingMessage}
               onPendingDone={clearPendingMessage}
