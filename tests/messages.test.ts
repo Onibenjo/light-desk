@@ -215,4 +215,14 @@ describe("branch-only and shared messages", () => {
     await lib.updateMessage(2, m.id, { title: "New" });
     expect((await lib.loadLibrary(branch(1))).messages.map((x) => x.title)).toEqual(["New"]);
   });
+  it("a move never swaps places with another branch's private message", async () => {
+    const s = await section("Prayer Before Sermon");
+    const a = await message(s.id, "A");
+    const x = await lib.createMessage(2, { sectionId: s.id, title: "X", parts: ["x"], scope: "branch" });
+    if (x === "no-section") throw new Error("no-section");
+    const b = await message(s.id, "B");
+    await lib.updateMessage(1, b.id, { move: -1 });
+    expect((await lib.loadLibrary(branch(1))).messages.map((m) => m.title)).toEqual(["B", "A"]);
+    expect((await lib.loadLibrary(branch(2))).messages.find((m) => m.id === x.id)?.sort).toBe(x.sort);
+  });
 });

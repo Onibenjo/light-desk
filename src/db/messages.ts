@@ -153,11 +153,11 @@ export async function createMessage(branchId: number, input: MessageCreate): Pro
 }
 
 /** Trade `sort` with the nearest message above or below, within the same section. */
-async function swapMessage(current: MessageRow, delta: -1 | 1): Promise<void> {
+async function swapMessage(branchId: number, current: MessageRow, delta: -1 | 1): Promise<void> {
   const [neighbour] = await db
     .select()
     .from(messages)
-    .where(and(eq(messages.sectionId, current.sectionId), delta < 0 ? lt(messages.sort, current.sort) : gt(messages.sort, current.sort)))
+    .where(and(eq(messages.sectionId, current.sectionId), visibleTo(branchId), delta < 0 ? lt(messages.sort, current.sort) : gt(messages.sort, current.sort)))
     .orderBy(delta < 0 ? desc(messages.sort) : asc(messages.sort))
     .limit(1);
   if (!neighbour) return;
@@ -178,7 +178,7 @@ export async function updateMessage(branchId: number, id: number, patch: Message
     // Arrives at the end of its new section; a move within the old one is moot.
     values.sort = await nextMessageSort(patch.sectionId);
   } else if (patch.move) {
-    await swapMessage(current, patch.move);
+    await swapMessage(branchId, current, patch.move);
   }
   if (patch.title !== undefined) values.title = patch.title;
   if (patch.parts !== undefined) values.parts = JSON.stringify(patch.parts);
