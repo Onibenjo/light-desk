@@ -24,7 +24,7 @@ It exists because the previous workflow (find the verse on BibleGateway, copy, r
 
 ## Positioning
 
-A single-church tool, not a product for the market: it is built around CLC's exact chat format, CLC's engagement document, CLC's songbook (2,222 songs imported from VideoPsalm) and the Mixlr paste loop. What a generic Bible app could not truthfully copy:
+A multi-branch tool for Citizens of Light Church only, not a product for the market: one deployment serves several CLC branches, each with its own PINs, service orders and log, and shared songbook and engagement library, but it is not offered to other churches. It is built around CLC's exact chat format, CLC's engagement document, CLC's songbook (2,222 songs imported from VideoPsalm) and the Mixlr paste loop. What a generic Bible app could not truthfully copy:
 
 - Verse text comes from Bible sources: bundled public-domain KJV, a cache, YouVersion, API.Bible, and a BibleGateway fallback. The AI's job is to turn a description ("walk on snakes and not be bitten") into a reference. Only when every source fails does it quote a verse from memory, and that text is shown with a red warning and never copied automatically.
 - The output format is the church's own: reference on line 1, full translation name on line 2, then one numbered verse per line, split into parts at the Mixlr message limit.
@@ -36,7 +36,7 @@ A single-church tool, not a product for the market: it is built around CLC's exa
 - **Prepared order**: the active service order sits at the top of the Songs and Engagement tabs so the operator taps instead of searching. A service order can carry its own text for one service (the date in a next-service line) without changing the library.
 - **Tools beside it**: Mixlr (the chat), VideoPsalm (the songbook source, exported as `.json` or `.vpc`), the church's engagement document (now the engagement library).
 - **Network**: the venue wifi is unreliable. The whole songbook is loaded once and searched locally; verses are cached so nothing is fetched twice; the database is warmed when the desk opens.
-- **Access**: one church PIN unlocks a device for a year; an admin PIN guards editing and import. A device unlocked with the church PIN is refused edits with a hint to unlock the admin PIN in a new tab, so unsaved text is never lost.
+- **Access**: each branch has its own church PIN and optional admin PIN, and the PIN a device unlocks with decides its branch; a device stays unlocked for a year. The admin PIN guards editing and import (with none set, the church PIN carries admin rights). A separate network PIN guards `/branches`, where branches and their PINs are managed. A device unlocked with the church PIN is refused edits with a hint to unlock the admin PIN in a new tab, so unsaved text is never lost.
 - **Devices**: the church laptop (Chrome, installed as an app) for the service; phones for preparation. iOS zoom-on-focus and safe-area insets are handled because of the phone use.
 - **Rituals in the library**: Greetings, Prayer Before Ambience Jewel, Welcoming Ambience Jewel, Prayer Before Sermon, Confession, Testimony, Recap, Welcoming Pastor, Altar Call, Announcement, Offerings and Tithe, First Timer, Apostolic Blessing, Closing Charge, Next Service, Communion, Special Programs, Apologies.
 

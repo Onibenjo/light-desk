@@ -40,7 +40,11 @@ The words the interface uses, so every screen says the same thing the same way. 
 | log | everything copied, by day | history |
 | verse sources | the Bible text providers; the diagnostics page | diag, config |
 | lock, locked, unlock | the PIN gate | log in, sign in, session |
-| church PIN, admin PIN | the two PINs | password, passcode |
+| church PIN, admin PIN | the two PINs of a branch | password, passcode |
+| branch | one church location using the desk, with its own PINs, service orders and log. The name shown is the branch's own, e.g. CLC Ilorin | church (ambiguous with the denomination), site, campus, tenant |
+| Branch settings | the page at /branch where a branch sets its own values (emails, accounts, service times) for `{key}` tokens in shared messages | profile, config |
+| All branches / `<name>` only | who can use a library message: every branch (shared; any branch admin may edit it), or only the named branch | public, private, global, local |
+| network PIN | the PIN that opens /branches to add or rename a branch and change its PINs | super admin PIN, master PIN |
 
 "Post" may appear once as an explanation of what a part is ("each part is one post in the Mixlr chat"). Everywhere else the noun is "part".
 

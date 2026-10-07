@@ -13,7 +13,9 @@ Milestone 1: verses. Milestone 2: the message library (the engagement document).
 - **Keys**: `+` copies the next verse as its own message. **Whole passage** re-copies everything looked up in that range. **Chapter** opens the full chapter so you can click any verse. **Esc** clears.
 - **Log**: everything copied is stored with a timestamp (handover, re-send, and pilot metrics).
 - **Messages**: the engagement document — greetings, prayer introductions, the confession, account details, next-service lines, apologies — lives in the 💬 Messages tab and in ⌘K. A one-post message copies on tap; a long one (the confession) sends part by part like a song. Service-order messages go into a setlist beside songs, and a setlist can carry its own text for one service (the date in a next-service line). The library is edited at `/messages` with the admin PIN; an empty library offers **Load starter messages**, seeded from `src/data/messages.seed.json`.
-- **Access**: one church PIN unlocks the laptop for a year (cookie). API routes refuse without it. Search endpoints are rate-limited.
+- **Branches**: one deployment serves several church branches. Each branch has its own church PIN and optional admin PIN, and the PIN a device unlocks with decides its branch. With no admin PIN, the branch's church PIN carries admin rights. PINs are 4–32 characters, unique across all branches, and may not equal `NETWORK_PIN`. Service orders and the copy log are per branch; the songbook is shared (any branch admin can import or edit, and an edit reaches every branch).
+- **Engagement library and branches**: each message is either "All branches" (shared; any branch admin may edit it) or "<branch> only". Shared messages can hold `{key}` tokens such as `{testimonyEmail}`, `{offeringAccounts}` or `{midweekTime}`; the branch's own values are set at `/branch` (Branch settings) and filled in on copy. A message that uses a key the branch hasn't set is not copied, and the operator is told which key. `[DATE]`-style placeholders are still typed by hand.
+- **Access**: a PIN unlocks a device for a year (cookie). API routes refuse without it. Search endpoints are rate-limited. Changing a branch's PIN locks that branch's devices on their next request; other branches are unaffected.
 
 ## Run locally
 
@@ -24,13 +26,18 @@ npm run dev                  # http://localhost:3000
 npm test                     # parser + formatter tests
 ```
 
-With no keys at all you still get KJV and the log (SQLite file `local.db`). With no PIN set the app is open.
+With no keys at all you still get KJV and the log (SQLite file `local.db`). With no PIN set the app is open in development only; a production deploy with no PINs stays locked.
 
 ## Deploy (Vercel + Turso)
 
 1. **Turso**: `turso db create lightdesk` → `turso db show lightdesk --url` and `turso db tokens create lightdesk`. Put them in `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`. Tables are created on first request; no migration step.
 2. **Vercel**: import the GitHub repo, add the environment variables from `.env.example`, deploy. Node runtime is used for API routes (cheerio + libsql).
-3. **PINs**: set `CHURCH_PIN` (give to the media lead) and `SESSION_SECRET` (any long random string). Changing either logs every device out.
+3. **PINs and secrets**:
+   - `SESSION_SECRET` (any long random string) is required in production: without it no device can unlock, because sessions are refused rather than signed with a known default. Changing it logs every device out.
+   - `CHURCH_PIN` (give to the media lead) and optional `ADMIN_PIN` only seed branch 1 on first boot, when the database has no branch. After that, PINs are changed at `/branches`. Devices unlocked before the upgrade stay unlocked. `FIRST_BRANCH_NAME` (default "CLC Ilorin") names branch 1 on that first boot only.
+   - `NETWORK_PIN` opens `/branches`, where you add a branch, rename it or change its PINs. It is typed into the page each visit and never stored; keep it off church devices. Wrong guesses are capped at 10 a minute per client and 30 a minute across all clients.
+   - A production deploy with no PINs stays locked.
+   - PIN hashes are unsalted SHA-256 and are included in database backups, so treat backups as secret.
 4. On the church laptop: open the URL in Chrome, enter the PIN once, then Chrome menu → *Install Lightdesk* so it opens as its own window next to Mixlr.
 
 ## Verse source keys
