@@ -1,6 +1,9 @@
 import { clientKey, isLimited, rateLimit } from "./ratelimit";
 
 const MAX_WRONG = 10;
+/** Across every client: x-forwarded-for can be rotated, so the per-client limit alone doesn't cap guessing. */
+const MAX_WRONG_ALL = 30;
+const ALL_KEY = "network:all";
 const WINDOW_MS = 60_000;
 
 /** Compares without stopping at the first different character. */
@@ -15,14 +18,18 @@ function sameString(a: string, b: string): boolean {
  * is exactly it. Wrong PINs count against the same limit as unlocking (10 a
  * minute from one address); once it is used up, even the right PIN is refused
  * until the minute passes, so guessing can't go on behind the limit. Right PINs
- * don't count, so a busy session on /branches never locks itself out.
+ * don't count, so a busy session on /branches never locks itself out. The
+ * client key trusts x-forwarded-for, which a caller can rotate, so there is
+ * also a cap on wrong PINs from everyone together (30 a minute); hitting it
+ * makes the network admin wait a minute, which is the price of the cap.
  */
 export function networkPinOk(req: Request): boolean {
   const pin = process.env.NETWORK_PIN;
   if (!pin) return false;
   const key = `network:${clientKey(req)}`;
-  if (isLimited(key, MAX_WRONG, WINDOW_MS)) return false;
+  if (isLimited(key, MAX_WRONG, WINDOW_MS) || isLimited(ALL_KEY, MAX_WRONG_ALL, WINDOW_MS)) return false;
   if (sameString(req.headers.get("x-network-pin") ?? "", pin)) return true;
   rateLimit(key, MAX_WRONG, WINDOW_MS);
+  rateLimit(ALL_KEY, MAX_WRONG_ALL, WINDOW_MS);
   return false;
 }
