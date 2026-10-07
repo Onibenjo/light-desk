@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "../Icon";
 import PageShell from "../PageShell";
@@ -11,7 +12,9 @@ import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from 
 import { groupLibrary, type Library, type LibraryMessage, type LibrarySection } from "@/lib/messageLibrary";
 import { longParts, MAX_MESSAGE_TITLE, MAX_SECTION_NAME, partsFromText, textFromParts } from "@/lib/messageEdit";
 
-type Draft = { id: number | "new"; sectionId: number; title: string; text: string };
+type Scope = "shared" | "branch";
+
+type Draft = { id: number | "new"; sectionId: number; title: string; text: string; scope: Scope };
 
 type LibraryState = { kind: "loading" } | { kind: "loaded"; library: Library } | { kind: "failed"; failure: Failure };
 
@@ -222,18 +225,23 @@ export default function MessagesPage() {
     if (!draft) return;
     const ok =
       draft.id === "new"
-        ? await write("/api/messages", "POST", { sectionId: draft.sectionId, title: draft.title, text: draft.text })
-        : await write(`/api/messages/${draft.id}`, "PATCH", { sectionId: draft.sectionId, title: draft.title, text: draft.text });
+        ? await write("/api/messages", "POST", { sectionId: draft.sectionId, title: draft.title, text: draft.text, scope: draft.scope })
+        : await write(`/api/messages/${draft.id}`, "PATCH", { sectionId: draft.sectionId, title: draft.title, text: draft.text, scope: draft.scope });
     if (ok) setDraft(null);
   }
 
-  const duplicate = (m: LibraryMessage) => write("/api/messages", "POST", { sectionId: m.sectionId, title: copyTitle(m.title), text: textFromParts(m.parts) });
+  const duplicate = (m: LibraryMessage) =>
+    write("/api/messages", "POST", { sectionId: m.sectionId, title: copyTitle(m.title), text: textFromParts(m.parts), scope: m.shared ? "shared" : "branch" });
 
   const draftParts = draft ? partsFromText(draft.text) : [];
   const warnings = Array.isArray(draftParts) ? longParts(draftParts, MAX_MESSAGE_CHARS) : [];
 
-  function editor(sections: LibrarySection[]) {
+  function editor(sections: LibrarySection[], branchName: string) {
     if (!draft) return null;
+    const scopes: { value: Scope; label: string }[] = [
+      { value: "shared", label: "All branches" },
+      { value: "branch", label: `${branchName} only` },
+    ];
     return (
       <div className="space-y-2 rounded-lg border border-ink-700 bg-ink-950 p-3">
         <div className="flex flex-wrap gap-2">
@@ -259,6 +267,18 @@ export default function MessagesPage() {
             ))}
           </select>
         </div>
+        <fieldset className="flex flex-wrap items-center gap-x-1 gap-y-1">
+          <legend className="sr-only">Who sees this message</legend>
+          {scopes.map((o) => (
+            <label
+              key={o.value}
+              className={`btn btn-sm cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-accent ${draft.scope === o.value ? "btn-on" : "btn-quiet"}`}
+            >
+              <input type="radio" name={`${ids}-scope`} value={o.value} checked={draft.scope === o.value} onChange={() => setDraft({ ...draft, scope: o.value })} className="sr-only" />
+              {o.label}
+            </label>
+          ))}
+        </fieldset>
         <textarea
           value={draft.text}
           onChange={(e) => setDraft({ ...draft, text: e.target.value })}
@@ -293,7 +313,17 @@ export default function MessagesPage() {
   const del = (key: string) => `btn btn-sm ${armed.isArmed(key) ? "btn-armed" : "btn-danger"}`;
 
   return (
-    <PageShell title="Engagement library" purpose="Everything the operator copies that isn't a verse or a song. Each part of a message is one post in the Mixlr chat.">
+    <PageShell
+      title="Engagement library"
+      purpose="Everything the operator copies that isn't a verse or a song. Each part of a message is one post in the Mixlr chat."
+      actions={
+        library && (
+          <Link href="/branch" className="btn">
+            {library.branch.name} settings
+          </Link>
+        )
+      }
+    >
       <p id={armed.regionId} role="status" className="sr-only">
         {armed.announcement}
       </p>
@@ -370,18 +400,23 @@ export default function MessagesPage() {
               return (
                 <li key={m.id} className={`px-4 py-2.5 ${showing ? "bg-ink-800/50" : ""}`}>
                   {draft?.id === m.id ? (
-                    editor(sections)
+                    editor(sections, library!.branch.name)
                   ) : (
                     <>
                       <div className="flex items-center gap-2">
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px] font-bold">{m.title}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-[15px] font-bold">{m.title}</span>
+                            {!m.shared && library && (
+                              <span className="shrink-0 rounded-full border border-ink-600 px-2 py-0.5 font-mono text-[10.5px] tracking-[0.08em] text-ink-300 uppercase">{library.branch.name} only</span>
+                            )}
+                          </span>
                           <span className="block truncate text-sm text-[var(--muted)]">
                             {m.parts.length > 1 ? `${m.parts.length} parts · ` : ""}
                             {m.parts[0]}
                           </span>
                         </span>
-                        <button onClick={() => setDraft({ id: m.id, sectionId: m.sectionId, title: m.title, text: textFromParts(m.parts) })} disabled={busy} className="btn btn-sm">
+                        <button onClick={() => setDraft({ id: m.id, sectionId: m.sectionId, title: m.title, text: textFromParts(m.parts), scope: m.shared ? "shared" : "branch" })} disabled={busy} className="btn btn-sm">
                           Edit
                         </button>
                         {/* Duplicate, move and Delete are rarer than Edit, and five of
@@ -419,9 +454,9 @@ export default function MessagesPage() {
             })}
             <li className="px-4 py-2">
               {draft?.id === "new" && draft.sectionId === section.id ? (
-                editor(sections)
+                editor(sections, library!.branch.name)
               ) : (
-                <button onClick={() => setDraft({ id: "new", sectionId: section.id, title: "", text: "" })} disabled={busy} className="btn btn-quiet -ml-3 text-left whitespace-normal wrap-anywhere">
+                <button onClick={() => setDraft({ id: "new", sectionId: section.id, title: "", text: "", scope: "shared" })} disabled={busy} className="btn btn-quiet -ml-3 text-left whitespace-normal wrap-anywhere">
                   + Add a message to {section.name}
                 </button>
               )}

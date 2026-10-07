@@ -5,6 +5,9 @@ import { sessionFromToken, signSession, SESSION_COOKIE, SESSION_COOKIE_OPTIONS }
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname === "/unlock" || pathname.startsWith("/api/unlock")) return NextResponse.next();
+  // The network page has its own PIN, sent per request and never kept: a
+  // device of any branch, or none, may open it.
+  if (pathname === "/branches" || pathname === "/api/branches" || pathname.startsWith("/api/branches/")) return NextResponse.next();
 
   const found = await sessionFromToken(request.cookies.get(SESSION_COOKIE)?.value);
   if (found) {
