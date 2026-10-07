@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db, ensureSchema } from "@/db";
 import { songs } from "@/db/schema";
 import { loadSongs } from "@/db/songs";
 import { parseSongEdit } from "@/lib/songEdit";
-import { roleFromToken, SESSION_COOKIE } from "@/lib/auth";
+import { isAdmin } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 
 const DENIED = "Editing songs needs the admin PIN";
-
-async function admin(): Promise<boolean> {
-  return (await roleFromToken((await cookies()).get(SESSION_COOKIE)?.value)) === "admin";
-}
 
 /** Route params arrive as a promise in this version of Next. */
 async function songId(params: Promise<{ id: string }>): Promise<number | null> {
@@ -42,7 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
  * which is what keeps a songbook re-import from writing over the correction.
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await admin())) return NextResponse.json({ error: DENIED }, { status: 403 });
+  if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
@@ -63,7 +58,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 /** DELETE /api/songs/:id — admin only. A songbook song comes back on the next import. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await admin())) return NextResponse.json({ error: DENIED }, { status: 403 });
+  if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
