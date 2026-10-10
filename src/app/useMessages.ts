@@ -6,7 +6,7 @@ import type { Library } from "@/lib/messageLibrary";
 
 /** Enough to tell the library from a proxy's page or someone else's JSON. */
 function isLibrary(value: unknown): value is Library {
-  return typeof value === "object" && value !== null && "sections" in value && Array.isArray(value.sections) && "messages" in value && Array.isArray(value.messages);
+  return typeof value === "object" && value !== null && "branch" in value && typeof value.branch === "object" && value.branch !== null && "sections" in value && Array.isArray(value.sections) && "messages" in value && Array.isArray(value.messages);
 }
 
 /**

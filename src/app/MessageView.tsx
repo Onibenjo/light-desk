@@ -2,6 +2,7 @@
 
 import { SectionRow } from "./SectionRow";
 import { EndOfList, OpenHeader } from "./OpenHeader";
+import { fillTokens } from "@/lib/branchTokens";
 import { canOpenRow, type SetlistPlace } from "@/lib/setlist";
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
   place: SetlistPlace | null;
   onNext: () => void;
   partRef: (index: number, el: HTMLButtonElement | null) => void;
+  /** The branch's own values for `{key}` in the parts. */
+  tokens: Record<string, string>;
 }
 
 /**
@@ -32,7 +35,24 @@ interface Props {
  * handled by the tab (Esc, arrows, 1–9); Enter on a focused part copies it and
  * moves on, a click copies it and stays.
  */
-export default function MessageView({ label, parts, edited, sent, cursor, flash, addLabel, onCopy, onFocusPart, onAdd, onBack, setlistName, place, onNext, partRef }: Props) {
+export default function MessageView({
+  label,
+  parts,
+  edited,
+  sent,
+  cursor,
+  flash,
+  addLabel,
+  onCopy,
+  onFocusPart,
+  onAdd,
+  onBack,
+  setlistName,
+  place,
+  onNext,
+  partRef,
+  tokens,
+}: Props) {
   return (
     <div className="space-y-3">
       <OpenHeader
@@ -59,35 +79,55 @@ export default function MessageView({ label, parts, edited, sent, cursor, flash,
         </div>
       )}
       <p className="hidden font-ui text-xs leading-7 text-[var(--muted)] pointer-fine:block">
-        <span className="kbd">↑</span> <span className="kbd">↓</span> pick · <span className="kbd">1</span>–<span className="kbd">9</span> copy that part
+        <span className="kbd">↑</span> <span className="kbd">↓</span> pick ·{" "}
+        <span className="kbd">1</span>–<span className="kbd">9</span> copy that
+        part
         {place?.next && canOpenRow(place.next) && (
           <>
-            {" "}· <span className="kbd">N</span> next in the service order
+            {" "}
+            · <span className="kbd">N</span> next in the service order
           </>
         )}
       </p>
       <ol className="space-y-2">
-        {parts.map((part, i) => (
-          <SectionRow
-            key={i}
-            index={i}
-            text={part}
-            cursor={i === cursor}
-            sent={sent.has(i)}
-            flash={flash === i}
-            buttonRef={(el) => partRef(i, el)}
-            onClick={() => onCopy(i, false)}
-            onFocus={() => onFocusPart(i)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onCopy(i, true);
+        {parts.map((part, i) => {
+          const { text, missing } = fillTokens(part, tokens);
+          return (
+            <SectionRow
+              key={i}
+              index={i}
+              text={text}
+              note={
+                missing.length > 0 && (
+                  <span className="mt-2 block rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
+                    No value for {`{${missing[0]}}`} in this branch
+                  </span>
+                )
               }
-            }}
-          />
-        ))}
+              cursor={i === cursor}
+              sent={sent.has(i)}
+              flash={flash === i}
+              buttonRef={(el) => partRef(i, el)}
+              onClick={() => onCopy(i, false)}
+              onFocus={() => onFocusPart(i)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onCopy(i, true);
+                }
+              }}
+            />
+          );
+        })}
       </ol>
-      <EndOfList what="message" setlistName={setlistName} place={place} onNext={onNext} backLabel="Engagement" onBack={onBack} />
+      <EndOfList
+        what="message"
+        setlistName={setlistName}
+        place={place}
+        onNext={onNext}
+        backLabel="Engagement"
+        onBack={onBack}
+      />
     </div>
   );
 }

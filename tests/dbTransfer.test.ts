@@ -128,7 +128,7 @@ describe("importAll", () => {
       args: [1, "Sound restored", '["Sirs and Mas, the sound has been restored."]', 0, 1788288361, 1788288361],
     });
     const written = await importAll(target, await exportAll(source));
-    expect(written.map((w) => w.table)).toEqual(["verse_cache", "sent_log", "songs", "message_sections", "messages", "setlists"]);
+    expect(written.map((w) => w.table)).toEqual(["branches", "verse_cache", "sent_log", "songs", "message_sections", "messages", "setlists"]);
     const rows = await target.execute("SELECT s.name, m.title FROM messages m JOIN message_sections s ON s.id = m.section_id");
     expect(rows.rows.map((r) => ({ ...r }))).toEqual([{ name: "Apologies", title: "Sound restored" }]);
   });

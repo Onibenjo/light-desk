@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db, ensureSchema } from "@/db";
 import { songs } from "@/db/schema";
 import { parseVideoPsalmSongbook } from "@/lib/videopsalm";
 import { readSongbookFile } from "@/lib/vpc";
 import { diffSongbook, type StoredSong } from "@/lib/songbookDiff";
-import { roleFromToken, SESSION_COOKIE } from "@/lib/auth";
+import { isAdmin } from "@/lib/adminGate";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -22,8 +21,7 @@ export const maxDuration = 60;
  * Upserts by Guid: existing songs are updated, new ones added, nothing deleted.
  */
 export async function POST(req: Request) {
-  const role = await roleFromToken((await cookies()).get(SESSION_COOKIE)?.value);
-  if (role !== "admin") return NextResponse.json({ error: "Importing a songbook needs the admin PIN" }, { status: 403 });
+  if (!(await isAdmin())) return NextResponse.json({ error: "Importing a songbook needs the admin PIN" }, { status: 403 });
   const bytes = new Uint8Array(await req.arrayBuffer());
   if (bytes.length > 20_000_000) return NextResponse.json({ error: "File too large" }, { status: 413 });
   let parsed;

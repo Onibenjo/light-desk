@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { roleFromToken, SESSION_COOKIE } from "@/lib/auth";
+import { sessionFromToken, signSession, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/auth";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname === "/unlock" || pathname.startsWith("/api/unlock")) return NextResponse.next();
+  // The network page has its own PIN, sent per request and never kept: a
+  // device of any branch, or none, may open it.
+  if (pathname === "/branches" || pathname === "/api/branches" || pathname.startsWith("/api/branches/")) return NextResponse.next();
 
-  const role = await roleFromToken(request.cookies.get(SESSION_COOKIE)?.value);
-  if (role) return NextResponse.next();
+  const found = await sessionFromToken(request.cookies.get(SESSION_COOKIE)?.value);
+  if (found) {
+    const res = NextResponse.next();
+    // A cookie from before branches: swap it for a signed branch-1 session so
+    // the device stays unlocked once the legacy path is gone.
+    if (found.legacy) res.cookies.set(SESSION_COOKIE, await signSession(found.session), SESSION_COOKIE_OPTIONS);
+    return res;
+  }
 
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "locked" }, { status: 401 });

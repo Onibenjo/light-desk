@@ -17,3 +17,9 @@ export function rateLimit(key: string, max: number, windowMs: number): boolean {
 export function clientKey(req: Request): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "anon";
 }
+
+/** True when `key` has used up its `max` hits in the window. Records nothing. */
+export function isLimited(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  return (buckets.get(key) ?? []).filter((t) => now - t < windowMs).length >= max;
+}

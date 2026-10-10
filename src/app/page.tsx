@@ -314,7 +314,8 @@ export default function Desk() {
     if (tab === "songs" || tab === "messages") void reloadSetlist();
   }, [tab, reloadSetlist]);
   const { library, failed: libraryFailed, reload: reloadLibrary } = useMessages();
-  const { copied, copyPart } = useMessageCopy({ copyText: copyTracked, showToast, logSend });
+  const branchTokens = useMemo(() => library?.branch.tokens ?? {}, [library]);
+  const { copied, copyPart } = useMessageCopy({ copyText: copyTracked, showToast, logSend, tokens: branchTokens });
   const [pendingSong, setPendingSong] = useState<SongRow | null>(null);
   const [pendingMessage, setPendingMessage] = useState<OpenMessage | null>(null);
   const clearPendingSong = useCallback(() => setPendingSong(null), []);
@@ -743,7 +744,7 @@ export default function Desk() {
             </span>
             <span className="min-w-0">
               <span className="display block text-[26px] leading-none">Lightdesk</span>
-              <span className="mt-1 block truncate font-mono text-[10px] tracking-[0.14em] text-[var(--muted)] uppercase">CLC · Mixlr chat desk</span>
+              <span className="mt-1 block truncate font-mono text-[10px] tracking-[0.14em] text-[var(--muted)] uppercase">{library ? library.branch.name : "CLC"} · Mixlr chat desk</span>
             </span>
           </Link>
           {/* Below the rail's width the tools live here, in the bar. */}
@@ -940,6 +941,7 @@ export default function Desk() {
               setlistApi={setlistApi}
               copied={setlistCopied}
               copyPart={copyPart}
+              tokens={branchTokens}
               showToast={showToast}
               pending={pendingMessage}
               onPendingDone={clearPendingMessage}

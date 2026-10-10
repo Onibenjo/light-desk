@@ -15,6 +15,21 @@ export const verseCache = sqliteTable(
   (t) => [primaryKey({ columns: [t.translation, t.book, t.chapter, t.verse] })],
 );
 
+/**
+ * One row per church branch. PINs are stored as hashes (src/lib/pinHash.ts);
+ * `pinVersion` bumps when they change so old sessions stop working. `tokens` is
+ * a JSON object of the branch's own API tokens.
+ */
+export const branches = sqliteTable("branches", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(), // COLLATE NOCASE in schemaSql.ts
+  churchPinHash: text("church_pin_hash").unique(),
+  adminPinHash: text("admin_pin_hash").unique(),
+  pinVersion: integer("pin_version").notNull().default(0),
+  tokens: text("tokens").notNull().default("{}"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 /** Everything the operator copied, for handover and pilot metrics. */
 export const sentLog = sqliteTable("sent_log", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -23,6 +38,7 @@ export const sentLog = sqliteTable("sent_log", {
   body: text("body"), // the exact text copied
   meta: text("meta"), // JSON: { source, ms, candidates }
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  branchId: integer("branch_id").notNull().default(1),
 });
 
 /**
@@ -51,6 +67,8 @@ export const messages = sqliteTable("messages", {
   sort: integer("sort").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  /** Null means shared by every branch. */
+  branchId: integer("branch_id"),
 });
 
 /** The songbook. sections is a JSON array of strings (one 🎵 chunk each). */
@@ -65,6 +83,8 @@ export const songs = sqliteTable("songs", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   /** Set the first time someone corrects the song here; import then leaves it alone. */
   editedAt: integer("edited_at", { mode: "timestamp" }),
+  /** The branch that made that correction. */
+  editedBy: integer("edited_by"),
 });
 
 /**
@@ -73,8 +93,8 @@ export const songs = sqliteTable("songs", {
  * are always read live from the song, and the title is only a cached label so
  * the list can paint before the songbook has loaded.
  *
- * At most one row may have `active` set. That is enforced by the partial unique
- * index `setlists_one_active` in schemaSql.ts, which drizzle's schema builder
+ * Each branch has at most one row with `active` set. That is enforced by the
+ * partial unique index `setlists_one_active_per_branch` in schemaSql.ts, which drizzle's schema builder
  * cannot express — which is why activating clears the old row first.
  *
  * `updatedAt` doubles as the optimistic-concurrency token a client echoes back
@@ -91,4 +111,5 @@ export const setlists = sqliteTable("setlists", {
   active: integer("active", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  branchId: integer("branch_id").notNull().default(1),
 });

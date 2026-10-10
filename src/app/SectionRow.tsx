@@ -19,6 +19,7 @@ export function SectionRow({
   sent,
   flash,
   badges,
+  note,
   trailing,
   buttonRef,
   onClick,
@@ -31,6 +32,8 @@ export function SectionRow({
   sent: boolean;
   flash: boolean;
   badges?: ReactNode;
+  /** A line beneath the text, for something wrong with this row. */
+  note?: ReactNode;
   trailing?: ReactNode;
   buttonRef: (el: HTMLButtonElement | null) => void;
   onClick: () => void;
@@ -65,6 +68,7 @@ export function SectionRow({
           <span className={`block whitespace-pre-wrap text-[17px] leading-[1.7] wrap-break-word ${cursor ? "text-ink-50" : "text-ink-200"}`}>
             {text}
           </span>
+          {note}
         </span>
         {/* Enter copies the row the cursor is on, so the key is shown on that row. */}
         {cursor && (
