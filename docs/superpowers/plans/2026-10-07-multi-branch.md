@@ -402,7 +402,7 @@ git commit -m "Fill a branch's own details into shared messages"
 **Interfaces:**
 - Consumes: `currentSession`, `isAdmin`, `getBranch`, `listBranches`, `createBranch`, `updateBranch`, `setBranchTokens` (Task 2), `cleanTokens` (Task 5), `cleanPin` (Task 1).
 - Produces:
-  - `GET /api/branch` (any session) returns `{ id, name, tokens }`. `PUT /api/branch` (admin) takes body `{ tokens }`, validates it with `cleanTokens`, and returns `{ ok, branch }`. Without admin it returns 403 "Changing branch settings needs the admin PIN".
+  - `PUT /api/branch` (admin) takes body `{ tokens }`, validates it with `cleanTokens`, and returns `{ ok, branch }`. Without admin it returns 403 "Changing branch settings needs the admin PIN".
   - `networkPinOk(req: Request): boolean` in `src/lib/networkGate.ts`: true only when `NETWORK_PIN` is set and equals the `x-network-pin` header. Rate-limited with the same `rateLimit` as unlock (key `network:${clientKey(req)}`).
   - `GET /api/branches` returns `{ branches: { id, name }[] }`. `POST /api/branches` takes `{ name, churchPin, adminPin? }`. `PATCH /api/branches/:id` takes `{ name?, churchPin?, adminPin? }`. All three are gated by `networkPinOk` (401 "Wrong network PIN"). `"pin-taken"` → 409 "That PIN is already used by a branch". `"name-taken"` → 409 "There is already a branch with that name".
 

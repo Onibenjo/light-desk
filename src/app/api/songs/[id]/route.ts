@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { songs } from "@/db/schema";
 import { loadSongs } from "@/db/songs";
 import { parseSongEdit } from "@/lib/songEdit";
@@ -27,7 +27,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
-  await ensureSchema();
   const [song] = await loadSongs(eq(songs.id, id), 1);
   if (!song) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
   return NextResponse.json({ song });
@@ -47,7 +46,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = parseSongEdit(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
   const now = new Date();
   const [row] = await db
     .update(songs)
@@ -66,7 +64,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
-  await ensureSchema();
   const [row] = await db.delete(songs).where(eq(songs.id, id)).returning({ id: songs.id });
   if (!row) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
   return NextResponse.json({ ok: true });

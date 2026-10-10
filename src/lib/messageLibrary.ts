@@ -113,6 +113,8 @@ export interface OpenMessage {
   key: string;
   id: number;
   label: string;
+  /** The text before any `{key}` is filled, so the parts can be filled again when the branch's values arrive. */
+  source: string[];
   parts: OpenPart[];
   /** Text edited for one service, not the library's. */
   edited: boolean;
@@ -125,10 +127,16 @@ export function openMessageFor({ section, message }: LibraryEntry, tokens: Token
     key: `message:${message.id}`,
     id: message.id,
     label: messageLabel(section, message),
+    source: message.parts,
     parts: openParts(message.parts, tokens),
     edited: false,
     inService: section.inService,
   };
+}
+
+/** The same message with its parts filled from these values, for one opened before the library had loaded. */
+export function withTokens(message: OpenMessage, tokens: Tokens): OpenMessage {
+  return { ...message, parts: openParts(message.source, tokens) };
 }
 
 /** The log label for one copied part. A one-part message is just its label. */

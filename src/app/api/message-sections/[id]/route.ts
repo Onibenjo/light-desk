@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { deleteSection, updateSection } from "@/db/messages";
 import { parseSectionPatch } from "@/lib/messageEdit";
 import { gate } from "@/lib/sessionGate";
@@ -29,7 +28,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = parseSectionPatch(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
   const result = await updateSection(id, parsed);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
   if (result === "duplicate") return NextResponse.json({ error: `There's already a section called "${parsed.name}" — choose another name` }, { status: 409 });
@@ -43,7 +41,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const id = await sectionId(params);
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 
-  await ensureSchema();
   const result = await deleteSection(s.branchId, id);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
   if (result === "not-empty-elsewhere") return NextResponse.json({ error: "Other branches still have messages in this section, so it can't be deleted" }, { status: 409 });

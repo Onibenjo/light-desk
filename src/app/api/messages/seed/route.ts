@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { seedLibrary } from "@/db/messages";
 import { parseSeed } from "@/lib/messageSeed";
 import { gate } from "@/lib/sessionGate";
@@ -20,7 +19,6 @@ export async function POST() {
   const parsed = parseSeed(seed);
   if (typeof parsed === "string") return NextResponse.json({ error: `The starter library is broken: ${parsed}` }, { status: 500 });
 
-  await ensureSchema();
   const result = await seedLibrary(parsed);
   if (result === "not-empty") return NextResponse.json({ error: "The message library already has messages, so the starter messages weren't loaded" }, { status: 409 });
   return NextResponse.json({ ok: true, ...result });

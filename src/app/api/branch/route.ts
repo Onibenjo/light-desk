@@ -7,13 +7,6 @@ export const runtime = "nodejs";
 
 const DENIED = "Changing branch settings needs the admin PIN";
 
-/** GET — this device's branch: its name and the values filled into shared messages. Any PIN. */
-export async function GET() {
-  const s = await gate();
-  if (s instanceof NextResponse) return s;
-  return NextResponse.json({ id: s.branch.id, name: s.branch.name, tokens: s.branch.tokens });
-}
-
 /** PUT { tokens } — admin. Replaces every value of this device's branch at once. */
 export async function PUT(req: Request) {
   const s = await gate(DENIED);

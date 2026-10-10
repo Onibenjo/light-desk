@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { deleteSetlist, findSetlist, updateSetlist } from "@/db/setlists";
 import { factsForMessages } from "@/db/messages";
 import { gate } from "@/lib/sessionGate";
@@ -31,7 +30,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = parseSetlistPatch(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
 
   // Only messages being added are judged. One already in the setlist stays even
   // if its section has since been switched out of service, so flipping a toggle
@@ -60,7 +58,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const id = await setlistId(params);
   if (id === null) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
 
-  await ensureSchema();
   if (!(await deleteSetlist(branchId, id))) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

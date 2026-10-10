@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { createMessage, loadLibrary } from "@/db/messages";
 import { parseMessageCreate } from "@/lib/messageEdit";
 import { gate } from "@/lib/sessionGate";
@@ -22,7 +21,6 @@ export async function POST(req: Request) {
   const parsed = parseMessageCreate(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
   const result = await createMessage(s.branchId, parsed);
   if (result === "no-section") return NextResponse.json({ error: "That section is gone — reload the page" }, { status: 400 });
   return NextResponse.json({ ok: true, message: result });

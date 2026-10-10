@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { songs } from "@/db/schema";
 import { complete } from "@/lib/llm";
 import { cleanSlideText } from "@/lib/videopsalm";
@@ -41,7 +41,6 @@ export async function POST(req: Request) {
   if (!sections) sections = sectionsFromLyrics(cleaned);
   if (sections.length === 0) return NextResponse.json({ error: "No lyric lines found" }, { status: 400 });
 
-  await ensureSchema();
   const now = new Date();
   const guid = `manual:${now.getTime()}`;
   const cleanTitle = cleanSlideText(title).replace(/\n+/g, " ");

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { createSection } from "@/db/messages";
 import { parseSectionCreate } from "@/lib/messageEdit";
 import { gate } from "@/lib/sessionGate";
@@ -13,7 +12,6 @@ export async function POST(req: Request) {
   const parsed = parseSectionCreate(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
   const result = await createSection(parsed);
   if (result === "duplicate") return NextResponse.json({ error: `There's already a section called "${parsed.name}" — choose another name` }, { status: 409 });
   return NextResponse.json({ ok: true, section: result });

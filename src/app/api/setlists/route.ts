@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { createSetlist, loadSetlists } from "@/db/setlists";
 import { gate } from "@/lib/sessionGate";
 import { parseSetlistCreate } from "@/lib/setlistEdit";
@@ -13,7 +12,6 @@ export const runtime = "nodejs";
 export async function GET() {
   const s = await gate();
   if (s instanceof NextResponse) return s;
-  await ensureSchema();
   return NextResponse.json({ setlists: await loadSetlists(s.branchId) });
 }
 
@@ -24,6 +22,5 @@ export async function POST(req: Request) {
   const parsed = parseSetlistCreate(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
   return NextResponse.json({ ok: true, setlist: await createSetlist(s.branchId, parsed.name) });
 }

@@ -68,6 +68,13 @@ describe("branches", () => {
     expect(await lib.updateBranch(999, { name: "Nowhere" })).toBe("gone");
   });
 
+  it("refuses an admin PIN that another branch uses, or the branch's own church PIN", async () => {
+    await create({ name: "CLC Lagos", churchPin: "2222", adminPin: "3333" });
+    expect(await lib.updateBranch(1, { adminPin: "2222" })).toBe("pin-taken");
+    expect(await lib.updateBranch(1, { adminPin: "3333" })).toBe("pin-taken");
+    expect(await lib.updateBranch(1, { adminPin: "1111" })).toBe("pin-taken");
+  });
+
   it("a NETWORK_PIN with stray whitespace is still taken", async () => {
     process.env.NETWORK_PIN = "  network-pin-7777 \n";
     expect(await lib.createBranch({ name: "CLC Lagos", churchPin: "network-pin-7777", adminPin: null })).toBe("pin-taken");

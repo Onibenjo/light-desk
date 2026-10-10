@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, desc, eq, gte, lt, or, sql, type Column, type SQL } from "drizzle-orm";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { sentLog } from "@/db/schema";
 import { gate } from "@/lib/sessionGate";
 
@@ -15,7 +15,6 @@ const DAYS_SCAN_LIMIT = 5000;
 export async function POST(req: Request) {
   const s = await gate();
   if (s instanceof NextResponse) return s;
-  await ensureSchema();
   const { kind, label, body, meta } = (await req.json().catch(() => ({}))) as { kind?: string; label?: string; body?: string; meta?: unknown };
   if (!kind || !label) return NextResponse.json({ error: "kind and label required" }, { status: 400 });
   await db.insert(sentLog).values({ branchId: s.branchId, kind, label, body: body ?? null, meta: meta ? JSON.stringify(meta) : null, createdAt: new Date() });
@@ -32,7 +31,6 @@ function epoch(raw: string | null): number | undefined {
 export async function GET(req: Request) {
   const s = await gate();
   if (s instanceof NextResponse) return s;
-  await ensureSchema();
   const p = new URL(req.url).searchParams;
 
   // The caller works out the day boundaries in its own timezone and sends epoch

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, like, or, sql } from "drizzle-orm";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { loadSongs } from "@/db/songs";
 import { songs } from "@/db/schema";
 import { gate } from "@/lib/sessionGate";
@@ -26,7 +26,6 @@ export async function GET(req: Request) {
   const s = await gate();
   if (s instanceof NextResponse) return s;
 
-  await ensureSchema();
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
   const words = q ? tokenize(q) : [];
   if (!words.length) return NextResponse.json({ songs: [], total: await count() });

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { deleteMessage, updateMessage } from "@/db/messages";
 import { parseMessagePatch } from "@/lib/messageEdit";
 import { gate } from "@/lib/sessionGate";
@@ -25,7 +24,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = parseMessagePatch(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
   const result = await updateMessage(s.branchId, id, parsed);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
   if (result === "no-section") return NextResponse.json({ error: "That section is gone — reload the page" }, { status: 400 });
@@ -42,7 +40,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const id = await messageId(params);
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 
-  await ensureSchema();
   if (!(await deleteMessage(s.branchId, id))) return NextResponse.json({ error: MISSING }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

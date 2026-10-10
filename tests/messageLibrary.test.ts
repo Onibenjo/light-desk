@@ -43,6 +43,7 @@ describe("opening and logging a message", () => {
       key: "message:20",
       id: 20,
       label: "Apologies · Sound restored",
+      source: sorry.message.parts,
       parts: sorry.message.parts.map((text) => ({ text, missing: [] })),
       edited: false,
       inService: false,

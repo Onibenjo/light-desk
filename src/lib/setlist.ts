@@ -206,6 +206,7 @@ export function openMessageFromRow(row: MessageRow, library: Map<number, Library
     key: row.key,
     id: row.id,
     label: row.title,
+    source: row.parts,
     parts: openParts(row.parts, tokens),
     edited: row.edited,
     inService: library?.get(row.id)?.section.inService ?? false,

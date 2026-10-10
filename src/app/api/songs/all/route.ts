@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { sql } from "drizzle-orm";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { songs } from "@/db/schema";
 import { loadSongs } from "@/db/songs";
 import { gate } from "@/lib/sessionGate";
@@ -28,7 +28,6 @@ export async function GET(req: Request) {
   const s = await gate();
   if (s instanceof NextResponse) return s;
 
-  await ensureSchema();
   const [{ n, updated }] = await db
     .select({ n: sql<number>`count(*)`, updated: sql<number>`coalesce(max(updated_at), 0)` })
     .from(songs);
