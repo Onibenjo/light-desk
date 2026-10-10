@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { comingSundayName, moveItem, planMessageEdit, withParts } from "@/lib/setlist";
 import { itemKey, MAX_NAME } from "@/lib/setlistEdit";
-import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
+import { failureFrom, getJson, OFFLINE, type Failure } from "@/lib/apiError";
 import { useMessages } from "../useMessages";
 import { useArmed } from "../useArmed";
 import { messageLabel, messagesById } from "@/lib/messageLibrary";
 import { partsFromText, textFromParts } from "@/lib/messageEdit";
 import type { Setlist } from "../useSetlist";
 import Icon from "../Icon";
+import Problem from "../Problem";
 import ActiveBadge from "../ActiveBadge";
 import PageShell from "../PageShell";
 
@@ -23,51 +24,9 @@ const RELOAD_LEAD = "Saved, but couldn't reload the service orders.";
 
 const RELOADED: Failure = { kind: "conflict", message: "Someone else changed this service order — it has reloaded, so make your change again" };
 
-async function fetchSetlists(): Promise<{ ok: true; setlists: Setlist[] } | { ok: false; failure: Failure }> {
-  let res: Response;
-  try {
-    res = await fetch("/api/setlists");
-  } catch {
-    return { ok: false, failure: OFFLINE };
-  }
-  if (!res.ok) return { ok: false, failure: await failureFrom(res) };
-  try {
-    const data = (await res.json()) as { setlists: Setlist[] };
-    return { ok: true, setlists: data.setlists };
-  } catch {
-    // A 200 that is not the list: a captive portal's page, or the body cut off mid-read.
-    return { ok: false, failure: describeFailure(502) };
-  }
-}
-
-/**
- * What did not happen, why, and the one thing to do about it: try again, or
- * unlock when the device's PIN has gone. After a write, the unlock link opens a new tab so
- * text typed on this page survives. Setlists need the church PIN, not the admin PIN.
- */
-function Problem({ failure, lead, onRetry, next, newTab }: { failure: Failure; lead: string; onRetry?: () => void; next: string; newTab: boolean }) {
-  return (
-    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
-      <Icon name="warn" className="h-4 w-4 shrink-0" />
-      <p className="min-w-0 wrap-anywhere">{`${lead} ${failure.message}${/[.?!]$/.test(failure.message) ? "" : "."}`}</p>
-      {failure.kind === "locked" ? (
-        <a
-          href={unlockHref(next)}
-          target={newTab ? "_blank" : undefined}
-          rel={newTab ? "noopener noreferrer" : undefined}
-          className="link inline-flex items-center pointer-coarse:min-h-11"
-        >
-          {newTab ? "Enter the PIN in a new tab" : "Enter the PIN"}
-        </a>
-      ) : (
-        onRetry && (
-          <button onClick={onRetry} className="btn border-warn-line text-warn-fg hover:border-warn-line hover:bg-warn-bg">
-            Try again
-          </button>
-        )
-      )}
-    </div>
-  );
+/** Enough to tell the list from a proxy's page or someone else's JSON. */
+function isSetlists(value: unknown): value is { setlists: Setlist[] } {
+  return typeof value === "object" && value !== null && "setlists" in value && Array.isArray(value.setlists);
 }
 
 /**
@@ -144,9 +103,9 @@ export default function SetlistsPage() {
 
   /** Loads the setlists. A list already on screen stays there when this fails; the failure is returned to show. */
   const refresh = useCallback(async (): Promise<Failure | null> => {
-    const result = await fetchSetlists();
+    const result = await getJson("/api/setlists", isSetlists);
     if (result.ok) {
-      setState({ kind: "loaded", setlists: result.setlists });
+      setState({ kind: "loaded", setlists: result.data.setlists });
       return null;
     }
     setState((s) => (s.kind === "loaded" ? s : { kind: "failed", failure: result.failure }));
@@ -227,7 +186,7 @@ export default function SetlistsPage() {
         {armed.announcement}
       </p>
 
-      {notice && <Problem failure={notice.failure} lead={notice.lead} onRetry={notice.saved ? retryReload : undefined} next={pathname} newTab />}
+      {notice && <Problem failure={notice.failure} lead={notice.lead} onRetry={notice.saved ? retryReload : undefined} next={pathname} newTab pin="church" />}
 
       <div className="flex gap-2">
         <input
@@ -244,7 +203,7 @@ export default function SetlistsPage() {
       </div>
 
       {state.kind === "loading" && <p className="text-sm text-[var(--muted)]">Loading the service orders…</p>}
-      {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the service orders." onRetry={retryLoad} next={pathname} newTab={false} />}
+      {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the service orders." onRetry={retryLoad} next={pathname} newTab={false} pin="church" />}
       {state.kind === "loaded" && setlists.length === 0 && <p className="text-sm text-[var(--muted)]">No service orders yet — name one above and choose New service order.</p>}
 
       {setlists.map((s, si) => (

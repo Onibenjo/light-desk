@@ -51,6 +51,26 @@ export async function failureFrom(res: Response, fallback?: string): Promise<Fai
   return describeFailure(res.status, sentence(body?.error), fallback);
 }
 
+/** GETs a JSON body, turning every way it can fail into a Failure; `guard` rejects a 200 that is not the expected shape. */
+export async function getJson<T>(url: string, guard: (value: unknown) => value is T): Promise<{ ok: true; data: T } | { ok: false; failure: Failure }> {
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    return { ok: false, failure: OFFLINE };
+  }
+  // A 401 from an expired PIN parses cleanly; taking it would show an empty page.
+  if (!res.ok) return { ok: false, failure: await failureFrom(res) };
+  // A 200 that is not the expected body: a captive portal's page, or the body cut off mid-read.
+  const body: unknown = await res.json().catch(() => null);
+  return guard(body) ? { ok: true, data: body } : { ok: false, failure: describeFailure(502) };
+}
+
+/** `lead` then the reason, closed with a full stop unless it already has one. */
+export function withLead(lead: string, reason: string): string {
+  return `${lead} ${reason}${/[.?!]$/.test(reason) ? "" : "."}`;
+}
+
 /** Where to send a locked device: the unlock screen, then back to this page. */
 export function unlockHref(next: string): string {
   return `/unlock?next=${encodeURIComponent(next)}`;

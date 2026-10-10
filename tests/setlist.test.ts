@@ -157,20 +157,26 @@ describe("opening a message from its setlist row", () => {
   it("carries the row's text, edited or not, and the section's setlist rule", () => {
     const [row] = resolveSetlist([{ kind: "message", id: 11, title: "x", parts: ["Easter worship"] }], null, lib);
     if (row.kind !== "message") throw new Error("expected a message row");
-    expect(openMessageFromRow(row, lib)).toEqual({
+    expect(openMessageFromRow(row, lib, {})).toEqual({
       key: "message:11",
       id: 11,
       label: "Welcoming Ambience Jewel · Sunday · Worship",
-      parts: ["Easter worship"],
+      parts: [{ text: "Easter worship", missing: [] }],
       edited: true,
       inService: true,
     });
   });
 
+  it("fills a row edited for one service the same way as the library's text", () => {
+    const [row] = resolveSetlist([{ kind: "message", id: 11, title: "x", parts: ["Give via {offeringAccounts} or {other}"] }], null, lib);
+    if (row.kind !== "message") throw new Error("expected a message row");
+    expect(openMessageFromRow(row, lib, { offeringAccounts: "Zenith 123" })?.parts).toEqual([{ text: "Give via Zenith 123 or {other}", missing: ["other"] }]);
+  });
+
   it("opens nothing for a row with nothing to copy", () => {
     const [row] = resolveSetlist([{ kind: "message", id: 77, title: "Gone" }], null, lib);
     if (row.kind !== "message") throw new Error("expected a message row");
-    expect(openMessageFromRow(row, lib)).toBe(null);
+    expect(openMessageFromRow(row, lib, {})).toBe(null);
   });
 });
 

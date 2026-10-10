@@ -3,18 +3,15 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Icon from "../Icon";
 import PageShell from "../PageShell";
-import { DeniedHint } from "../SongEditor";
+import Problem from "../Problem";
 import { useArmed } from "../useArmed";
 import { MAX_MESSAGE_CHARS } from "@/lib/format";
-import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
-import { groupLibrary, type Library, type LibraryMessage, type LibrarySection } from "@/lib/messageLibrary";
-import { longParts, MAX_MESSAGE_TITLE, MAX_SECTION_NAME, partsFromText, textFromParts } from "@/lib/messageEdit";
+import { failureFrom, getJson, OFFLINE, type Failure } from "@/lib/apiError";
+import { groupLibrary, isLibrary, type Library, type LibraryMessage, type LibrarySection } from "@/lib/messageLibrary";
+import { longParts, MAX_MESSAGE_TITLE, MAX_SECTION_NAME, partsFromText, textFromParts, type MessageScope } from "@/lib/messageEdit";
 
-type Scope = "shared" | "branch";
-
-type Draft = { id: number | "new"; sectionId: number; title: string; text: string; scope: Scope };
+type Draft = { id: number | "new"; sectionId: number; title: string; text: string; scope: MessageScope };
 
 type LibraryState = { kind: "loading" } | { kind: "loaded"; library: Library } | { kind: "failed"; failure: Failure };
 
@@ -29,57 +26,10 @@ const RELOAD_LEAD = "Saved, but couldn't reload the message library.";
 /** " (copy)" would read as the clipboard, which is what "copy" means everywhere else in the app. */
 const COPY_SUFFIX = " (duplicate)";
 
-async function fetchLibrary(): Promise<{ ok: true; library: Library } | { ok: false; failure: Failure }> {
-  let res: Response;
-  try {
-    res = await fetch("/api/messages");
-  } catch {
-    return { ok: false, failure: OFFLINE };
-  }
-  if (!res.ok) return { ok: false, failure: await failureFrom(res) };
-  try {
-    return { ok: true, library: (await res.json()) as Library };
-  } catch {
-    // A 200 that is not the library: a captive portal's page, or the body cut off mid-read.
-    return { ok: false, failure: describeFailure(502) };
-  }
-}
-
 /** A title plus " (duplicate)" that stays within the server's limit, without splitting an emoji in half. */
 function copyTitle(title: string): string {
   const cut = title.slice(0, MAX_MESSAGE_TITLE - COPY_SUFFIX.length);
   return `${/[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut}${COPY_SUFFIX}`;
-}
-
-/**
- * What did not happen, why, and the one thing to do about it: try again, or
- * unlock when the device's PIN has gone. After a write, the unlock link opens a
- * new tab so a half-written message on this page survives.
- */
-function Problem({ failure, lead, onRetry, next, newTab }: { failure: Failure; lead: string; onRetry?: () => void; next: string; newTab: boolean }) {
-  if (failure.kind === "denied") return <DeniedHint />;
-  return (
-    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
-      <Icon name="warn" className="h-4 w-4 shrink-0" />
-      <p className="min-w-0 wrap-anywhere">{sentence(lead, failure.message)}</p>
-      {failure.kind === "locked" ? (
-        <a
-          href={unlockHref(next)}
-          target={newTab ? "_blank" : undefined}
-          rel={newTab ? "noopener noreferrer" : undefined}
-          className="link inline-flex items-center pointer-coarse:min-h-11"
-        >
-          {newTab ? "Enter the admin PIN in a new tab" : "Enter the admin PIN"}
-        </a>
-      ) : (
-        onRetry && (
-          <button onClick={onRetry} className="btn border-warn-line text-warn-fg hover:border-warn-line hover:bg-warn-bg">
-            Try again
-          </button>
-        )
-      )}
-    </div>
-  );
 }
 
 /**
@@ -126,11 +76,6 @@ function RenameField({ saved, label, maxLength, onRename }: { saved: string; lab
   );
 }
 
-/** "Not saved." then the reason, closed with a full stop unless it already has one. */
-function sentence(lead: string, reason: string): string {
-  return `${lead} ${reason}${/[.?!]$/.test(reason) ? "" : "."}`;
-}
-
 /** Why a section's Delete is off. */
 function notEmpty(count: number): string {
   return `To delete this section, move or delete its ${count === 1 ? "message" : `${count} messages`} first`;
@@ -163,9 +108,9 @@ export default function MessagesPage() {
 
   /** Loads the library. A library already on screen stays there when this fails; the failure is returned to show. */
   const refresh = useCallback(async (): Promise<Failure | null> => {
-    const result = await fetchLibrary();
+    const result = await getJson("/api/messages", isLibrary);
     if (result.ok) {
-      setState({ kind: "loaded", library: result.library });
+      setState({ kind: "loaded", library: result.data });
       return null;
     }
     setState((s) => (s.kind === "loaded" ? s : { kind: "failed", failure: result.failure }));
@@ -238,7 +183,7 @@ export default function MessagesPage() {
 
   function editor(sections: LibrarySection[], branchName: string) {
     if (!draft) return null;
-    const scopes: { value: Scope; label: string }[] = [
+    const scopes: { value: MessageScope; label: string }[] = [
       { value: "shared", label: "All branches" },
       { value: "branch", label: `${branchName} only` },
     ];
@@ -309,6 +254,8 @@ export default function MessagesPage() {
 
   const library = state.kind === "loaded" ? state.library : null;
   const groups = library ? groupLibrary(library) : [];
+  // Groups are empty until the library has loaded, so no editor opens before this is the real name.
+  const branchName = library?.branch.name ?? "";
   const sections = groups.map((g) => g.section);
   const del = (key: string) => `btn btn-sm ${armed.isArmed(key) ? "btn-armed" : "btn-danger"}`;
 
@@ -400,7 +347,7 @@ export default function MessagesPage() {
               return (
                 <li key={m.id} className={`px-4 py-2.5 ${showing ? "bg-ink-800/50" : ""}`}>
                   {draft?.id === m.id ? (
-                    editor(sections, library!.branch.name)
+                    editor(sections, branchName)
                   ) : (
                     <>
                       <div className="flex items-center gap-2">
@@ -454,7 +401,7 @@ export default function MessagesPage() {
             })}
             <li className="px-4 py-2">
               {draft?.id === "new" && draft.sectionId === section.id ? (
-                editor(sections, library!.branch.name)
+                editor(sections, branchName)
               ) : (
                 <button onClick={() => setDraft({ id: "new", sectionId: section.id, title: "", text: "", scope: "shared" })} disabled={busy} className="btn btn-quiet -ml-3 text-left whitespace-normal wrap-anywhere">
                   + Add a message to {section.name}

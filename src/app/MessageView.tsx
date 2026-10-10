@@ -2,12 +2,12 @@
 
 import { SectionRow } from "./SectionRow";
 import { EndOfList, OpenHeader } from "./OpenHeader";
-import { fillTokens } from "@/lib/branchTokens";
+import type { OpenPart } from "@/lib/messageLibrary";
 import { canOpenRow, type SetlistPlace } from "@/lib/setlist";
 
 interface Props {
   label: string;
-  parts: string[];
+  parts: OpenPart[];
   /** Showing text edited for this service rather than the library's. */
   edited: boolean;
   sent: ReadonlySet<number>;
@@ -25,8 +25,6 @@ interface Props {
   place: SetlistPlace | null;
   onNext: () => void;
   partRef: (index: number, el: HTMLButtonElement | null) => void;
-  /** The branch's own values for `{key}` in the parts. */
-  tokens: Record<string, string>;
 }
 
 /**
@@ -51,7 +49,6 @@ export default function MessageView({
   place,
   onNext,
   partRef,
-  tokens,
 }: Props) {
   return (
     <div className="space-y-3">
@@ -90,35 +87,26 @@ export default function MessageView({
         )}
       </p>
       <ol className="space-y-2">
-        {parts.map((part, i) => {
-          const { text, missing } = fillTokens(part, tokens);
-          return (
-            <SectionRow
-              key={i}
-              index={i}
-              text={text}
-              note={
-                missing.length > 0 && (
-                  <span className="mt-2 block rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
-                    No value for {`{${missing[0]}}`} in this branch
-                  </span>
-                )
+        {parts.map(({ text, missing }, i) => (
+          <SectionRow
+            key={i}
+            index={i}
+            text={text}
+            warning={missing.length > 0 ? `No value for {${missing[0]}} in this branch` : undefined}
+            cursor={i === cursor}
+            sent={sent.has(i)}
+            flash={flash === i}
+            buttonRef={(el) => partRef(i, el)}
+            onClick={() => onCopy(i, false)}
+            onFocus={() => onFocusPart(i)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onCopy(i, true);
               }
-              cursor={i === cursor}
-              sent={sent.has(i)}
-              flash={flash === i}
-              buttonRef={(el) => partRef(i, el)}
-              onClick={() => onCopy(i, false)}
-              onFocus={() => onFocusPart(i)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onCopy(i, true);
-                }
-              }}
-            />
-          );
-        })}
+            }}
+          />
+        ))}
       </ol>
       <EndOfList
         what="message"

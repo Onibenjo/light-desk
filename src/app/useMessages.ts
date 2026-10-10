@@ -1,13 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describeFailure, failureFrom, OFFLINE, type Failure } from "@/lib/apiError";
-import type { Library } from "@/lib/messageLibrary";
-
-/** Enough to tell the library from a proxy's page or someone else's JSON. */
-function isLibrary(value: unknown): value is Library {
-  return typeof value === "object" && value !== null && "branch" in value && typeof value.branch === "object" && value.branch !== null && "sections" in value && Array.isArray(value.sections) && "messages" in value && Array.isArray(value.messages);
-}
+import { getJson, type Failure } from "@/lib/apiError";
+import { isLibrary, type Library } from "@/lib/messageLibrary";
 
 /**
  * The library, fetched once when the desk opens: the palette needs it on any
@@ -24,25 +19,12 @@ export function useMessages() {
 
   const fetchLibrary = useCallback(async () => {
     const request = ++latest.current;
-    let failure: Failure | null = null;
-    let loaded: Library | null = null;
-    try {
-      const res = await fetch("/api/messages");
-      // A 401 from an expired PIN parses cleanly; taking it would show an empty library.
-      if (!res.ok) failure = await failureFrom(res);
-      else {
-        const body: unknown = await res.json().catch(() => null);
-        if (isLibrary(body)) loaded = body;
-        else failure = describeFailure(502);
-      }
-    } catch {
-      failure = OFFLINE;
-    }
+    const result = await getJson("/api/messages", isLibrary);
     if (request !== latest.current) return;
-    if (loaded) {
-      setLibrary(loaded);
+    if (result.ok) {
+      setLibrary(result.data);
       setFailed(null);
-    } else setFailed(failure);
+    } else setFailed(result.failure);
   }, []);
 
   useEffect(() => {

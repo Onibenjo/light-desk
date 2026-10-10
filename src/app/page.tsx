@@ -28,7 +28,7 @@ import { useMessages } from "./useMessages";
 import { useMessageCopy } from "./useMessageCopy";
 import { useSongProgress } from "./useSongProgress";
 import { messageActions } from "@/lib/messageActions";
-import { messagesById, openMessageFor, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
+import { messagesById, openMessageFor, tokensOf, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
 import { openMessageFromRow, type MessageRow, type SongRow } from "@/lib/setlist";
 import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { tabIndexForKey } from "@/lib/tabKeys";
@@ -314,8 +314,7 @@ export default function Desk() {
     if (tab === "songs" || tab === "messages") void reloadSetlist();
   }, [tab, reloadSetlist]);
   const { library, failed: libraryFailed, reload: reloadLibrary } = useMessages();
-  const branchTokens = useMemo(() => library?.branch.tokens ?? {}, [library]);
-  const { copied, copyPart } = useMessageCopy({ copyText: copyTracked, showToast, logSend, tokens: branchTokens });
+  const { copied, copyPart } = useMessageCopy({ copyText: copyTracked, showToast, logSend });
   const [pendingSong, setPendingSong] = useState<SongRow | null>(null);
   const [pendingMessage, setPendingMessage] = useState<OpenMessage | null>(null);
   const clearPendingSong = useCallback(() => setPendingSong(null), []);
@@ -333,7 +332,7 @@ export default function Desk() {
 
   const onMessageRow = useCallback(
     (row: MessageRow) => {
-      const m = openMessageFromRow(row, messagesById(library));
+      const m = openMessageFromRow(row, messagesById(library), tokensOf(library));
       if (m) sendMessage(m);
     },
     [library, sendMessage],
@@ -342,7 +341,7 @@ export default function Desk() {
   /** Opens a message from "Next in the service order", even a one-part one: next means go to it, not copy it unseen. */
   const openMessageRow = useCallback(
     (row: MessageRow) => {
-      const m = openMessageFromRow(row, messagesById(library));
+      const m = openMessageFromRow(row, messagesById(library), tokensOf(library));
       if (!m) return;
       setPendingMessage(m);
       setTab("messages");
@@ -360,7 +359,7 @@ export default function Desk() {
     return all;
   }, [copied, progress]);
 
-  const onPaletteMessage = useCallback((entry: LibraryEntry) => sendMessage(openMessageFor(entry)), [sendMessage]);
+  const onPaletteMessage = useCallback((entry: LibraryEntry) => sendMessage(openMessageFor(entry, tokensOf(library))), [sendMessage, library]);
 
   // Puts the cursor back for the next reference. Skipped on a touchscreen, where
   // it would answer every send by covering the verse with the on-screen keyboard.
@@ -941,7 +940,6 @@ export default function Desk() {
               setlistApi={setlistApi}
               copied={setlistCopied}
               copyPart={copyPart}
-              tokens={branchTokens}
               showToast={showToast}
               pending={pendingMessage}
               onPendingDone={clearPendingMessage}

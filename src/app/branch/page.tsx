@@ -2,67 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import Icon from "../Icon";
 import PageShell from "../PageShell";
-import { DeniedHint } from "../SongEditor";
-import { describeFailure, failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
-import { TOKEN_PATTERN } from "@/lib/branchTokens";
-import type { Library } from "@/lib/messageLibrary";
+import Problem from "../Problem";
+import { failureFrom, getJson, OFFLINE, type Failure } from "@/lib/apiError";
+import { tokenKeys, type Tokens } from "@/lib/branchTokens";
+import { isLibrary, type Library } from "@/lib/messageLibrary";
 
-type BranchInfo = { id: number; name: string; tokens: Record<string, string> };
 type Row = { id: number; key: string; value: string };
-type PageState = { kind: "loading" } | { kind: "loaded"; branch: BranchInfo; library: Library | null } | { kind: "failed"; failure: Failure };
-
-async function getJson<T>(url: string): Promise<{ ok: true; data: T } | { ok: false; failure: Failure }> {
-  let res: Response;
-  try {
-    res = await fetch(url);
-  } catch {
-    return { ok: false, failure: OFFLINE };
-  }
-  if (!res.ok) return { ok: false, failure: await failureFrom(res) };
-  try {
-    return { ok: true, data: (await res.json()) as T };
-  } catch {
-    return { ok: false, failure: describeFailure(502) };
-  }
-}
-
-/** Every `{key}` written anywhere in the library, in order of first appearance. */
-function keysInLibrary(library: Library | null): string[] {
-  const keys: string[] = [];
-  for (const m of library?.messages ?? []) {
-    for (const part of m.parts) {
-      for (const match of part.matchAll(TOKEN_PATTERN)) if (!keys.includes(match[1])) keys.push(match[1]);
-    }
-  }
-  return keys;
-}
-
-function sentence(lead: string, reason: string): string {
-  return `${lead} ${reason}${/[.?!]$/.test(reason) ? "" : "."}`;
-}
-
-function Problem({ failure, lead, onRetry, next, newTab }: { failure: Failure; lead: string; onRetry?: () => void; next: string; newTab: boolean }) {
-  if (failure.kind === "denied") return <DeniedHint />;
-  return (
-    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn-fg">
-      <Icon name="warn" className="h-4 w-4 shrink-0" />
-      <p className="min-w-0 wrap-anywhere">{sentence(lead, failure.message)}</p>
-      {failure.kind === "locked" ? (
-        <a href={unlockHref(next)} target={newTab ? "_blank" : undefined} rel={newTab ? "noopener noreferrer" : undefined} className="link inline-flex items-center pointer-coarse:min-h-11">
-          {newTab ? "Enter the admin PIN in a new tab" : "Enter the admin PIN"}
-        </a>
-      ) : (
-        onRetry && (
-          <button onClick={onRetry} className="btn border-warn-line text-warn-fg hover:border-warn-line hover:bg-warn-bg">
-            Try again
-          </button>
-        )
-      )}
-    </div>
-  );
-}
+type PageState = { kind: "loading" } | { kind: "loaded"; library: Library } | { kind: "failed"; failure: Failure };
 
 /**
  * This branch's own details: the values a shared message's `{key}` becomes
@@ -80,16 +27,16 @@ export default function BranchPage() {
   const [saved, setSaved] = useState(false);
   const nextId = useRef(0);
 
-  const toRows = useCallback((tokens: Record<string, string>) => Object.entries(tokens).map(([key, value]) => ({ id: ++nextId.current, key, value })), []);
+  const toRows = useCallback((tokens: Tokens) => Object.entries(tokens).map(([key, value]) => ({ id: ++nextId.current, key, value })), []);
 
   const load = useCallback(async () => {
-    const [branch, library] = await Promise.all([getJson<BranchInfo>("/api/branch"), getJson<Library>("/api/messages")]);
-    if (!branch.ok) {
-      setState({ kind: "failed", failure: branch.failure });
+    const result = await getJson("/api/messages", isLibrary);
+    if (!result.ok) {
+      setState({ kind: "failed", failure: result.failure });
       return;
     }
-    setState({ kind: "loaded", branch: branch.data, library: library.ok ? library.data : null });
-    setRows(toRows(branch.data.tokens));
+    setState({ kind: "loaded", library: result.data });
+    setRows(toRows(result.data.branch.tokens));
   }, [toRows]);
 
   useEffect(() => {
@@ -100,7 +47,7 @@ export default function BranchPage() {
   const library = state.kind === "loaded" ? state.library : null;
   const missing = useMemo(() => {
     const have = new Set(rows.map((r) => r.key.trim()));
-    return keysInLibrary(library).filter((k) => !have.has(k));
+    return tokenKeys(library?.messages.flatMap((m) => m.parts) ?? []).filter((k) => !have.has(k));
   }, [library, rows]);
 
   function addRow(key: string, value = "") {
@@ -118,7 +65,7 @@ export default function BranchPage() {
     setBusy(true);
     setNotice(null);
     setSaved(false);
-    const tokens: Record<string, string> = {};
+    const tokens: Tokens = {};
     for (const r of rows) tokens[r.key.trim()] = r.value;
     // A filled-in Add row counts, so a value typed there isn't lost by pressing Save first.
     if (newKey.trim()) tokens[newKey.trim()] = newValue;
@@ -134,10 +81,10 @@ export default function BranchPage() {
         setNotice(await failureFrom(res));
         return;
       }
-      const body = (await res.json().catch(() => null)) as { branch?: BranchInfo } | null;
+      const body = (await res.json().catch(() => null)) as { branch?: Library["branch"] } | null;
       if (body?.branch) {
         const branch = body.branch;
-        setState((s) => (s.kind === "loaded" ? { ...s, branch } : s));
+        setState((s) => (s.kind === "loaded" ? { ...s, library: { ...s.library, branch } } : s));
         setRows(toRows(branch.tokens));
       }
       setNewKey("");
@@ -148,7 +95,7 @@ export default function BranchPage() {
     }
   }
 
-  const branch = state.kind === "loaded" ? state.branch : null;
+  const branch = library?.branch;
 
   return (
     <PageShell

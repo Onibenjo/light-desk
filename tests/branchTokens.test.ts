@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fillTokens, cleanTokens } from "../src/lib/branchTokens";
+import { fillTokens, cleanTokens, tokenKeys } from "../src/lib/branchTokens";
 
 describe("branch tokens", () => {
   it("fills known keys and reports missing ones", () => {
@@ -13,6 +13,9 @@ describe("branch tokens", () => {
   });
   it("lists a missing key once", () => {
     expect(fillTokens("{a} {a}", {}).missing).toEqual(["a"]);
+  });
+  it("tokenKeys lists each key once, in order of first appearance, across texts", () => {
+    expect(tokenKeys(["{b} and {a}", "{a} {c} {Upper}"])).toEqual(["b", "a", "c"]);
   });
   it("cleanTokens validates keys and values", () => {
     expect(cleanTokens({ midweekTime: " 5:30pm " })).toEqual({ midweekTime: "5:30pm" });
