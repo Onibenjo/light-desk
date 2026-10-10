@@ -44,7 +44,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (id === null) return NextResponse.json({ error: MISSING }, { status: 404 });
 
   await ensureSchema();
-  const result = await deleteSection(id, s.branchId);
+  const result = await deleteSection(s.branchId, id);
   if (result === "gone") return NextResponse.json({ error: MISSING }, { status: 404 });
   if (result === "not-empty-elsewhere") return NextResponse.json({ error: "Other branches still have messages in this section, so it can't be deleted" }, { status: 409 });
   if (result === "not-empty") return NextResponse.json({ error: "Move or delete this section's messages first" }, { status: 409 });

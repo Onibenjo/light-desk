@@ -1,3 +1,4 @@
+import { sameString } from "./constantTime";
 import { clientKey, isLimited, rateLimit } from "./ratelimit";
 
 const MAX_WRONG = 10;
@@ -8,11 +9,9 @@ const WINDOW_MS = 60_000;
 const MIN_NETWORK_PIN = 12;
 let warnedShort = false;
 
-/** Compares without stopping at the first different character. */
-function sameString(a: string, b: string): boolean {
-  let diff = a.length ^ b.length;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i % Math.max(b.length, 1));
-  return diff === 0;
+/** NETWORK_PIN trimmed (a stray space pasted into the host's settings shouldn't matter), or null when unset or blank. */
+export function networkPin(): string | null {
+  return process.env.NETWORK_PIN?.trim() || null;
 }
 
 /**
@@ -26,7 +25,7 @@ function sameString(a: string, b: string): boolean {
  * makes the network admin wait a minute, which is the price of the cap.
  */
 export function networkPinOk(req: Request): boolean {
-  const pin = process.env.NETWORK_PIN?.trim();
+  const pin = networkPin();
   if (!pin) return false;
   if (pin.length < MIN_NETWORK_PIN) {
     if (!warnedShort) {

@@ -4,6 +4,8 @@
 // client, so it runs both in proxy.ts (edge) and in route handlers; the
 // pinVersion check against the database happens in sessionGate.ts.
 
+import { sameString, toHex } from "./constantTime";
+
 export const SESSION_COOKIE = "ld_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 365;
 
@@ -45,15 +47,7 @@ function secret(): string | null {
 async function hmac(value: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** Constant-time over the whole string, so a signature can't be guessed a character at a time. */
-function sameString(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+  return toHex(sig);
 }
 
 function base64url(text: string): string {
