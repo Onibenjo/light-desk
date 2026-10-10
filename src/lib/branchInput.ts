@@ -1,4 +1,4 @@
-import { cleanPin } from "./pinHash";
+import { cleanPin, SET_PIN } from "./pinHash";
 
 export const MAX_BRANCH_NAME = 60;
 
@@ -17,10 +17,10 @@ export function parseBranchCreate(body: unknown): { name: string; churchPin: str
   const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
   const name = cleanBranchName(b.name);
   if (typeof name !== "string") return name;
-  const churchPin = cleanPin(b.churchPin);
+  const churchPin = cleanPin(b.churchPin, SET_PIN);
   if (!churchPin) return { error: `${BAD_PIN} — check the church PIN` };
   const blankAdmin = b.adminPin === undefined || b.adminPin === null || (typeof b.adminPin === "string" && !b.adminPin.trim());
-  const adminPin = blankAdmin ? null : cleanPin(b.adminPin);
+  const adminPin = blankAdmin ? null : cleanPin(b.adminPin, SET_PIN);
   if (!blankAdmin && !adminPin) return { error: `${BAD_PIN} — check the admin PIN` };
   return { name, churchPin, adminPin };
 }
@@ -37,7 +37,7 @@ export function parseBranchPatch(body: unknown): { name?: string; churchPin?: st
   }
   for (const field of ["churchPin", "adminPin"] as const) {
     if (!given(b[field])) continue;
-    const pin = cleanPin(b[field]);
+    const pin = cleanPin(b[field], SET_PIN);
     if (!pin) return { error: `${BAD_PIN} — check the ${field === "churchPin" ? "church" : "admin"} PIN` };
     patch[field] = pin;
   }

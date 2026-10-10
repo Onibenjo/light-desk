@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureSchema } from "@/db";
 import { findBranchByPin, getBranch } from "@/db/branches";
 import { isOpenMode, signSession, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/auth";
-import { cleanPinForUnlock } from "@/lib/pinHash";
+import { cleanPin, UNLOCK_PIN } from "@/lib/pinHash";
 import { clientKey, rateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
@@ -12,13 +12,13 @@ export async function POST(req: Request) {
   if (!rateLimit(`unlock:${clientKey(req)}`, 10, 60_000)) {
     return NextResponse.json({ error: "Too many attempts — wait a minute and try again" }, { status: 429 });
   }
-  const { pin } = (await req.json().catch(() => ({}))) as { pin?: unknown };
+  const { pin } = ((await req.json().catch(() => null)) ?? {}) as { pin?: unknown };
   if (isOpenMode()) {
     // Local dev with no PINs: everything is already open as branch 1's admin.
     await ensureSchema();
     return NextResponse.json({ ok: true, role: "admin", branch: (await getBranch(1))?.name ?? "" });
   }
-  const cleaned = cleanPinForUnlock(pin);
+  const cleaned = cleanPin(pin, UNLOCK_PIN);
   if (!cleaned) return NextResponse.json({ error: "Wrong PIN" }, { status: 401 });
   await ensureSchema();
   const found = await findBranchByPin(cleaned);

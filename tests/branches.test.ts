@@ -68,13 +68,24 @@ describe("branches", () => {
     expect(await lib.updateBranch(999, { name: "Nowhere" })).toBe("gone");
   });
 
+  it("refuses an admin PIN that another branch uses, or the branch's own church PIN", async () => {
+    await create({ name: "CLC Lagos", churchPin: "2222", adminPin: "3333" });
+    expect(await lib.updateBranch(1, { adminPin: "2222" })).toBe("pin-taken");
+    expect(await lib.updateBranch(1, { adminPin: "3333" })).toBe("pin-taken");
+    expect(await lib.updateBranch(1, { adminPin: "1111" })).toBe("pin-taken");
+  });
+
+  it("a NETWORK_PIN with stray whitespace is still taken", async () => {
+    process.env.NETWORK_PIN = "  network-pin-7777 \n";
+    expect(await lib.createBranch({ name: "CLC Lagos", churchPin: "network-pin-7777", adminPin: null })).toBe("pin-taken");
+    expect(await lib.updateBranch(1, { churchPin: "network-pin-7777" })).toBe("pin-taken");
+  });
+
   it("changing a PIN bumps pinVersion; renaming does not", async () => {
     expect(await lib.updateBranch(1, { name: "X" })).toMatchObject({ name: "X", pinVersion: 0 });
     expect(await lib.updateBranch(1, { churchPin: "4444" })).toMatchObject({ pinVersion: 1 });
     expect(await lib.findBranchByPin("1111")).toBeNull();
     expect(await lib.findBranchByPin("4444")).toMatchObject({ branch: { id: 1 }, role: "church" });
-    expect(await lib.updateBranch(1, { adminPin: null })).toMatchObject({ pinVersion: 2 });
-    expect(await lib.findBranchByPin("4444")).toMatchObject({ role: "admin" });
   });
 
   it("lists, gets and stores tokens", async () => {

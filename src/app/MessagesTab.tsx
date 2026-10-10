@@ -6,7 +6,7 @@ import Icon from "./Icon";
 import { digitToIndex, moveCursor } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
-import { groupEntries, groupLibrary, messagesById, openMessageFor, type Library, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
+import { groupEntries, groupLibrary, messagesById, openMessageFor, tokensOf, withTokens, type Library, type LibraryEntry, type OpenMessage } from "@/lib/messageLibrary";
 import { searchMessages } from "@/lib/messageSearch";
 import { unlockHref, type Failure } from "@/lib/apiError";
 import { canOpenRow, openMessageFromRow, placeInSetlist, resolveSetlist, staleNote, type MessageRow, type SongRow } from "@/lib/setlist";
@@ -29,20 +29,18 @@ interface Props {
   setlistApi: SetlistApi;
   copied: ReadonlySet<string>;
   copyPart: Copy;
-  /** The branch's own values for `{key}` in a message. */
-  tokens: Record<string, string>;
   showToast: (text: string, tone?: "ok" | "warn" | "err") => void;
   pending: OpenMessage | null;
   onPendingDone: () => void;
   onOpenSong: (row: SongRow) => void;
 }
 
-export default function MessagesTab({ library, failed, onRetry, setlistApi, copied, copyPart, tokens, showToast, pending, onPendingDone, onOpenSong }: Props) {
+export default function MessagesTab({ library, failed, onRetry, setlistApi, copied, copyPart, showToast, pending, onPendingDone, onOpenSong }: Props) {
   const { setlist, addItem, startSetlist } = setlistApi;
   const [q, setQ] = useState("");
   const deferredQ = useDeferredValue(q);
   const [hit, setHit] = useState(0);
-  const [open, setOpen] = useState<OpenMessage | null>(null);
+  const [opened, setOpen] = useState<OpenMessage | null>(null);
   const [starting, setStarting] = useState<OpenMessage | null>(null);
   const [sent, setSent] = useState<Set<number>>(new Set());
   const [cursor, setCursor] = useState(0);
@@ -61,6 +59,9 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
     return () => room.removeEventListener("change", update);
   }, []);
 
+  // Refilled whenever the library changes, so a message opened before it
+  // loaded picks up the branch's values once it has.
+  const open = useMemo(() => (opened ? withTokens(opened, tokensOf(library)) : null), [opened, library]);
   const byId = useMemo(() => messagesById(library), [library]);
   const hits = useMemo(() => (library && deferredQ.trim() ? searchMessages(library, deferredQ) : []), [library, deferredQ]);
   const groups = useMemo(() => (!library ? [] : deferredQ.trim() ? groupEntries(hits) : groupLibrary(library)), [library, deferredQ, hits]);
@@ -128,14 +129,14 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
     [copyPart, openMessage],
   );
 
-  const pickEntry = useCallback((entry: LibraryEntry) => pick(openMessageFor(entry)), [pick]);
+  const pickEntry = useCallback((entry: LibraryEntry) => pick(openMessageFor(entry, tokensOf(library))), [pick, library]);
 
   const pickRow = useCallback(
     (row: MessageRow) => {
-      const m = openMessageFromRow(row, byId);
+      const m = openMessageFromRow(row, byId, tokensOf(library));
       if (m) pick(m);
     },
-    [byId, pick],
+    [byId, pick, library],
   );
 
   const add = useCallback(
@@ -147,7 +148,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
     [setlist, addItem, showToast],
   );
 
-  const addEntry = useCallback((entry: LibraryEntry) => void add(openMessageFor(entry)), [add]);
+  const addEntry = useCallback((entry: LibraryEntry) => void add(openMessageFor(entry, tokensOf(library))), [add, library]);
 
   // A message found in the library while its setlist row carries text edited
   // for this service is showing different words from that row: it is not that
@@ -162,7 +163,7 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
     const next = place?.next;
     if (!next || !canOpenRow(next)) return;
     if (next.kind === "song") return onOpenSong(next);
-    const m = openMessageFromRow(next, byId);
+    const m = openMessageFromRow(next, byId, tokensOf(library));
     if (m) openMessage(m);
   }
 
@@ -228,7 +229,6 @@ export default function MessagesTab({ library, failed, onRetry, setlistApi, copi
       <MessageView
         label={open.label}
         parts={open.parts}
-        tokens={tokens}
         edited={open.edited}
         sent={sent}
         cursor={cursor}

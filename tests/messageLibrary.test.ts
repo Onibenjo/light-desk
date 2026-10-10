@@ -39,14 +39,25 @@ describe("grouping search results", () => {
 describe("opening and logging a message", () => {
   it("opens a library message with its key, label and whether it can go in a setlist", () => {
     const [sorry] = libraryEntries(library);
-    expect(openMessageFor(sorry)).toEqual({
+    expect(openMessageFor(sorry, {})).toEqual({
       key: "message:20",
       id: 20,
       label: "Apologies · Sound restored",
-      parts: sorry.message.parts,
+      source: sorry.message.parts,
+      parts: sorry.message.parts.map((text) => ({ text, missing: [] })),
       edited: false,
       inService: false,
     });
+  });
+
+  it("fills the branch's values into each part and reports the ones it has none for", () => {
+    const [sorry] = libraryEntries(library);
+    const entry = { ...sorry, message: { ...sorry.message, parts: ["Give via {offeringAccounts}", "Email {testimonyEmail}", "Plain"] } };
+    expect(openMessageFor(entry, { offeringAccounts: "Zenith 123" }).parts).toEqual([
+      { text: "Give via Zenith 123", missing: [] },
+      { text: "Email {testimonyEmail}", missing: ["testimonyEmail"] },
+      { text: "Plain", missing: [] },
+    ]);
   });
 
   it("logs which part of a long message was sent, and nothing extra for a short one", () => {

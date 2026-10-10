@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { songs } from "@/db/schema";
 import { complete } from "@/lib/llm";
 import { cleanSlideText } from "@/lib/videopsalm";
 import { sectionsFromLyrics } from "@/lib/songSections";
 import { needsLlm, sectionsFromLlmReply } from "@/lib/quickAdd";
+import { gate } from "@/lib/sessionGate";
 import { clientKey, rateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
@@ -16,6 +17,8 @@ export const runtime = "nodejs";
  * Saved as source "manual" so it is reusable and editable.
  */
 export async function POST(req: Request) {
+  const s = await gate();
+  if (s instanceof NextResponse) return s;
   if (!rateLimit(`qa:${clientKey(req)}`, 10, 60_000)) return NextResponse.json({ error: "Slow down" }, { status: 429 });
   const { title, lyrics } = (await req.json().catch(() => ({}))) as { title?: string; lyrics?: string };
   if (!title?.trim() || !lyrics?.trim()) return NextResponse.json({ error: "Title and lyrics are required" }, { status: 400 });
@@ -38,7 +41,6 @@ export async function POST(req: Request) {
   if (!sections) sections = sectionsFromLyrics(cleaned);
   if (sections.length === 0) return NextResponse.json({ error: "No lyric lines found" }, { status: 400 });
 
-  await ensureSchema();
   const now = new Date();
   const guid = `manual:${now.getTime()}`;
   const cleanTitle = cleanSlideText(title).replace(/\n+/g, " ");

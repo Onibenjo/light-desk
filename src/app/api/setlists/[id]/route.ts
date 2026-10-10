@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { deleteSetlist, findSetlist, updateSetlist } from "@/db/setlists";
 import { factsForMessages } from "@/db/messages";
-import { currentSession } from "@/lib/adminGate";
+import { gate } from "@/lib/sessionGate";
 import { addedMessageIds, parseSetlistPatch, refusedMessage } from "@/lib/setlistEdit";
 
 export const runtime = "nodejs";
@@ -22,16 +21,15 @@ async function setlistId(params: Promise<{ id: string }>): Promise<number | null
  * single addition to that.
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await currentSession();
-  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
-  const branchId = session.branchId;
+  const s = await gate();
+  if (s instanceof NextResponse) return s;
+  const branchId = s.branchId;
   const id = await setlistId(params);
   if (id === null) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
 
   const parsed = parseSetlistPatch(await req.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400 });
 
-  await ensureSchema();
 
   // Only messages being added are judged. One already in the setlist stays even
   // if its section has since been switched out of service, so flipping a toggle
@@ -40,7 +38,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const current = await findSetlist(branchId, id);
     if (!current) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
     const added = addedMessageIds(current.items, parsed.items);
-    const refused = refusedMessage(added, await factsForMessages(session.branchId, added));
+    const refused = refusedMessage(added, await factsForMessages(s.branchId, added));
     if (refused) return NextResponse.json({ error: refused }, { status: 400 });
   }
 
@@ -54,13 +52,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 /** DELETE /api/setlists/:id. If it was the active one, nothing is promoted in its place. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await currentSession();
-  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
-  const branchId = session.branchId;
+  const s = await gate();
+  if (s instanceof NextResponse) return s;
+  const branchId = s.branchId;
   const id = await setlistId(params);
   if (id === null) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
 
-  await ensureSchema();
   if (!(await deleteSetlist(branchId, id))) return NextResponse.json({ error: "That service order is gone — reload the page" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

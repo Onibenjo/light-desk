@@ -7,7 +7,7 @@ const render = (over: Partial<Parameters<typeof MessageView>[0]> = {}) =>
   renderToStaticMarkup(
     <MessageView
       label="Confession · Full text"
-      parts={["Father we thank You", "Every son and daughter", "I boldly decree and declare"]}
+      parts={["Father we thank You", "Every son and daughter", "I boldly decree and declare"].map((text) => ({ text, missing: [] }))}
       edited={false}
       sent={new Set()}
       cursor={0}
@@ -21,7 +21,6 @@ const render = (over: Partial<Parameters<typeof MessageView>[0]> = {}) =>
       place={null}
       onNext={() => {}}
       partRef={() => {}}
-      tokens={{}}
       {...over}
     />,
   );
@@ -105,12 +104,12 @@ describe("finding the way on from a long message", () => {
 
 describe("branch tokens in a message", () => {
   it("shows a part with its branch's value filled in", () => {
-    const t = text(render({ parts: ["Give via {offeringAccounts}"], tokens: { offeringAccounts: "Zenith 123" } }));
+    const t = text(render({ parts: [{ text: "Give via Zenith 123", missing: [] }] }));
     expect(t).toContain("Give via Zenith 123");
     expect(t).not.toContain("No value for");
   });
   it("says which value this branch has not set", () => {
-    const t = text(render({ parts: ["Give via {offeringAccounts}"], tokens: {} }));
+    const t = text(render({ parts: [{ text: "Give via {offeringAccounts}", missing: ["offeringAccounts"] }] }));
     expect(t).toContain("No value for {offeringAccounts} in this branch");
   });
 });

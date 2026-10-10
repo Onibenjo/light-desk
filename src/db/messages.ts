@@ -1,5 +1,6 @@
-import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, notExists, or, sql } from "drizzle-orm";
 import { db } from "./index";
+import { isUniqueViolation } from "./errors";
 import { messageSections, messages } from "./schema";
 import type { Branch } from "./branches";
 import type { Library, LibraryMessage, LibrarySection } from "@/lib/messageLibrary";
@@ -20,17 +21,6 @@ function toMessage(row: MessageRow): LibraryMessage {
 /** Shared messages, and this branch's own. */
 function visibleTo(branchId: number) {
   return or(isNull(messages.branchId), eq(messages.branchId, branchId));
-}
-
-/**
- * True for SQLite's UNIQUE refusal. Drizzle wraps the driver's error, so the
- * message worth reading can be one or two `cause`s down.
- */
-function isUniqueViolation(e: unknown): boolean {
-  for (let current: unknown = e; current instanceof Error; current = current.cause) {
-    if (/UNIQUE/i.test(current.message)) return true;
-  }
-  return false;
 }
 
 /** Everything, one payload. The library is a few dozen rows and always read whole. */
@@ -124,21 +114,24 @@ export async function updateSection(id: number, patch: SectionPatch): Promise<Li
 }
 
 /**
- * Only an empty section can go. Checked in code rather than by a foreign key,
- * because SQLite only enforces those when a connection asks it to.
+ * Only an empty section can go. One conditional DELETE rather than a check
+ * then a delete, so a message added in between can't be orphaned (and not a
+ * foreign key, which SQLite only enforces when a connection asks it to). When
+ * nothing was deleted, one more query says why.
  */
-export async function deleteSection(id: number, branchId: number): Promise<"deleted" | "gone" | "not-empty" | "not-empty-elsewhere"> {
-  const [used] = await db.select({ id: messages.id }).from(messages).where(eq(messages.sectionId, id)).limit(1);
-  if (used) {
-    const [visible] = await db
-      .select({ id: messages.id })
-      .from(messages)
-      .where(and(eq(messages.sectionId, id), or(isNull(messages.branchId), eq(messages.branchId, branchId))))
-      .limit(1);
-    return visible ? "not-empty" : "not-empty-elsewhere";
-  }
-  const [row] = await db.delete(messageSections).where(eq(messageSections.id, id)).returning({ id: messageSections.id });
-  return row ? "deleted" : "gone";
+export async function deleteSection(branchId: number, id: number): Promise<"deleted" | "gone" | "not-empty" | "not-empty-elsewhere"> {
+  const [row] = await db
+    .delete(messageSections)
+    .where(and(eq(messageSections.id, id), notExists(db.select({ one: sql`1` }).from(messages).where(eq(messages.sectionId, id)))))
+    .returning({ id: messageSections.id });
+  if (row) return "deleted";
+  // Messages keep their section alive, so none at all means it was never there.
+  const [count] = await db
+    .select({ all: sql<number>`count(*)`, visible: sql<number>`count(*) filter (where ${visibleTo(branchId)})` })
+    .from(messages)
+    .where(eq(messages.sectionId, id));
+  if (count.all === 0) return "gone";
+  return count.visible > 0 ? "not-empty" : "not-empty-elsewhere";
 }
 
 export async function createMessage(branchId: number, input: MessageCreate): Promise<LibraryMessage | "no-section"> {

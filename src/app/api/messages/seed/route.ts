@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { ensureSchema } from "@/db";
 import { seedLibrary } from "@/db/messages";
 import { parseSeed } from "@/lib/messageSeed";
-import { isAdmin } from "@/lib/adminGate";
+import { gate } from "@/lib/sessionGate";
 import seed from "@/data/messages.seed.json";
 
 export const runtime = "nodejs";
@@ -13,13 +12,13 @@ export const runtime = "nodejs";
  * it reaches the production database without anyone holding Turso credentials.
  */
 export async function POST() {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Editing the message library needs the admin PIN" }, { status: 403 });
+  const s = await gate("Editing the message library needs the admin PIN");
+  if (s instanceof NextResponse) return s;
 
   // tests/messageSeed.test.ts guards the file; this is the belt to that brace.
   const parsed = parseSeed(seed);
   if (typeof parsed === "string") return NextResponse.json({ error: `The starter library is broken: ${parsed}` }, { status: 500 });
 
-  await ensureSchema();
   const result = await seedLibrary(parsed);
   if (result === "not-empty") return NextResponse.json({ error: "The message library already has messages, so the starter messages weren't loaded" }, { status: 409 });
   return NextResponse.json({ ok: true, ...result });

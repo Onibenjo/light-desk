@@ -1,14 +1,13 @@
 // The setlist PATCH route's one piece of its own logic: a message may be added
 // only from a section that is in service. Called directly with a Request against
-// a temp database; the setlist routes read no cookies, so no request scope is needed.
+// a temp database; the session gate is mocked, since it reads cookies and needs a request scope.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-// The route reads the session from cookies, which need a request scope.
-vi.mock("../src/lib/adminGate", () => ({
-  currentSession: async () => ({ branchId: 1, role: "admin", pinVersion: 1 }),
+vi.mock("../src/lib/sessionGate", () => ({
+  gate: async () => ({ branchId: 1, role: "admin", pinVersion: 1, branch: { id: 1 } }),
 }));
 
 type GlobalWithClient = { __ldClient?: { close?: () => unknown } };

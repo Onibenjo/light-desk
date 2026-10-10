@@ -31,6 +31,11 @@ function toRecord(row: Row): SetlistRecord {
   };
 }
 
+/** This setlist, and only if it belongs to this branch. */
+function owned(branchId: number, id: number) {
+  return and(eq(setlists.branchId, branchId), eq(setlists.id, id));
+}
+
 /** Newest first: the one you are about to use is the one you just made. */
 export async function loadSetlists(branchId: number): Promise<SetlistRecord[]> {
   const rows = await db.select().from(setlists).where(eq(setlists.branchId, branchId)).orderBy(desc(setlists.createdAt));
@@ -38,7 +43,7 @@ export async function loadSetlists(branchId: number): Promise<SetlistRecord[]> {
 }
 
 export async function findSetlist(branchId: number, id: number): Promise<SetlistRecord | null> {
-  const [row] = await db.select().from(setlists).where(and(eq(setlists.branchId, branchId), eq(setlists.id, id)));
+  const [row] = await db.select().from(setlists).where(owned(branchId, id));
   return row ? toRecord(row) : null;
 }
 
@@ -89,8 +94,8 @@ export async function updateSetlist(branchId: number, id: number, patch: Setlist
   // case where silently applying a stale write discards someone else's songs.
   const expectedVersion = patch.items !== undefined ? new Date(patch.updatedAt as string) : null;
   const rowMatch = expectedVersion
-    ? and(eq(setlists.branchId, branchId), eq(setlists.id, id), eq(setlists.updatedAt, expectedVersion))
-    : and(eq(setlists.branchId, branchId), eq(setlists.id, id));
+    ? and(owned(branchId, id), eq(setlists.updatedAt, expectedVersion))
+    : owned(branchId, id);
 
   let matched: { id: number }[];
   if (patch.active === true) {
@@ -115,6 +120,6 @@ export async function updateSetlist(branchId: number, id: number, patch: Setlist
 }
 
 export async function deleteSetlist(branchId: number, id: number): Promise<boolean> {
-  const [row] = await db.delete(setlists).where(and(eq(setlists.branchId, branchId), eq(setlists.id, id))).returning({ id: setlists.id });
+  const [row] = await db.delete(setlists).where(owned(branchId, id)).returning({ id: setlists.id });
   return !!row;
 }

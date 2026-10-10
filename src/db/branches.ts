@@ -1,7 +1,9 @@
-import { and, asc, eq, ne, or } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, or } from "drizzle-orm";
 import { db } from "./index";
+import { uniqueViolation } from "./errors";
 import { branches } from "./schema";
 import { hashPin } from "@/lib/pinHash";
+import { networkPin } from "@/lib/networkGate";
 import type { Role } from "@/lib/auth";
 
 /** A branch as the app sees it. PIN hashes never leave this file. */
@@ -27,15 +29,7 @@ function toBranch(row: BranchRow): Branch {
   return { id: row.id, name: row.name, pinVersion: row.pinVersion, tokens: parseTokens(row.tokens) };
 }
 
-/** SQLite's UNIQUE refusal, possibly a `cause` or two down inside drizzle's wrapper. */
-function uniqueViolation(e: unknown): string | null {
-  for (let current: unknown = e; current instanceof Error; current = current.cause) {
-    if (/UNIQUE/i.test(current.message)) return current.message;
-  }
-  return null;
-}
-
-/** A refused write that raced past the checks below: say which constraint. */
+/** A refused write: the UNIQUE index says which constraint, so the name needs no check of its own. */
 function refusal(e: unknown): "pin-taken" | "name-taken" {
   const message = uniqueViolation(e);
   if (message === null) throw e;
@@ -71,26 +65,15 @@ export async function findBranchByPin(pin: string): Promise<{ branch: Branch; ro
   return { branch: toBranch(row), role };
 }
 
-/** True when `hash` is the network PIN or any PIN of a branch other than `exceptId`. */
-async function pinTaken(hash: string, exceptId: number | null): Promise<boolean> {
-  const network = process.env.NETWORK_PIN;
-  if (network && hash === (await hashPin(network))) return true;
-  const used = or(eq(branches.churchPinHash, hash), eq(branches.adminPinHash, hash));
+/** True when any of `hashes` is the network PIN or a PIN of a branch other than `exceptId`, in one query. */
+async function pinTaken(hashes: string[], exceptId: number | null): Promise<boolean> {
+  const network = networkPin();
+  if (network && hashes.includes(await hashPin(network))) return true;
+  const used = or(inArray(branches.churchPinHash, hashes), inArray(branches.adminPinHash, hashes));
   const [row] = await db
     .select({ id: branches.id })
     .from(branches)
     .where(exceptId === null ? used : and(used, ne(branches.id, exceptId)))
-    .limit(1);
-  return Boolean(row);
-}
-
-/** name is COLLATE NOCASE, so eq() here is case-insensitive like the UNIQUE it mirrors. */
-async function nameTaken(name: string, exceptId: number | null): Promise<boolean> {
-  const same = eq(branches.name, name);
-  const [row] = await db
-    .select({ id: branches.id })
-    .from(branches)
-    .where(exceptId === null ? same : and(same, ne(branches.id, exceptId)))
     .limit(1);
   return Boolean(row);
 }
@@ -100,9 +83,7 @@ export async function createBranch(input: { name: string; churchPin: string; adm
   const adminHash = input.adminPin === null ? null : await hashPin(input.adminPin);
   // One PIN for both roles would make the church role unreachable.
   if (adminHash === churchHash) return "pin-taken";
-  if (await pinTaken(churchHash, null)) return "pin-taken";
-  if (adminHash !== null && (await pinTaken(adminHash, null))) return "pin-taken";
-  if (await nameTaken(input.name, null)) return "name-taken";
+  if (await pinTaken(adminHash === null ? [churchHash] : [churchHash, adminHash], null)) return "pin-taken";
   try {
     const [row] = await db
       .insert(branches)
@@ -117,18 +98,16 @@ export async function createBranch(input: { name: string; churchPin: string; adm
 /** Any PIN change bumps pinVersion, which logs out every device of that branch. */
 export async function updateBranch(
   id: number,
-  patch: { name?: string; churchPin?: string; adminPin?: string | null },
+  patch: { name?: string; churchPin?: string; adminPin?: string },
 ): Promise<Branch | "gone" | "pin-taken" | "name-taken"> {
   const [current] = await db.select().from(branches).where(eq(branches.id, id)).limit(1);
   if (!current) return "gone";
 
   const churchHash = patch.churchPin === undefined ? current.churchPinHash : await hashPin(patch.churchPin);
-  const adminHash =
-    patch.adminPin === undefined ? current.adminPinHash : patch.adminPin === null ? null : await hashPin(patch.adminPin);
+  const adminHash = patch.adminPin === undefined ? current.adminPinHash : await hashPin(patch.adminPin);
   if (churchHash !== null && churchHash === adminHash) return "pin-taken";
-  if (churchHash !== current.churchPinHash && churchHash !== null && (await pinTaken(churchHash, id))) return "pin-taken";
-  if (adminHash !== current.adminPinHash && adminHash !== null && (await pinTaken(adminHash, id))) return "pin-taken";
-  if (patch.name !== undefined && (await nameTaken(patch.name, id))) return "name-taken";
+  const changed = [churchHash !== current.churchPinHash && churchHash, adminHash !== current.adminPinHash && adminHash].filter((h): h is string => typeof h === "string");
+  if (changed.length > 0 && (await pinTaken(changed, id))) return "pin-taken";
 
   const pinChanged = churchHash !== current.churchPinHash || adminHash !== current.adminPinHash;
   try {

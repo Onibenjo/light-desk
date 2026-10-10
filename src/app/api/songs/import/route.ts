@@ -5,7 +5,7 @@ import { songs } from "@/db/schema";
 import { parseVideoPsalmSongbook } from "@/lib/videopsalm";
 import { readSongbookFile } from "@/lib/vpc";
 import { diffSongbook, type StoredSong } from "@/lib/songbookDiff";
-import { isAdmin } from "@/lib/adminGate";
+import { gate } from "@/lib/sessionGate";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,7 +21,8 @@ export const maxDuration = 60;
  * Upserts by Guid: existing songs are updated, new ones added, nothing deleted.
  */
 export async function POST(req: Request) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Importing a songbook needs the admin PIN" }, { status: 403 });
+  const s = await gate("Importing a songbook needs the admin PIN");
+  if (s instanceof NextResponse) return s;
   const bytes = new Uint8Array(await req.arrayBuffer());
   if (bytes.length > 20_000_000) return NextResponse.json({ error: "File too large" }, { status: 413 });
   let parsed;

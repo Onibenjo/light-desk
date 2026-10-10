@@ -1,6 +1,8 @@
 // The message library as the desk holds it: sections in the order the service
 // runs, messages in each. Pure, so ordering and lookup test without a database.
 
+import { fillTokens, type Tokens } from "./branchTokens";
+
 export interface LibrarySection {
   id: number;
   name: string;
@@ -22,9 +24,24 @@ export interface LibraryMessage {
 
 export interface Library {
   /** The branch this library was loaded for. */
-  branch: { id: number; name: string; tokens: Record<string, string> };
+  branch: { id: number; name: string; tokens: Tokens };
   sections: LibrarySection[];
   messages: LibraryMessage[];
+}
+
+/** Enough to tell the library from a proxy's page or someone else's JSON. */
+export function isLibrary(value: unknown): value is Library {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "branch" in value &&
+    typeof value.branch === "object" &&
+    value.branch !== null &&
+    "sections" in value &&
+    Array.isArray(value.sections) &&
+    "messages" in value &&
+    Array.isArray(value.messages)
+  );
 }
 
 export interface LibraryEntry {
@@ -67,10 +84,27 @@ export function groupEntries(entries: LibraryEntry[]): LibraryGroup[] {
   return groups;
 }
 
+/** The branch's values for `{key}`s, or none while the library is still loading. */
+export function tokensOf(library: Library | null): Tokens {
+  return library?.branch.tokens ?? {};
+}
+
 /** Lookup for setlist rows, or null while the library is still loading. */
 export function messagesById(library: Library | null): Map<number, LibraryEntry> | null {
   if (!library) return null;
   return new Map(libraryEntries(library).map((entry) => [entry.message.id, entry]));
+}
+
+/** One Mixlr post with this branch's values filled in. */
+export interface OpenPart {
+  text: string;
+  /** `{key}`s this branch has no value for; the part is shown with a warning and not copied while any remain. */
+  missing: string[];
+}
+
+/** Parts filled from the branch's own values, once, so what is shown and what is copied cannot differ. */
+export function openParts(parts: string[], tokens: Tokens): OpenPart[] {
+  return parts.map((part) => fillTokens(part, tokens));
 }
 
 /** A message the desk is about to copy or has open: from the library, a setlist row, or ⌘K. */
@@ -79,22 +113,30 @@ export interface OpenMessage {
   key: string;
   id: number;
   label: string;
-  parts: string[];
+  /** The text before any `{key}` is filled, so the parts can be filled again when the branch's values arrive. */
+  source: string[];
+  parts: OpenPart[];
   /** Text edited for one service, not the library's. */
   edited: boolean;
   /** Whether its section may go in a setlist, which decides if + is offered. */
   inService: boolean;
 }
 
-export function openMessageFor({ section, message }: LibraryEntry): OpenMessage {
+export function openMessageFor({ section, message }: LibraryEntry, tokens: Tokens): OpenMessage {
   return {
     key: `message:${message.id}`,
     id: message.id,
     label: messageLabel(section, message),
-    parts: message.parts,
+    source: message.parts,
+    parts: openParts(message.parts, tokens),
     edited: false,
     inService: section.inService,
   };
+}
+
+/** The same message with its parts filled from these values, for one opened before the library had loaded. */
+export function withTokens(message: OpenMessage, tokens: Tokens): OpenMessage {
+  return { ...message, parts: openParts(message.source, tokens) };
 }
 
 /** The log label for one copied part. A one-part message is just its label. */
