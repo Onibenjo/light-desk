@@ -3,6 +3,7 @@ import { and, like, or, sql } from "drizzle-orm";
 import { db, ensureSchema } from "@/db";
 import { loadSongs } from "@/db/songs";
 import { songs } from "@/db/schema";
+import { gate } from "@/lib/sessionGate";
 import { buildIndex, searchSongs, tokenize } from "@/lib/songSearch";
 
 export const runtime = "nodejs";
@@ -22,6 +23,9 @@ const THIN = 5;
  * the local search behind it has none of those limits.
  */
 export async function GET(req: Request) {
+  const s = await gate();
+  if (s instanceof NextResponse) return s;
+
   await ensureSchema();
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
   const words = q ? tokenize(q) : [];

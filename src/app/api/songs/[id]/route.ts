@@ -4,7 +4,7 @@ import { db, ensureSchema } from "@/db";
 import { songs } from "@/db/schema";
 import { loadSongs } from "@/db/songs";
 import { parseSongEdit } from "@/lib/songEdit";
-import { currentSession, isAdmin } from "@/lib/adminGate";
+import { gate } from "@/lib/sessionGate";
 
 export const runtime = "nodejs";
 
@@ -17,11 +17,13 @@ async function songId(params: Promise<{ id: string }>): Promise<number | null> {
 }
 
 /**
- * GET /api/songs/:id — one song with its sections. Unlocked, not admin-gated:
+ * GET /api/songs/:id — one song with its sections. Church PIN, not admin:
  * /api/songs/all already returns every song's full text to the same reader.
  * It exists so a setlist row can be opened before the whole book has loaded.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const s = await gate();
+  if (s instanceof NextResponse) return s;
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
@@ -37,9 +39,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
  * which is what keeps a songbook re-import from writing over the correction.
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await currentSession();
-  if (!session) return NextResponse.json({ error: "locked" }, { status: 401 });
-  if (session.role !== "admin") return NextResponse.json({ error: DENIED }, { status: 403 });
+  const s = await gate(DENIED);
+  if (s instanceof NextResponse) return s;
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 
@@ -50,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const now = new Date();
   const [row] = await db
     .update(songs)
-    .set({ title: parsed.title, author: parsed.author, sections: JSON.stringify(parsed.sections), updatedAt: now, editedAt: now, editedBy: session.branchId })
+    .set({ title: parsed.title, author: parsed.author, sections: JSON.stringify(parsed.sections), updatedAt: now, editedAt: now, editedBy: s.branchId })
     .where(eq(songs.id, id))
     .returning({ id: songs.id, guid: songs.guid, source: songs.source });
   if (!row) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
@@ -60,7 +61,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 /** DELETE /api/songs/:id — admin only. A songbook song comes back on the next import. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: DENIED }, { status: 403 });
+  const s = await gate(DENIED);
+  if (s instanceof NextResponse) return s;
   const id = await songId(params);
   if (id === null) return NextResponse.json({ error: "That song is gone — search for it again" }, { status: 404 });
 

@@ -2,7 +2,7 @@
 // a device unlocked with decides its branch, and bumping a branch's pinVersion
 // (any PIN change) logs that branch's devices out. Web Crypto only and no db
 // client, so it runs both in proxy.ts (edge) and in route handlers; the
-// pinVersion check against the database happens in adminGate.ts.
+// pinVersion check against the database happens in sessionGate.ts.
 
 export const SESSION_COOKIE = "ld_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 365;
@@ -111,7 +111,7 @@ async function legacyRole(token: string, key: string): Promise<Role | null> {
 /**
  * The session a cookie holds, or null when it holds none. Only proves the
  * cookie was signed by us: whether the branch still exists and its PINs are
- * unchanged is currentSession()'s job (adminGate.ts), which can reach the db.
+ * unchanged is currentSession()'s job (sessionGate.ts), which can reach the db.
  */
 export async function sessionFromToken(token: string | undefined): Promise<{ session: Session; legacy: boolean } | null> {
   if (isOpenMode()) return { session: { ...OPEN_SESSION }, legacy: false };

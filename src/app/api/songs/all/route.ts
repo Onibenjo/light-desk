@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { db, ensureSchema } from "@/db";
 import { songs } from "@/db/schema";
 import { loadSongs } from "@/db/songs";
+import { gate } from "@/lib/sessionGate";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,9 @@ const cached = new Map<string, Buffer>();
  * the whole thing is paid for once.
  */
 export async function GET(req: Request) {
+  const s = await gate();
+  if (s instanceof NextResponse) return s;
+
   await ensureSchema();
   const [{ n, updated }] = await db
     .select({ n: sql<number>`count(*)`, updated: sql<number>`coalesce(max(updated_at), 0)` })
