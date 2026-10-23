@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Icon from "../Icon";
 import PageShell from "../PageShell";
 import { failureFrom, OFFLINE } from "@/lib/apiError";
@@ -162,13 +163,18 @@ export default function BranchesPage() {
 
       {branches && (
         <>
-          <section className="card rise overflow-hidden">
-            <p className="border-b border-ink-700 px-4 py-3 text-sm text-ink-300">Changing a PIN locks every device of that branch until it is unlocked again with the new PIN.</p>
-            <ul className="divide-y divide-ink-700">
+          <section className="rise space-y-3">
+            <p className="text-sm text-ink-300">Changing a PIN locks every device of that branch until it is unlocked again with the new PIN.</p>
+            <ul className="grid items-start gap-3 sm:grid-cols-2">
               {branches.map((b) => (
-                <li key={b.id} className="space-y-3 px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[15px] font-bold">{b.name}</span>
+                <li key={b.id} className="card space-y-4 p-4">
+                  <div className="flex items-center gap-3">
+                    <Image src="/brand/clc-logo.png" alt="" width={44} height={44} className="h-11 w-11 shrink-0 rounded-full ring-1 ring-accent/30" />
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-bold" title={b.name}>
+                      {b.name}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     <button onClick={() => toggle(b, "rename")} aria-expanded={open?.id === b.id && open.what === "rename"} className="btn btn-sm">
                       Rename
                     </button>
@@ -198,7 +204,7 @@ export default function BranchesPage() {
                         void patch(b, { churchPin: newChurch.trim() || undefined, adminPin: newAdmin.trim() || undefined }, "Changed the PINs of %s — its devices need the new PIN to unlock");
                       }}
                     >
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid gap-2">
                         <PinField label="New church PIN" value={newChurch} onChange={setNewChurch} placeholder="Leave blank to keep" />
                         <PinField label="New admin PIN" value={newAdmin} onChange={setNewAdmin} placeholder="Leave blank to keep" />
                       </div>
