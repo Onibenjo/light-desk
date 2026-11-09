@@ -1,5 +1,5 @@
 import type { Client } from "@libsql/client";
-import { hashPin } from "../lib/pinHash";
+import { hashPin } from "../lib/pinHash.ts";
 
 /**
  * The whole schema as plain DDL, kept free of any client so scripts can create
