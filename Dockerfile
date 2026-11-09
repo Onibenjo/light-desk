@@ -82,10 +82,15 @@ COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public
 # Ops scripts, so backup/restore can run with `docker exec` against the live
 # volume. Node 24 strips the types, so these run without a build step; they need
-# only these two modules, not the whole of src/.
+# only these modules (schemaSql's PIN hashing pulls in the last two), not the
+# whole of src/. Their relative imports must name the .ts file, because Node
+# resolves no extensions; tests/opsScripts.test.ts fails if one is left off or
+# a module is missing here.
 COPY --from=builder --chown=node:node /app/scripts ./scripts
 COPY --from=builder --chown=node:node /app/src/db/schemaSql.ts ./src/db/schemaSql.ts
 COPY --from=builder --chown=node:node /app/src/lib/dbTransfer.ts ./src/lib/dbTransfer.ts
+COPY --from=builder --chown=node:node /app/src/lib/pinHash.ts ./src/lib/pinHash.ts
+COPY --from=builder --chown=node:node /app/src/lib/constantTime.ts ./src/lib/constantTime.ts
 
 USER node
 EXPOSE 3000

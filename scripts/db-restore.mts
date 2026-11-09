@@ -37,10 +37,12 @@ if (dump.version !== 1) {
 const client = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
 await applySchema(client);
 
+// applySchema always creates branch 1, so a new database holds that one row
+// before anything is restored; it alone is not data worth refusing over.
 const existing: string[] = [];
 for (const table of DATA_TABLES) {
   const n = Number((await client.execute(`SELECT count(*) c FROM ${table}`)).rows[0].c);
-  if (n > 0) existing.push(`${table} (${n})`);
+  if (n > (table === "branches" ? 1 : 0)) existing.push(`${table} (${n})`);
 }
 if (existing.length && !force) {
   console.error(`refusing to write over existing rows: ${existing.join(", ")}`);

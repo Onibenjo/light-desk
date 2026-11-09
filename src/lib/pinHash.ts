@@ -1,4 +1,4 @@
-import { toHex } from "./constantTime";
+import { toHex } from "./constantTime.ts";
 
 /**
  * PIN hashing, edge-safe: Web Crypto only, no node: imports, no db client.
