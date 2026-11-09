@@ -41,6 +41,15 @@ With no keys at all you still get KJV and the log (SQLite file `local.db`). With
    - PIN hashes are unsalted SHA-256 and are included in database backups, so treat backups as secret.
 4. On the church laptop: open the URL in Chrome, enter the PIN once, then Chrome menu → *Install Lightdesk* so it opens as its own window next to Mixlr.
 
+## Staging copy (for testers)
+
+Run a second Coolify app from the `staging` branch, with its own domain and its own `/data` volume, so testers never touch the live desk.
+
+- **Its own data:** leave `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` unset (it uses the SQLite file on its volume), or point them at a separate Turso database. Never at production's.
+- **Its own secrets:** a new `SESSION_SECRET`, test `CHURCH_PIN` / `ADMIN_PIN`, and a different `NETWORK_PIN`.
+- **`ENV_LABEL=Staging`:** shows a "Staging · not the live desk" pill at the top of every page and puts the label in the tab title. It is read at runtime, so it needs no rebuild; leave it unset in production.
+- **Content:** it starts empty. Seed it with `scripts/db-backup.mts` and `scripts/db-restore.mts` as in the Dockerfile notes, from production or from your own `local.db`.
+
 ## Verse source keys
 
 | Env | Where | Notes |
