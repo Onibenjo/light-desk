@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible_Next, Bricolage_Grotesque, Doto, Geist, Geist_Mono } from "next/font/google";
+import EnvBadge, { envLabel } from "./EnvBadge";
 import { THEME_BOOT } from "./themeBoot";
 import "./globals.css";
 
@@ -11,12 +12,15 @@ const bricolage = Bricolage_Grotesque({ subsets: ["latin"], axes: ["wdth", "opsz
 const doto = Doto({ subsets: ["latin"], weight: ["700", "900"], variable: "--font-doto" });
 const atkinson = Atkinson_Hyperlegible_Next({ subsets: ["latin"], variable: "--font-atkinson" });
 
-export const metadata: Metadata = {
-  title: "Lightdesk",
-  description: "Citizens of Light Church — Mixlr chat desk",
-  manifest: "/manifest.webmanifest",
-  icons: { icon: "/icons/icon.svg", apple: "/icons/icon-192.png" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const label = await envLabel();
+  return {
+    title: label ? `${label} · Lightdesk` : "Lightdesk",
+    description: "Citizens of Light Church — Mixlr chat desk",
+    manifest: "/manifest.webmanifest",
+    icons: { icon: "/icons/icon.svg", apple: "/icons/icon-192.png" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -41,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-dvh bg-ink-950 font-text text-ink-100 antialiased">
         <div aria-hidden="true" className="ambient" />
+        <EnvBadge />
         <div className="relative z-[1]">{children}</div>
       </body>
     </html>
