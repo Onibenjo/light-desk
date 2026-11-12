@@ -2,6 +2,7 @@ import { ensureSchema } from "@/db";
 import { branchesWithChannel, endOpenServices, recordSnapshot, type Recorded } from "@/db/attendance";
 import { POLL_MS } from "./attendance";
 import { fetchChannel, type MixlrResult } from "./mixlr";
+import { collectCodes, deliverReports, type Bot } from "./attendanceTelegram";
 
 /** What one poll did for one branch. Returned by the tick route, so a cron log shows it. */
 export type PollOutcome = { branchId: number; channel: string } & (Recorded | { kind: "not-found" } | { kind: "unreachable"; reason: string } | { kind: "failed"; reason: string });
@@ -17,10 +18,10 @@ export type PollOutcome = { branchId: number; channel: string } & (Recorded | { 
  * is left open — "couldn't look" is not "off air", and the next round five
  * minutes on settles it.
  */
-export async function pollAttendance(now: number = Date.now(), look: (channel: string) => Promise<MixlrResult> = fetchChannel): Promise<PollOutcome[]> {
+export async function pollAttendance(now: number = Date.now(), look: (channel: string) => Promise<MixlrResult> = fetchChannel, bot?: Bot): Promise<PollOutcome[]> {
   await ensureSchema();
   const targets = await branchesWithChannel();
-  return Promise.all(
+  const outcomes = await Promise.all(
     targets.map(async ({ branchId, channel }): Promise<PollOutcome> => {
       try {
         const result = await look(channel);
@@ -33,6 +34,27 @@ export async function pollAttendance(now: number = Date.now(), look: (channel: s
       }
     }),
   );
+  await sendToTelegram(now, bot);
+  return outcomes;
+}
+
+/**
+ * After the readings: connect any chat that sent its code, then post the
+ * reports of services that just ended. After, not before, so a service that
+ * went off air this round is reported this round. Telegram trouble is logged
+ * and shown on /attendance; it never fails the round.
+ */
+async function sendToTelegram(now: number, bot?: Bot): Promise<void> {
+  try {
+    const linked = await collectCodes(now, bot?.send);
+    if (typeof linked === "object") console.error(`[attendance] Telegram, reading the bot's messages: ${linked.error}`);
+    for (const d of await deliverReports(now, bot)) {
+      if (d.error) console.error(`[attendance] Telegram, branch ${d.branchId}: ${d.error}`);
+      else if (d.posted.length > 0) console.log(`[attendance] Telegram, branch ${d.branchId}: posted the report for service ${d.posted.join(", ")}`);
+    }
+  } catch (e) {
+    console.error("[attendance] Telegram:", e);
+  }
 }
 
 const globalForTimer = globalThis as unknown as { __ldAttendanceTimer?: ReturnType<typeof setTimeout>; __ldAttendanceLoop?: number };

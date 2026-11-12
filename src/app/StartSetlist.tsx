@@ -4,6 +4,7 @@ import { useRef, useState, type SubmitEvent } from "react";
 import { comingSundayName } from "@/lib/setlist";
 // The server's own cap, so the field stops where the server would refuse.
 import { MAX_NAME } from "@/lib/setlistEdit";
+import { eventNameHint, useEventName } from "./useEventName";
 
 interface Props {
   /** What will be first in it: a song title or a message label. */
@@ -23,6 +24,7 @@ export default function StartSetlist({ what, onCancel, onStart }: Props) {
   // State alone cannot stop a double Enter: both keydowns land before the re-render.
   const submitting = useRef(false);
   const trimmed = name.trim();
+  const mixlr = useEventName();
 
   async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -58,6 +60,11 @@ export default function StartSetlist({ what, onCancel, onStart }: Props) {
         placeholder="Service order name"
         className="field w-full"
       />
+      {mixlr && name !== mixlr.title && (
+        <button type="button" onClick={() => setName(mixlr.title)} title={eventNameHint(mixlr)} className="btn btn-sm btn-quiet -mt-1 max-w-full self-start">
+          <span className="truncate">Use Mixlr title: {mixlr.title}</span>
+        </button>
+      )}
       <button type="submit" disabled={!trimmed || busy} className="btn btn-primary">
         {busy ? "Starting the service order…" : "Start the service order"}
       </button>
