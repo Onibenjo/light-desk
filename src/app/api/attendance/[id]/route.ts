@@ -3,6 +3,7 @@ import { deleteService, findService, linkSetlist } from "@/db/attendance";
 import { loadSetlists } from "@/db/setlists";
 import { gate } from "@/lib/sessionGate";
 import { figures, type ServiceDetail } from "@/lib/attendanceView";
+import { telegramStatus } from "@/lib/telegramStatus";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,7 @@ export async function GET(_req: Request, { params }: Context) {
   const entry = id === null ? null : await findService(s.branchId, id);
   if (!entry) return NextResponse.json({ error: GONE }, { status: 404 });
 
-  const setlists = await loadSetlists(s.branchId);
+  const [setlists, telegram] = await Promise.all([loadSetlists(s.branchId), telegramStatus(s.branchId, false)]);
   const used = setlists.find((l) => l.id === entry.service.setlistId);
   const body: ServiceDetail = {
     branch: s.branch.name,
@@ -35,6 +36,7 @@ export async function GET(_req: Request, { params }: Context) {
     ...figures(entry),
     setlist: used ? { id: used.id, name: used.name, items: used.items.map((i) => ({ kind: i.kind, title: i.title })) } : null,
     setlists: setlists.map((l) => ({ id: l.id, name: l.name, active: l.active })),
+    telegramChat: telegram.chat,
   };
   return NextResponse.json(body);
 }

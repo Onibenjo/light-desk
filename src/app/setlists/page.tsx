@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { eventNameHint, useEventName } from "../useEventName";
 import { comingSundayName, moveItem, planMessageEdit, withParts } from "@/lib/setlist";
 import { itemKey, MAX_NAME } from "@/lib/setlistEdit";
 import { failureFrom, getJson, OFFLINE, type Failure } from "@/lib/apiError";
@@ -100,6 +101,7 @@ export default function SetlistsPage() {
   const byId = useMemo(() => messagesById(library), [library]);
   /** The message item whose text is being edited for its service: setlist id and item key. */
   const [editing, setEditing] = useState<{ setlistId: number; key: string; text: string } | null>(null);
+  const mixlr = useEventName();
 
   /** Loads the setlists. A list already on screen stays there when this fails; the failure is returned to show. */
   const refresh = useCallback(async (): Promise<Failure | null> => {
@@ -201,6 +203,11 @@ export default function SetlistsPage() {
           New service order
         </button>
       </div>
+      {mixlr && name !== mixlr.title && (
+        <button type="button" onClick={() => setName(mixlr.title)} title={eventNameHint(mixlr)} className="btn btn-sm btn-quiet -mt-2 max-w-full self-start">
+          <span className="truncate">Use Mixlr title: {mixlr.title}</span>
+        </button>
+      )}
 
       {state.kind === "loading" && <p className="text-sm text-[var(--muted)]">Loading the service orders…</p>}
       {state.kind === "failed" && <Problem failure={state.failure} lead="Couldn't load the service orders." onRetry={retryLoad} next={pathname} newTab={false} pin="church" />}

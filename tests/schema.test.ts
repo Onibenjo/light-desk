@@ -259,7 +259,7 @@ describe("the attendance tables", () => {
 
   it("are created with every column", async () => {
     await applySchema(client);
-    expect(await names("services")).toEqual(["id", "branch_id", "mixlr_key", "title", "started_at", "ended_at", "scheduled_start", "scheduled_end", "setlist_id", "created_at"]);
+    expect(await names("services")).toEqual(["id", "branch_id", "mixlr_key", "title", "started_at", "ended_at", "scheduled_start", "scheduled_end", "setlist_id", "created_at", "telegram_chat_id", "telegram_message_id", "telegram_text", "telegram_claimed_at"]);
     expect(await names("listener_readings")).toEqual(["id", "service_id", "at", "listeners"]);
   });
 
@@ -272,6 +272,18 @@ describe("the attendance tables", () => {
     INSERT INTO branches (id, name, created_at) VALUES (1, 'CLC Ilorin', 1);`);
     await applySchema(client);
     expect((await client.execute("SELECT name, mixlr_channel FROM branches")).rows.map((r) => ({ ...r }))).toEqual([{ name: "CLC Ilorin", mixlr_channel: null }]);
+  });
+
+  it("give attendance tables made before Telegram its columns, empty", async () => {
+    await client.executeMultiple(`CREATE TABLE services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER NOT NULL, mixlr_key TEXT NOT NULL,
+      title TEXT NOT NULL, started_at INTEGER NOT NULL, ended_at INTEGER,
+      scheduled_start INTEGER, scheduled_end INTEGER, setlist_id INTEGER, created_at INTEGER NOT NULL
+    );
+    INSERT INTO services (branch_id, mixlr_key, title, started_at, created_at) VALUES (1, 'event:1', 'Sunday', 1, 1);`);
+    await applySchema(client);
+    expect((await client.execute("SELECT telegram_message_id, telegram_claimed_at FROM services")).rows.map((r) => ({ ...r }))).toEqual([{ telegram_message_id: null, telegram_claimed_at: null }]);
+    expect((await client.execute("SELECT telegram_chat_id, telegram_code FROM branches")).rows.map((r) => ({ ...r }))).toEqual([{ telegram_chat_id: null, telegram_code: null }]);
   });
 
   it("allow one reading per service per five minutes on the clock", async () => {

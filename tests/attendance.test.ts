@@ -115,7 +115,7 @@ describe("summarise", () => {
 
 describe("formatting", () => {
   it("writes times the way the team does", () => {
-    expect([at("00:05"), at("09:30"), at("12:00"), at("12:30"), at("18:00"), at("23:59")].map(formatClock)).toEqual(["12:05am", "9:30am", "12:00pm", "12:30pm", "6:00pm", "11:59pm"]);
+    expect([at("00:05"), at("09:30"), at("12:00"), at("12:30"), at("18:00"), at("23:59")].map((t) => formatClock(t))).toEqual(["12:05am", "9:30am", "12:00pm", "12:30pm", "6:00pm", "11:59pm"]);
   });
 
   it("writes the day weekday first", () => {

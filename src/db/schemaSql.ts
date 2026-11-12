@@ -14,7 +14,9 @@ export const SCHEMA_SQL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
     church_pin_hash TEXT UNIQUE, admin_pin_hash TEXT UNIQUE,
     pin_version INTEGER NOT NULL DEFAULT 0, tokens TEXT NOT NULL DEFAULT '{}',
-    created_at INTEGER NOT NULL, mixlr_channel TEXT
+    created_at INTEGER NOT NULL, mixlr_channel TEXT,
+    telegram_chat_id TEXT, telegram_chat_title TEXT, telegram_linked_at INTEGER, telegram_error TEXT,
+    telegram_code TEXT, telegram_code_expires INTEGER
   );
   CREATE TABLE IF NOT EXISTS verse_cache (
     translation TEXT NOT NULL, book INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
@@ -50,6 +52,7 @@ export const SCHEMA_SQL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER NOT NULL, mixlr_key TEXT NOT NULL,
     title TEXT NOT NULL, started_at INTEGER NOT NULL, ended_at INTEGER,
     scheduled_start INTEGER, scheduled_end INTEGER, setlist_id INTEGER, created_at INTEGER NOT NULL,
+    telegram_chat_id TEXT, telegram_message_id INTEGER, telegram_text TEXT, telegram_claimed_at INTEGER,
     CONSTRAINT services_once UNIQUE (branch_id, mixlr_key, started_at)
   );
   CREATE INDEX IF NOT EXISTS services_branch_started ON services (branch_id, started_at);
@@ -72,6 +75,16 @@ const ADDED_COLUMNS = [
   { table: "sent_log", column: "branch_id", type: "INTEGER NOT NULL DEFAULT 1" },
   { table: "messages", column: "branch_id", type: "INTEGER" },
   { table: "branches", column: "mixlr_channel", type: "TEXT" },
+  { table: "branches", column: "telegram_chat_id", type: "TEXT" },
+  { table: "branches", column: "telegram_chat_title", type: "TEXT" },
+  { table: "branches", column: "telegram_linked_at", type: "INTEGER" },
+  { table: "branches", column: "telegram_error", type: "TEXT" },
+  { table: "branches", column: "telegram_code", type: "TEXT" },
+  { table: "branches", column: "telegram_code_expires", type: "INTEGER" },
+  { table: "services", column: "telegram_chat_id", type: "TEXT" },
+  { table: "services", column: "telegram_message_id", type: "INTEGER" },
+  { table: "services", column: "telegram_text", type: "TEXT" },
+  { table: "services", column: "telegram_claimed_at", type: "INTEGER" },
 ] as const;
 
 /**
