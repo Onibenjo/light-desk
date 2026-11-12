@@ -133,13 +133,10 @@ export function channelUrl(channel: string): string {
   return `https://${channel}.mixlr.com`;
 }
 
-/**
- * One look at a channel. Never throws: a channel Mixlr does not have is
- * "not-found" (worth telling whoever typed it), and everything else that goes
- * wrong — no network, a timeout, a server error, a body that is not JSON — is
- * "unreachable" (worth trying again in five minutes, and nothing else).
- */
-export async function fetchChannel(channel: string): Promise<MixlrResult> {
+type Fetched = { kind: "ok"; body: Rec } | { kind: "not-found" } | { kind: "unreachable"; reason: string };
+
+/** The channel's `channel_view` document, or why there isn't one. Never throws. */
+async function fetchChannelView(channel: string): Promise<Fetched> {
   const base = process.env.MIXLR_API_BASE?.trim() || DEFAULT_API;
   let res: Response;
   try {
@@ -155,5 +152,65 @@ export async function fetchChannel(channel: string): Promise<MixlrResult> {
   if (!res.ok) return { kind: "unreachable", reason: `Mixlr answered ${res.status}` };
   const body: unknown = await res.json().catch(() => null);
   if (!isRec(body) || !isRec(body.data)) return { kind: "unreachable", reason: "Mixlr's answer was not the channel data" };
-  return { kind: "ok", snapshot: parseChannelView(body) };
+  return { kind: "ok", body };
+}
+
+/**
+ * One look at a channel. Never throws: a channel Mixlr does not have is
+ * "not-found" (worth telling whoever typed it), and everything else that goes
+ * wrong — no network, a timeout, a server error, a body that is not JSON — is
+ * "unreachable" (worth trying again in five minutes, and nothing else).
+ */
+export async function fetchChannel(channel: string): Promise<MixlrResult> {
+  const got = await fetchChannelView(channel);
+  return got.kind === "ok" ? { kind: "ok", snapshot: parseChannelView(got.body) } : got;
+}
+
+/** What a service order can be named after: the event on air now, or the next one scheduled. */
+export interface EventName {
+  title: string;
+  /** True when it is on air now; false for a scheduled one still to come. */
+  live: boolean;
+  startsAt: number | null;
+}
+
+/**
+ * Mixlr keeps an event in `upcoming_events` long after it has passed (Ilorin's
+ * listed one 1 July in November), so a scheduled event counts only from a
+ * little before its start to a week ahead.
+ */
+const UPCOMING_FROM_MS = 3 * 60 * 60 * 1000;
+const UPCOMING_UNTIL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * The title to offer for a service order: the event on air now, else the
+ * soonest upcoming event that is really still to come. Null when there is
+ * neither, so the offer is not made.
+ */
+export function eventName(json: unknown, now: number): EventName | null {
+  const snapshot = parseChannelView(json);
+  if (snapshot.live && snapshot.broadcast) {
+    const title = snapshot.event?.title ?? snapshot.broadcast.title;
+    return { title, live: true, startsAt: snapshot.event?.startsAt ?? snapshot.broadcast.startedAt };
+  }
+  if (!isRec(json) || !isRec(json.data)) return null;
+  const rels = json.data.relationships;
+  const listed = isRec(rels) && isRec(rels.upcoming_events) && Array.isArray(rels.upcoming_events.data) ? rels.upcoming_events.data : [];
+  const ids = new Set(listed.flatMap((r) => (isRec(r) ? [idOf(r.id)] : [])).filter((id): id is string => id !== null));
+  const included = Array.isArray(json.included) ? json.included.filter(isRec) : [];
+  const upcoming = included
+    .filter((r) => r.type === "event" && ids.has(idOf(r.id) ?? ""))
+    .map((r) => {
+      const a = isRec(r.attributes) ? r.attributes : {};
+      return { title: text(a.title), startsAt: instant(a.starts_at) };
+    })
+    .filter((e): e is { title: string; startsAt: number } => e.title !== null && e.startsAt !== null && e.startsAt >= now - UPCOMING_FROM_MS && e.startsAt <= now + UPCOMING_UNTIL_MS)
+    .sort((a, b) => a.startsAt - b.startsAt);
+  return upcoming[0] ? { title: upcoming[0].title, live: false, startsAt: upcoming[0].startsAt } : null;
+}
+
+/** The title to offer for a service order, from the channel itself. Null when Mixlr has none to give or can't be reached. */
+export async function fetchEventName(channel: string, now: number = Date.now()): Promise<EventName | null> {
+  const got = await fetchChannelView(channel);
+  return got.kind === "ok" ? eventName(got.body, now) : null;
 }

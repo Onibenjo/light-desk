@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "../Icon";
 import PageShell from "../PageShell";
+import TelegramCard from "./TelegramCard";
 import Problem from "../Problem";
 import { failureFrom, getJson, OFFLINE, type Failure } from "@/lib/apiError";
 import { formatClock, formatDay, listenersLabel, STALE_MS } from "@/lib/attendance";
@@ -182,6 +183,8 @@ export default function AttendancePage() {
               {saved}
             </p>
           </section>
+
+          {data.channel !== null && <TelegramCard status={data.telegram} admin={data.admin} branch={data.branch} />}
 
           {live && (
             <section className="card rise border-ink-600 p-4">

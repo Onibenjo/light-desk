@@ -42,8 +42,21 @@ export interface SetlistPatch {
 }
 
 export const MAX_ITEMS = 50;
-export const MAX_NAME = 80;
+/** Room for a Mixlr event title in full: "Topic || Midweek Service || 11th November, 2026" runs past 80. */
+export const MAX_NAME = 120;
 const MAX_TITLE = 200;
+
+/**
+ * A title from elsewhere (a Mixlr event) made into a name the server takes: one
+ * line, and cut at a word with "…" when it runs past MAX_NAME.
+ */
+export function fitName(title: string): string {
+  const one = title.replace(/\s+/g, " ").trim();
+  if (one.length <= MAX_NAME) return one;
+  const cut = one.slice(0, MAX_NAME - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > MAX_NAME / 2 ? cut.slice(0, space) : cut).replace(/[\s|;,:–—-]+$/, "")}…`;
+}
 
 const NAME_ERROR = `Give the service order a name of ${MAX_NAME} characters or fewer`;
 const ITEM_ERROR = "A song or message in this service order couldn't be read — reload the page and add it again";

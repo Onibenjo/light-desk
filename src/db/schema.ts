@@ -30,6 +30,18 @@ export const branches = sqliteTable("branches", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   /** The branch's Mixlr channel name ("clc-ilorin"). Null until set: no attendance is recorded. */
   mixlrChannel: text("mixlr_channel"),
+  /**
+   * Where the branch's attendance reports are posted on Telegram: a group or a
+   * person's chat with the bot, set by the admin's "Connect Telegram" code.
+   * `telegramError` is the last failed post, shown on /attendance until one works.
+   */
+  telegramChatId: text("telegram_chat_id"),
+  telegramChatTitle: text("telegram_chat_title"),
+  telegramLinkedAt: integer("telegram_linked_at", { mode: "timestamp_ms" }),
+  telegramError: text("telegram_error"),
+  /** The one-time code waiting to be sent to the bot, and when it stops working. */
+  telegramCode: text("telegram_code"),
+  telegramCodeExpires: integer("telegram_code_expires", { mode: "timestamp_ms" }),
 });
 
 /** Everything the operator copied, for handover and pilot metrics. */
@@ -145,6 +157,16 @@ export const services = sqliteTable(
     scheduledEnd: integer("scheduled_end", { mode: "timestamp_ms" }),
     setlistId: integer("setlist_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    /**
+     * The report posted to Telegram for this service: where, which message (so
+     * it can be edited when the service comes back on air and ends again), and
+     * the text it last said. `telegramClaimedAt` is set by the poller that is
+     * posting it, so a second poller does not post it again.
+     */
+    telegramChatId: text("telegram_chat_id"),
+    telegramMessageId: integer("telegram_message_id"),
+    telegramText: text("telegram_text"),
+    telegramClaimedAt: integer("telegram_claimed_at"),
   },
   (t) => [unique("services_once").on(t.branchId, t.mixlrKey, t.startedAt)],
 );

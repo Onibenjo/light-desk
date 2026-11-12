@@ -25,9 +25,9 @@ describe("naming a setlist", () => {
     expect(parseSetlistCreate(null)).toMatch(/name/i);
   });
 
-  it("refuses a name past 80 characters", () => {
+  it("refuses a name past 120 characters", () => {
     expect(created({ name: "a".repeat(80) }).name.length).toBe(80);
-    expect(parseSetlistCreate({ name: "a".repeat(81) })).toMatch(/name/i);
+    expect(parseSetlistCreate({ name: "a".repeat(121) })).toMatch(/name/i);
   });
 });
 

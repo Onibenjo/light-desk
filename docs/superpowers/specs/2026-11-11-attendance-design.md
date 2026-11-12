@@ -55,6 +55,24 @@ those numbers itself and keeps them.
 - **Kept.** `services` and `listener_readings` are in the backup tables; like
   the log, they cannot be rebuilt after the fact.
 
+- **Telegram (added 2026-11-12).** With `TELEGRAM_BOT_TOKEN` set, an admin
+  connects a chat by sending the bot a one-time code (eight characters,
+  30 minutes) from it; the bot is asked for its messages only while a code is
+  waiting. When a service ends, its report goes to that chat once (a claim on
+  the service row stops two pollers both posting it) inside a code block, so
+  a tap copies it with WhatsApp's asterisks. If the service comes back on air
+  the message is edited to say so, and edited again when it ends. Services
+  that ended before the chat was connected, or more than 12 hours ago, are
+  not posted; the service page has "Send to Telegram" for those. Report times
+  are in `ATTENDANCE_TIMEZONE`, default Africa/Lagos, since the server has no
+  reader's zone. A failed post shows on /attendance and is retried each round.
+- **Naming a service order after Mixlr (added 2026-11-12).** The service
+  order forms offer "Use Mixlr title": the event on air now, else the next
+  scheduled event starting within a week (Mixlr keeps long-past events in
+  `upcoming_events`). Never applied without a click. Service order names now
+  allow 120 characters, so Ilorin's "Topic || Midweek Service || date" titles
+  fit whole.
+
 ## Out of scope (later, if wanted)
 
 - Sending the report to WhatsApp automatically.

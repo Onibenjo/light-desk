@@ -89,6 +89,29 @@ export default function ServicePage() {
     }
   }
 
+  async function sendToTelegram() {
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
+    const lead = "Not sent to Telegram.";
+    try {
+      let res: Response;
+      try {
+        res = await fetch(`/api/attendance/${encodeURIComponent(id)}/telegram`, { method: "POST" });
+      } catch {
+        setNotice({ failure: OFFLINE, lead });
+        return;
+      }
+      if (!res.ok) {
+        setNotice({ failure: await failureFrom(res), lead });
+        return;
+      }
+      showToast(`Sent the report to ${data?.telegramChat ?? "Telegram"}`, "ok");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function chooseSetlist(value: string) {
     const setlistId = value === "" ? null : Number(value);
     if (await send({ method: "PATCH", body: JSON.stringify({ setlistId }) }, "Not saved.")) {
@@ -177,6 +200,12 @@ export default function ServicePage() {
             <Icon name="copy" className="h-4 w-4" />
             Copy report
           </button>
+          {data.telegramChat !== null && (
+            <button onClick={() => void sendToTelegram()} disabled={busy || readings.length === 0} title={`Post this report to ${data.telegramChat} on Telegram`} className="btn">
+              <Icon name="send" className="h-4 w-4" />
+              Send to Telegram
+            </button>
+          )}
           {onAir && <p className="text-sm text-[var(--muted)]">The service is still on air — the report so far.</p>}
         </div>
       </section>

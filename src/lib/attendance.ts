@@ -109,20 +109,35 @@ export function summarise(readings: Reading[], marks: Mark[]): Summary {
   return { average, basis, peak };
 }
 
-/** "6:00pm", "11:05am", "12:30pm" — the way the team writes a time, in the reader's own time zone. */
-export function formatClock(ms: number): string {
+/** The wall-clock parts of an instant: in the reader's own time zone, or in `timeZone` (the server writing a Telegram report). */
+function wall(ms: number, timeZone?: string): { year: number; month: number; day: number; weekday: number; hours: number; minutes: number } {
   const d = new Date(ms);
-  const h = d.getHours();
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
+  if (!timeZone) return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate(), weekday: d.getDay(), hours: d.getHours(), minutes: d.getMinutes() };
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(d);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return {
+    year: Number(part("year")),
+    month: Number(part("month")) - 1,
+    day: Number(part("day")),
+    weekday: WEEKDAYS.indexOf(part("weekday")),
+    hours: Number(part("hour")) % 24,
+    minutes: Number(part("minute")),
+  };
+}
+
+/** "6:00pm", "11:05am", "12:30pm" — the way the team writes a time, in the reader's own time zone unless one is given. */
+export function formatClock(ms: number, timeZone?: string): string {
+  const { hours: h, minutes } = wall(ms, timeZone);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(minutes).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "Wed 11 Nov 2026" for the reader's local day, the same shape the log uses. */
-export function formatDay(ms: number): string {
-  const d = new Date(ms);
-  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+export function formatDay(ms: number, timeZone?: string): string {
+  const d = wall(ms, timeZone);
+  return `${WEEKDAYS[d.weekday]} ${d.day} ${MONTHS[d.month]} ${d.year}`;
 }
 
 /** "1 listener", "37 listeners". */
@@ -136,6 +151,8 @@ export interface ReportInput {
   startedAt: number;
   marks: Mark[];
   summary: Summary;
+  /** Write the times in this zone rather than the reader's: the server has no reader. */
+  timeZone?: string;
 }
 
 /**
@@ -144,13 +161,13 @@ export interface ReportInput {
  * WhatsApp's bold. A half hour with no reading is left out of the lines, as it
  * is left out of the average — a dash would be read as zero.
  */
-export function attendanceReport({ title, branch, startedAt, marks, summary }: ReportInput): string {
-  const lines = [`*${title}*`, `${formatDay(startedAt)} · ${branch}`, "Mixlr listeners", ""];
+export function attendanceReport({ title, branch, startedAt, marks, summary, timeZone }: ReportInput): string {
+  const lines = [`*${title}*`, `${formatDay(startedAt, timeZone)} · ${branch}`, "Mixlr listeners", ""];
   const marked = marks.filter((m): m is Mark & { listeners: number } => m.listeners !== null);
-  for (const m of marked) lines.push(`${formatClock(m.at)} — ${m.listeners}`);
+  for (const m of marked) lines.push(`${formatClock(m.at, timeZone)} — ${m.listeners}`);
   if (marked.length > 0) lines.push("");
   if (summary.average !== null) lines.push(`Average: ${summary.average}${summary.basis === "all" ? " (every reading)" : ""}`);
-  if (summary.peak) lines.push(`Peak: ${summary.peak.listeners} (${formatClock(summary.peak.at)})`);
+  if (summary.peak) lines.push(`Peak: ${summary.peak.listeners} (${formatClock(summary.peak.at, timeZone)})`);
   if (summary.average === null) lines.push("No readings were taken.");
   return lines.join("\n");
 }

@@ -30,6 +30,21 @@ export interface AttendanceList {
   /** True on a device unlocked with the admin PIN: it may set the channel and delete a service. */
   admin: boolean;
   services: ServiceSummary[];
+  telegram: TelegramStatus;
+}
+
+/** Where the branch's reports are posted on Telegram, as the attendance page shows it. */
+export interface TelegramStatus {
+  /** False when the server has no TELEGRAM_BOT_TOKEN: the feature is off. */
+  configured: boolean;
+  /** The connected chat's name; null when none is connected. */
+  chat: string | null;
+  /** Why the last post failed, until one works. */
+  error: string | null;
+  /** The code waiting to be sent to the bot, and the bot's @name to send it to. Admin only. */
+  code: string | null;
+  codeExpires: number | null;
+  bot: string | null;
 }
 
 export interface ServiceDetail {
@@ -43,6 +58,8 @@ export interface ServiceDetail {
   setlist: { id: number; name: string; items: { kind: string; title: string }[] } | null;
   /** Every service order of the branch, to choose from. */
   setlists: { id: number; name: string; active: boolean }[];
+  /** The Telegram chat the report can be sent to; null when none is connected. */
+  telegramChat: string | null;
 }
 
 /** The half-hour marks and the summary for one service: the one place both routes get them from. */
@@ -72,7 +89,11 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 
 /** Enough to tell the list from a proxy's page or someone else's JSON. */
 export function isAttendanceList(v: unknown): v is AttendanceList {
-  return isRecord(v) && typeof v.branch === "string" && (v.channel === null || typeof v.channel === "string") && Array.isArray(v.services);
+  return isRecord(v) && typeof v.branch === "string" && (v.channel === null || typeof v.channel === "string") && Array.isArray(v.services) && isTelegramStatus(v.telegram);
+}
+
+export function isTelegramStatus(v: unknown): v is TelegramStatus {
+  return isRecord(v) && typeof v.configured === "boolean" && (v.chat === null || typeof v.chat === "string") && (v.code === null || typeof v.code === "string");
 }
 
 export function isServiceDetail(v: unknown): v is ServiceDetail {
