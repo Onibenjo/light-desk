@@ -1,5 +1,5 @@
 import { ensureSchema } from "@/db";
-import { branchesWithChannel, recordSnapshot, type Recorded } from "@/db/attendance";
+import { branchesWithChannel, endOpenServices, recordSnapshot, type Recorded } from "@/db/attendance";
 import { POLL_MS } from "./attendance";
 import { fetchChannel, type MixlrResult } from "./mixlr";
 
@@ -24,6 +24,8 @@ export async function pollAttendance(now: number = Date.now(), look: (channel: s
     targets.map(async ({ branchId, channel }): Promise<PollOutcome> => {
       try {
         const result = await look(channel);
+        // Not found is Mixlr's answer, not a failure to ask: the channel is not on air, so nothing of it is either.
+        if (result.kind === "not-found") await endOpenServices(branchId);
         if (result.kind !== "ok") return { branchId, channel, ...result };
         return { branchId, channel, ...(await recordSnapshot(branchId, result.snapshot, now)) };
       } catch (e) {
@@ -33,7 +35,7 @@ export async function pollAttendance(now: number = Date.now(), look: (channel: s
   );
 }
 
-const globalForTimer = globalThis as unknown as { __ldAttendanceTimer?: ReturnType<typeof setTimeout> };
+const globalForTimer = globalThis as unknown as { __ldAttendanceTimer?: ReturnType<typeof setTimeout>; __ldAttendanceLoop?: number };
 
 /** Milliseconds from `now` to the next :00, :05, :10… A hair past it, so a timer that fires a millisecond early still lands in the right slot. */
 export function untilNextPoll(now: number): number {
@@ -52,7 +54,11 @@ export function untilNextPoll(now: number): number {
  */
 export function startAttendanceTimer(): void {
   clearTimeout(globalForTimer.__ldAttendanceTimer);
+  // A round already running when the timer is restarted must not schedule another once it finishes, or two loops run.
+  const loop = (globalForTimer.__ldAttendanceLoop ?? 0) + 1;
+  globalForTimer.__ldAttendanceLoop = loop;
   const schedule = () => {
+    if (globalForTimer.__ldAttendanceLoop !== loop) return;
     const timer = setTimeout(() => {
       void pollAttendance()
         .then((outcomes) => {

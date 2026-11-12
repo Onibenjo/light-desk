@@ -61,6 +61,12 @@ describe("halfHourMarks", () => {
     ]);
   });
 
+  it("gives no half hour that hasn't come yet, while the service is still on air", () => {
+    const readings = every5("17:30", "18:55", () => 30);
+    const marks = halfHourMarks(readings, at("17:30"), at("17:30"), at("18:56"));
+    expect(marks.map((m) => formatClock(m.at))).toEqual(["6:00pm", "6:30pm"]);
+  });
+
   it("has no marks for a service shorter than half an hour, or with no readings", () => {
     expect(halfHourMarks(every5("17:30", "17:50", () => 9), at("17:30"), null)).toEqual([]);
     expect(halfHourMarks([], at("17:30"), null)).toEqual([]);

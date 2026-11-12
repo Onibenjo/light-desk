@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, max, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, max, ne } from "drizzle-orm";
 import { db } from "./index";
 import { branches, listenerReadings, services, setlists } from "./schema";
 import type { MixlrSnapshot } from "@/lib/mixlr";
-import type { Reading } from "@/lib/attendance";
+import { POLL_MS, type Reading } from "@/lib/attendance";
 
 /**
  * A service as it goes over the wire. Times are epoch milliseconds, not the ISO
@@ -58,9 +58,19 @@ export async function getChannel(branchId: number): Promise<string | null> {
   return row?.channel ?? null;
 }
 
-/** Null stops recording for the branch; what is already recorded stays. */
+/**
+ * Null stops recording for the branch; what is already recorded stays. A
+ * service still on air is ended at its last reading when the channel is
+ * cleared or changed: nothing will read the old channel again to end it.
+ */
 export async function setChannel(branchId: number, channel: string | null): Promise<void> {
+  if ((await getChannel(branchId)) !== channel) await closeOpen(branchId, null);
   await db.update(branches).set({ mixlrChannel: channel }).where(eq(branches.id, branchId));
+}
+
+/** Ends whatever the branch had on air: Mixlr says its channel no longer exists. */
+export async function endOpenServices(branchId: number): Promise<void> {
+  await closeOpen(branchId, null);
 }
 
 /** Every branch the poller has to look at. */
@@ -111,6 +121,28 @@ async function closeOpen(branchId: number, keep: number | null): Promise<void> {
   }
 }
 
+/** Half a slot: `listener_readings_slot` (schemaSql.ts) files a reading under the five-minute mark nearest it. */
+const HALF_SLOT = POLL_MS / 2;
+
+/**
+ * One reading per service per five-minute slot. When the slot is taken (the
+ * timer and a cron call both ran), the reading nearer the mark stays: a cron
+ * call at 5:57:31 must not keep the 6:00 slot from the timer's 6:00 reading.
+ */
+async function storeReading(serviceId: number, at: number, listeners: number): Promise<void> {
+  const inserted = await db.insert(listenerReadings).values({ serviceId, at, listeners }).onConflictDoNothing().returning({ id: listenerReadings.id });
+  if (inserted.length > 0) return;
+  const mark = Math.floor((at + HALF_SLOT) / POLL_MS) * POLL_MS;
+  const [taken] = await db
+    .select({ id: listenerReadings.id, at: listenerReadings.at })
+    .from(listenerReadings)
+    .where(and(eq(listenerReadings.serviceId, serviceId), gte(listenerReadings.at, mark - HALF_SLOT), lt(listenerReadings.at, mark + HALF_SLOT)))
+    .limit(1);
+  if (taken && Math.abs(at - mark) < Math.abs(taken.at - mark)) {
+    await db.update(listenerReadings).set({ at, listeners }).where(eq(listenerReadings.id, taken.id));
+  }
+}
+
 /**
  * Writes one look at a branch's channel into the record.
  *
@@ -135,7 +167,9 @@ export async function recordSnapshot(branchId: number, snapshot: MixlrSnapshot, 
 
   const key = event ? `event:${event.id}` : `broadcast:${broadcast.uid}`;
   const title = event?.title ?? broadcast.title;
-  const startedAt = broadcast.startedAt ?? now;
+  // Without Mixlr's start, every poller would use its own `now` and the once-only index could never catch two
+  // pollers opening the same service; the start of the five-minute slot is the same for both.
+  const startedAt = broadcast.startedAt ?? Math.floor(now / POLL_MS) * POLL_MS;
 
   const [latest] = await db
     .select()
@@ -177,9 +211,7 @@ export async function recordSnapshot(branchId: number, snapshot: MixlrSnapshot, 
     .where(eq(services.id, row.id));
   await closeOpen(branchId, row.id);
 
-  if (broadcast.listeners !== null) {
-    await db.insert(listenerReadings).values({ serviceId: row.id, at: now, listeners: broadcast.listeners }).onConflictDoNothing();
-  }
+  if (broadcast.listeners !== null) await storeReading(row.id, now, broadcast.listeners);
   return { kind: "live", serviceId: row.id, listeners: broadcast.listeners, started };
 }
 

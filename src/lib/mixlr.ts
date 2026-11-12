@@ -88,9 +88,13 @@ export function parseChannelView(json: unknown): MixlrSnapshot {
   const b = attrs(broadcastRes);
   if (channelAttrs.live !== true || !broadcastRes || b.live === false || b.fallback === true) return OFF_AIR;
 
-  const eventRes = find("event", related(channel, "live_event") ?? idOf(b.event_id));
+  // The event names the service, so its id matters more than its details: try the channel's pointer, then the
+  // broadcast's own event_id, and keep the id even when Mixlr leaves the event itself out of the document.
+  const pointer = related(channel, "live_event");
+  const ownEvent = idOf(b.event_id);
+  const eventRes = find("event", pointer) ?? find("event", ownEvent);
   const e = attrs(eventRes);
-  const eventId = eventRes ? idOf(eventRes.id) : null;
+  const eventId = (eventRes ? idOf(eventRes.id) : null) ?? ownEvent ?? pointer;
   const count = b.listener_count;
 
   return {

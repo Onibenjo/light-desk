@@ -27,6 +27,18 @@ describe("parseChannelView", () => {
     });
   });
 
+  it("keeps the event id when Mixlr leaves the event itself out of the document", () => {
+    const doc = live();
+    doc.included = doc.included.filter((r: { type: string; id: string }) => !(r.type === "event" && r.id === "5433702"));
+    expect(parseChannelView(doc).event).toMatchObject({ id: "5433702", startsAt: null, endsAt: null });
+  });
+
+  it("falls back to the broadcast's event when the channel's pointer names one that isn't there", () => {
+    const doc = live();
+    doc.data.relationships.live_event = { data: { id: "999", type: "event" } };
+    expect(parseChannelView(doc).event).toMatchObject({ id: "5433702", startsAt: Date.parse("2026-11-11T16:30:00.000Z") });
+  });
+
   it("is off air when the channel says it is not live", () => {
     const doc = live();
     doc.data.attributes.live = false;

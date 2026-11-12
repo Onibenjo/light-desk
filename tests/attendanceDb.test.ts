@@ -41,12 +41,12 @@ const MIN = 60_000;
 const at = (hhmm: string, day = "2026-11-11") => Date.parse(`${day}T${hhmm}:00.000Z`);
 
 /** The midweek service: event 5433702, on air from 16:24, scheduled 16:30 to 18:30. */
-function live(listeners: number | null, change: { uid?: string; eventId?: string | null; title?: string; startedAt?: number } = {}): MixlrSnapshot {
+function live(listeners: number | null, change: { uid?: string; eventId?: string | null; title?: string; startedAt?: number | null } = {}): MixlrSnapshot {
   const title = change.title ?? "Midweek Service";
   const eventId = change.eventId === undefined ? "5433702" : change.eventId;
   return {
     live: true,
-    broadcast: { uid: change.uid ?? "uid-1", title, listeners, startedAt: change.startedAt ?? at("16:24") },
+    broadcast: { uid: change.uid ?? "uid-1", title, listeners, startedAt: change.startedAt === undefined ? at("16:24") : change.startedAt },
     event: eventId === null ? null : { id: eventId, title, startsAt: at("16:30"), endsAt: at("18:30") },
   };
 }
@@ -71,10 +71,25 @@ describe("recordSnapshot", () => {
   it("stores one reading per five-minute slot, so the timer and a cron call can both run", async () => {
     await attendance.recordSnapshot(1, live(37), at("18:00") + 250);
     await attendance.recordSnapshot(1, live(38), at("18:00") + 4_000);
-    // A timer that fired a moment early is still the 6:00 reading.
+    // A timer that fired a moment early is still the 6:00 reading, and the nearest to it.
     await attendance.recordSnapshot(1, live(39), at("18:00") - 40);
     const [{ readings }] = await attendance.listServices(1);
-    expect(readings).toEqual([{ at: at("18:00") + 250, listeners: 37 }]);
+    expect(readings).toEqual([{ at: at("18:00") - 40, listeners: 39 }]);
+  });
+
+  it("keeps the reading nearest the mark when a late cron call got to the slot first", async () => {
+    await attendance.recordSnapshot(1, live(10), at("17:57") + 31_000);
+    await attendance.recordSnapshot(1, live(20), at("18:00") + 250);
+    const [{ readings }] = await attendance.listServices(1);
+    expect(readings).toEqual([{ at: at("18:00") + 250, listeners: 20 }]);
+  });
+
+  it("makes one service when two pollers see a broadcast Mixlr gives no start time for", async () => {
+    await Promise.all([
+      attendance.recordSnapshot(1, live(37, { startedAt: null }), at("16:25") + 250),
+      attendance.recordSnapshot(1, live(37, { startedAt: null }), at("16:25") + 40_000),
+    ]);
+    expect(await attendance.listServices(1)).toHaveLength(1);
   });
 
   it("makes one service when two pollers see it go live at the same moment", async () => {
@@ -258,11 +273,38 @@ describe("pollAttendance", () => {
     expect(outcomes.map((o) => o.kind)).toEqual(["failed", "live"]);
   });
 
+  it("ends the open service when Mixlr says the channel no longer exists", async () => {
+    await attendance.setChannel(1, "clc-ilorin");
+    await poll.pollAttendance(at("17:00"), async () => answer(live(37)));
+    await poll.pollAttendance(at("17:05"), async () => ({ kind: "not-found" }));
+    expect((await attendance.listServices(1))[0].service.endedAt).toBe(at("17:00"));
+  });
+
+  it("ends the open service when the channel is cleared or changed", async () => {
+    await attendance.setChannel(1, "clc-ilorin");
+    await poll.pollAttendance(at("17:00"), async () => answer(live(37)));
+    await attendance.setChannel(1, null);
+    expect((await attendance.listServices(1))[0].service.endedAt).toBe(at("17:00"));
+  });
+
   it("stops looking once the channel is cleared", async () => {
     await attendance.setChannel(1, "clc-ilorin");
     await attendance.setChannel(1, null);
     expect(await attendance.getChannel(1)).toBeNull();
     expect(await poll.pollAttendance(at("17:00"), async () => answer(live(37)))).toEqual([]);
+  });
+});
+
+describe("startAttendanceTimer", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps one loop when it is restarted while a round is running (a dev reload)", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    poll.startAttendanceTimer();
+    vi.advanceTimersByTime(5 * MIN + 1_000); // the first round starts
+    poll.startAttendanceTimer(); // reload while it runs
+    for (let i = 0; i < 50; i++) await new Promise((r) => setImmediate(r));
+    expect(vi.getTimerCount()).toBe(1);
   });
 });
 

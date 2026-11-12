@@ -67,12 +67,13 @@ export interface Summary {
  * after the service's start, where "start" is the scheduled time when Mixlr has
  * one near the real start (a 5:30pm service that went live at 5:24 is still a
  * 5:30 service, first mark 6:00), and the real start otherwise, taken to the
- * nearest half hour. Marks stop at the last reading. Marks from before the
+ * nearest half hour. Marks stop at the last reading, and at `until` (now, for a
+ * service still on air). Marks from before the
  * first reading are dropped — a service that went live late has no number for
  * them — but a gap in the middle stays, as a mark with no reading, so a hole in
  * the record is visible rather than averaged away.
  */
-export function halfHourMarks(readings: Reading[], startedAt: number, scheduledStart: number | null): Mark[] {
+export function halfHourMarks(readings: Reading[], startedAt: number, scheduledStart: number | null, until: number = Infinity): Mark[] {
   if (readings.length === 0) return [];
   const sorted = [...readings].sort((a, b) => a.at - b.at);
   const first = sorted[0].at;
@@ -82,7 +83,9 @@ export function halfHourMarks(readings: Reading[], startedAt: number, scheduledS
   const reference = Math.round(start / HALF_HOUR) * HALF_HOUR;
 
   const marks: Mark[] = [];
-  for (let at = reference + HALF_HOUR; at <= last + MARK_TOLERANCE_MS; at += HALF_HOUR) {
+  // `until` is now while the service is on air: a reading at 6:55 must not stand in for a 7:00 that hasn't come.
+  const stop = Math.min(last + MARK_TOLERANCE_MS, until);
+  for (let at = reference + HALF_HOUR; at <= stop; at += HALF_HOUR) {
     if (at < first - MARK_TOLERANCE_MS) continue;
     let nearest: Reading | null = null;
     for (const r of sorted) {

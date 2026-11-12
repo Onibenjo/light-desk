@@ -46,8 +46,8 @@ export interface ServiceDetail {
 }
 
 /** The half-hour marks and the summary for one service: the one place both routes get them from. */
-export function figures({ service, readings }: ServiceWithReadings): { marks: Mark[]; summary: Summary } {
-  const marks = halfHourMarks(readings, service.startedAt, service.scheduledStart);
+export function figures({ service, readings }: ServiceWithReadings, now: number = Date.now()): { marks: Mark[]; summary: Summary } {
+  const marks = halfHourMarks(readings, service.startedAt, service.scheduledStart, service.endedAt === null ? now : Infinity);
   return { marks, summary: summarise(readings, marks) };
 }
 

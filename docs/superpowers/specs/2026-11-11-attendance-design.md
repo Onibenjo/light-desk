@@ -19,12 +19,14 @@ those numbers itself and keeps them.
   `src/instrumentation.ts` runs the round; on Vercel, or by choice, a scheduler
   calls `POST /api/attendance/tick` with `CRON_SECRET`. Both can run: one
   reading per service per five-minute slot is enforced by a unique index, and
-  a new service by another.
+  a new service by another. When two readings land in one slot, the one
+  nearer the five-minute mark stays.
 - **Half-hour readings, not half-hourly polling.** Readings every five minutes
   give the peak and survive a missed round. The report picks the reading
   nearest each half hour (within six minutes). The first half hour is 30
   minutes after the scheduled start when Mixlr's schedule is within an hour of
-  the real start, else after the real start, rounded to the half hour. The
+  the real start, else after the real start, rounded to the half hour. While
+  a service is on air, no half hour later than now is reported. The
   average is of the half-hour readings (the team's own method); a service too
   short to have one averages every reading and says so. The peak is the
   highest of all readings.
@@ -32,11 +34,13 @@ those numbers itself and keeps them.
   `broadcast:<uid>` for an unscheduled broadcast. A dropped broadcast that
   comes back under the same event within three hours is the same service; an
   event reused on another day is a new one. A service ends at its last
-  reading once the channel is off air.
+  reading once the channel is off air, or Mixlr says the channel is gone, or
+  the branch's channel is cleared or changed.
 - **Per branch.** Each branch has its own Mixlr channel
   (`branches.mixlr_channel`, set at `/attendance` with the admin PIN, checked
-  against Mixlr before it is saved). Only branch 1 (Ilorin, `clc-ilorin`) is
-  set to start; another branch is one setting away.
+  against Mixlr before it is saved, and only an admin-PIN device is offered
+  the form). Ilorin (`clc-ilorin`) is the first to be set, by an admin after
+  deploy; another branch is one setting away.
 - **Tied to the service order.** A new service is linked to the branch's
   active service order as it goes live; the operator can change or clear the
   link on the service's page (church PIN). The link is a plain id, so deleting

@@ -96,7 +96,8 @@ export default function AttendancePage() {
     }
   }
 
-  const showField = data !== null && (data.channel === null || editing);
+  // Setting the channel needs the admin PIN; a church-PIN device is told so rather than offered a form it can't save.
+  const showField = data !== null && data.admin && (data.channel === null || editing);
   const stale = live?.latest ? now - live.latest.at > STALE_MS : false;
 
   return (
@@ -117,18 +118,25 @@ export default function AttendancePage() {
                   </a>{" "}
                   for {data.branch}.
                 </p>
-                <button
-                  onClick={() => {
-                    setDraft(data.channel ?? "");
-                    setNotice(null);
-                    setSaved("");
-                    setEditing(true);
-                  }}
-                  className="btn btn-sm"
-                >
-                  Change
-                </button>
+                {data.admin && (
+                  <button
+                    onClick={() => {
+                      setDraft(data.channel ?? "");
+                      setNotice(null);
+                      setSaved("");
+                      setEditing(true);
+                    }}
+                    className="btn btn-sm"
+                  >
+                    Change
+                  </button>
+                )}
               </div>
+            )}
+            {data.channel === null && !data.admin && (
+              <p className="max-w-prose text-[15px] leading-relaxed text-ink-300">
+                No Mixlr channel is set for {data.branch} yet, so nothing is being recorded. Someone with the admin PIN can set it here.
+              </p>
             )}
             {showField && (
               <>
