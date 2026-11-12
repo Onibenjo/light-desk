@@ -62,11 +62,14 @@ export default function AttendancePage() {
   const data = state.kind === "loaded" ? state.data : null;
   const live = data?.services.find((s) => s.endedAt === null) ?? null;
 
+  // Kept fresh whenever a channel is set, not only while something is on air: a page opened at 5:20 has to
+  // show the service going live at 5:24 without anyone reloading it.
+  const watching = data !== null && (data.channel !== null || live !== null);
   useEffect(() => {
-    if (!live) return;
+    if (!watching) return;
     const id = setInterval(() => void load(), REFRESH_MS);
     return () => clearInterval(id);
-  }, [live, load]);
+  }, [watching, load]);
 
   async function saveChannel() {
     if (busy) return;
