@@ -1,0 +1,69 @@
+{
+  "data": {
+    "id": "19925",
+    "type": "channel_view",
+    "attributes": {
+      "username": "clc-ilorin",
+      "subdomain": "clc-ilorin",
+      "live": true,
+      "channel_id": 19925,
+      "owner_id": 7403002,
+      "legacy_livepage_url": "https://mixlr.com/citizensoflightchurch",
+      "default_event_configuration": { "stats_visible": true }
+    },
+    "relationships": {
+      "current_broadcast": { "data": { "id": "31963572", "type": "broadcast" } },
+      "public_current_broadcasts": { "data": [{ "id": "31963572", "type": "broadcast" }] },
+      "upcoming_events": { "data": [{ "id": "5145329", "type": "event" }, { "id": "5433702", "type": "event" }] },
+      "live_event": { "data": { "id": "5433702", "type": "event" } }
+    }
+  },
+  "included": [
+    {
+      "id": "31963572",
+      "type": "broadcast",
+      "attributes": {
+        "title": "Prayers; The Handle of the Supernatural || Midweek Service || 11th November, 2026",
+        "duration": null,
+        "heart_count": 0,
+        "uid": "f5ad63456c88135d3c237d70007e397b",
+        "started_at": "2026-11-11T16:24:00.000Z",
+        "event_id": 5433702,
+        "live": true,
+        "category_name": "Religion",
+        "listener_count": 37,
+        "fallback": false,
+        "scheduled_recording": false,
+        "color": "#696098"
+      }
+    },
+    {
+      "id": "5145329",
+      "type": "event",
+      "attributes": {
+        "title": "Sunday Service",
+        "starts_at": "2026-11-15T07:30:00.000Z",
+        "ends_at": "2026-11-15T10:30:00.000Z",
+        "active": false
+      }
+    },
+    {
+      "id": "5433702",
+      "type": "event",
+      "attributes": {
+        "title": "Prayers; The Handle of the Supernatural || Midweek Service || 11th November, 2026",
+        "starts_at": "2026-11-11T16:30:00.000Z",
+        "ends_at": "2026-11-11T18:30:00.000Z",
+        "started_at": "2026-11-11T16:24:04.847Z",
+        "ended_at": null,
+        "timezone": "West Central Africa",
+        "stats_visible": true,
+        "active": true,
+        "adhoc": false,
+        "fallback": false,
+        "scheduled_recording": false
+      },
+      "relationships": { "current_broadcasts": { "data": [{ "id": "31963572", "type": "broadcast" }] }, "channel": {} }
+    }
+  ]
+}
