@@ -50,9 +50,10 @@ A multi-branch tool for Citizens of Light Church only, not a product for the mar
 - Engagement: the library by section; one-part messages copy straight away, long ones (the Confession) are copied part by part like a song; searchable from any tab through the command palette.
 - Service orders: songs and messages in service order, one active at a time, editable for one service without touching the library; concurrent edits are detected and reloaded rather than merged.
 - Log: everything copied, by day, searchable, with a jump to the last Sunday.
+- Attendance: the listener count of the branch's Mixlr channel, read by the server every five minutes while a service is live, kept per service with its half-hour readings, average and peak, the service order used, and a report to copy into WhatsApp. It replaces the count a volunteer wrote down every half hour.
 - Keyboard-first on the laptop: Enter, `+`, 1 to 9, P, C, Esc, `?`, ⌘K. Touch-first on the phone: no automatic focus stealing, a Go button, 44px targets where they have been added.
 - Terminology: the glossary and interface voice live in `docs/ui-copy.md` and are binding for interface copy. In short: "desk" (the main screen), "copy" (what the app does; the operator pastes in Mixlr), "section" (one numbered part of a song), "part" (one Mixlr post of a message or passage), "service order" (the order of service; the code still says `setlist`), "Engagement" (the tab; never "Messages", which in church speech means the sermon), "library" (the engagement library), "verse sources" (the diagnostics page).
-- Constraints: Next.js 16 App Router, Tailwind 4, Turso/libSQL, deployed standalone in Docker (Coolify) or on Vercel. The tree is small: seven pages, no component library.
+- Constraints: Next.js 16 App Router, Tailwind 4, Turso/libSQL, deployed standalone in Docker (Coolify) or on Vercel. The tree is small: nine pages, no component library.
 - Undecided: the Mixlr message limit (to be calibrated by pasting a long block); YouVersion and API.Bible translation ids once keys are approved.
 
 ## Brand Commitments

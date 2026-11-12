@@ -15,6 +15,7 @@ Milestone 1: verses. Milestone 2: the message library (the engagement document).
 - **Messages**: the engagement document — greetings, prayer introductions, the confession, account details, next-service lines, apologies — lives in the 💬 Messages tab and in ⌘K. A one-post message copies on tap; a long one (the confession) sends part by part like a song. Service-order messages go into a setlist beside songs, and a setlist can carry its own text for one service (the date in a next-service line). The library is edited at `/messages` with the admin PIN; an empty library offers **Load starter messages**, seeded from `src/data/messages.seed.json`.
 - **Branches**: one deployment serves several church branches. Each branch has its own church PIN and optional admin PIN, and the PIN a device unlocks with decides its branch. With no admin PIN, the branch's church PIN carries admin rights. PINs are 4–32 characters, unique across all branches, and may not equal `NETWORK_PIN`. Service orders and the copy log are per branch; the songbook is shared (any branch admin can import or edit, and an edit reaches every branch).
 - **Engagement library and branches**: each message is either "All branches" (shared; any branch admin may edit it) or "<branch> only". Shared messages can hold `{key}` tokens such as `{testimonyEmail}`, `{offeringAccounts}` or `{midweekTime}`; the branch's own values are set at `/branch` (Branch settings) and filled in on copy. A message that uses a key the branch hasn't set is not copied, and the operator is told which key. `[DATE]`-style placeholders are still typed by hand.
+- **Attendance**: once a branch's Mixlr channel is set at `/attendance` (admin PIN), the server reads the channel's listener count every five minutes, on the clock, whenever it is live. Each broadcast becomes a service with its own page: the count at each half hour (a 5:30pm service is reported at 6:00, 6:30, 7:00…, as the media team has always logged it), the average of those, the peak of all readings, the service order used, and **Copy report** for the WhatsApp message. Nobody needs the page open; any church PIN can read it. The count comes from the same public data Mixlr's own channel page loads (`src/lib/mixlr.ts`): no Mixlr account or key, but also no promise from Mixlr that it stays the same, so the reader is defensive and a round that can't be read is skipped, never guessed.
 - **Access**: a PIN unlocks a device for a year (cookie). API routes refuse without it. Search endpoints are rate-limited. Changing a branch's PIN locks that branch's devices on their next request; other branches are unaffected.
 
 ## Run locally
@@ -39,6 +40,7 @@ With no keys at all you still get KJV and the log (SQLite file `local.db`). With
    - A production deploy with no PINs stays locked.
    - Rolling back to the pre-branch build is only safe before a second branch is live: the old build recreates a single global active-service-order index and would mix branches' data.
    - PIN hashes are unsalted SHA-256 and are included in database backups, so treat backups as secret.
+   - **Attendance round.** In Docker (Coolify) the server process runs the five-minute round itself; there is nothing to set, and `ATTENDANCE_TIMER=off` turns it off (for a second instance on the same database). On Vercel no process stays up between requests, so the built-in timer is skipped: set `CRON_SECRET` (16 characters or more) and have a scheduler call `POST /api/attendance/tick` every five minutes with `Authorization: Bearer <CRON_SECRET>`. Running both is harmless; a second reading in the same five-minute slot is dropped. The server must be able to reach `apicdn.mixlr.com`.
 4. On the church laptop: open the URL in Chrome, enter the PIN once, then Chrome menu → *Install Lightdesk* so it opens as its own window next to Mixlr.
 
 ## Staging copy (for testers)
@@ -77,7 +79,12 @@ src/lib/findVerse.ts      description → candidates
 src/lib/llm.ts            provider switch (Anthropic / OpenAI-compatible)
 src/lib/books.ts          66 books, aliases, USFM/OSIS codes
 src/lib/translations.ts   codes, names, API ids
-src/db/schema.ts          verse_cache, sent_log, songs, message_sections, messages, setlists
+src/db/schema.ts          verse_cache, sent_log, songs, message_sections, messages, setlists, services, listener_readings
+src/app/attendance/       the attendance record: the list of services, and one service's page
+src/lib/mixlr.ts          reads a Mixlr channel's public data: live or not, listener count
+src/lib/attendance.ts     half-hour marks, average, peak, the WhatsApp report
+src/lib/attendancePoll.ts the five-minute round; started by src/instrumentation.ts
+src/db/attendance.ts      services and readings; what makes a reading belong to a service
 src/app/messages/page.tsx the message library editor (admin)
 src/lib/messageEdit.ts    what a message may hold; messageSearch.ts, messageLibrary.ts beside it
 src/data/kjv.json         KJV text, public domain

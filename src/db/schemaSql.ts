@@ -14,7 +14,7 @@ export const SCHEMA_SQL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
     church_pin_hash TEXT UNIQUE, admin_pin_hash TEXT UNIQUE,
     pin_version INTEGER NOT NULL DEFAULT 0, tokens TEXT NOT NULL DEFAULT '{}',
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL, mixlr_channel TEXT
   );
   CREATE TABLE IF NOT EXISTS verse_cache (
     translation TEXT NOT NULL, book INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
@@ -46,6 +46,18 @@ export const SCHEMA_SQL = `
     active INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
     branch_id INTEGER NOT NULL DEFAULT 1
   );
+  CREATE TABLE IF NOT EXISTS services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER NOT NULL, mixlr_key TEXT NOT NULL,
+    title TEXT NOT NULL, started_at INTEGER NOT NULL, ended_at INTEGER,
+    scheduled_start INTEGER, scheduled_end INTEGER, setlist_id INTEGER, created_at INTEGER NOT NULL,
+    CONSTRAINT services_once UNIQUE (branch_id, mixlr_key, started_at)
+  );
+  CREATE INDEX IF NOT EXISTS services_branch_started ON services (branch_id, started_at);
+  CREATE TABLE IF NOT EXISTS listener_readings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, service_id INTEGER NOT NULL REFERENCES services(id),
+    at INTEGER NOT NULL, listeners INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS listener_readings_slot ON listener_readings (service_id, (at + 150000) / 300000);
 `;
 
 /**
@@ -59,6 +71,7 @@ const ADDED_COLUMNS = [
   { table: "setlists", column: "branch_id", type: "INTEGER NOT NULL DEFAULT 1" },
   { table: "sent_log", column: "branch_id", type: "INTEGER NOT NULL DEFAULT 1" },
   { table: "messages", column: "branch_id", type: "INTEGER" },
+  { table: "branches", column: "mixlr_channel", type: "TEXT" },
 ] as const;
 
 /**

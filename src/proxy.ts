@@ -9,6 +9,9 @@ export async function proxy(request: NextRequest) {
   // device of any branch, or none, may open it.
   if (pathname === "/branches" || pathname === "/api/branches" || pathname.startsWith("/api/branches/")) return NextResponse.next();
 
+  // The attendance round, called by a scheduler with CRON_SECRET, not from an unlocked device.
+  if (pathname === "/api/attendance/tick") return NextResponse.next();
+
   const found = await sessionFromToken(request.cookies.get(SESSION_COOKIE)?.value);
   if (found) {
     const res = NextResponse.next();

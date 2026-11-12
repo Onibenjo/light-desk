@@ -44,6 +44,14 @@ The words the interface uses, so every screen says the same thing the same way. 
 | branch | one church location using the desk, with its own PINs, service orders and log. The name shown is the branch's own, e.g. CLC Ilorin | church (ambiguous with the denomination), site, campus, tenant |
 | Branch settings | the page at /branch where a branch sets its own values (emails, accounts, service times) for `{key}` tokens in shared messages | profile, config |
 | All branches / `<name>` only | who can use a library message: every branch (shared; any branch admin may edit it), or only the named branch | public, private, global, local |
+| attendance | the record of how many people listened on Mixlr at each service; the page at /attendance | analytics, stats, metrics |
+| service | one broadcast on the branch's Mixlr channel, as attendance records it. Named by its Mixlr title | event, stream, broadcast (in the UI), session |
+| listeners, listening | the people Mixlr counts on the channel at one moment | users, viewers, online, audience |
+| reading | one listener count at one time. "Half-hour reading" for the ones the report uses | sample, data point, poll, log entry |
+| average, peak | the mean of a service's half-hour readings; the highest of all its readings | mean, max, high |
+| on air, live | the channel is broadcasting now. "On air now" labels the service being recorded; "live" describes the channel, as Mixlr does | streaming, online |
+| Mixlr channel | where a branch broadcasts, written as its address: clc-ilorin.mixlr.com | stream, account, page, slug |
+| report | the attendance text copied for WhatsApp | summary, export |
 | network PIN | the PIN that opens /branches to add or rename a branch and change its PINs | super admin PIN, master PIN |
 
 "Post" may appear once as an explanation of what a part is ("each part is one post in the Mixlr chat"). Everywhere else the noun is "part".
@@ -63,7 +71,9 @@ The code does not follow this sheet. Identifiers, files, routes and API paths st
 | Unlock button on /unlock | Unlock this device |
 | Two-press delete, armed | Confirm delete |
 | Clipboard refused | Couldn't copy — try again |
-| Page titles (h1) | Log · Verse sources · Engagement library · Service orders · Import a songbook |
+| Page titles (h1) | Log · Verse sources · Engagement library · Service orders · Import a songbook · Attendance |
+| Back from one service | ← Attendance |
+| Copying the attendance report | Copy report; then "Copied the attendance report — paste in WhatsApp" |
 | Opening the command palette from the header | Search, with the chord beside it (⌘K on a Mac, Ctrl+K elsewhere) |
 | Examples under the verse box before a lookup | Try (they fill the box; they never look up or copy) |
 

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, unique } from "drizzle-orm/sqlite-core";
 
 /** One row per verse per translation. Filled the first time a verse is fetched. */
 export const verseCache = sqliteTable(
@@ -28,6 +28,8 @@ export const branches = sqliteTable("branches", {
   pinVersion: integer("pin_version").notNull().default(0),
   tokens: text("tokens").notNull().default("{}"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  /** The branch's Mixlr channel name ("clc-ilorin"). Null until set: no attendance is recorded. */
+  mixlrChannel: text("mixlr_channel"),
 });
 
 /** Everything the operator copied, for handover and pilot metrics. */
@@ -112,4 +114,51 @@ export const setlists = sqliteTable("setlists", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   branchId: integer("branch_id").notNull().default(1),
+});
+
+/**
+ * One service as Mixlr broadcast it: the thing an attendance record is about.
+ * Made by the poller the first time it finds the branch's channel live, never
+ * by hand.
+ *
+ * `mixlrKey` is what makes two readings the same service: `event:<id>` when the
+ * broadcast belongs to a scheduled Mixlr event (so a dropped connection that
+ * comes back is still the same service), `broadcast:<uid>` when it does not.
+ * Mixlr can reuse one event for another day, so the key alone is not unique:
+ * the key and the start time together are (`services_once` in schemaSql.ts).
+ *
+ * `setlistId` is the service order used, chosen by the operator. It is a plain
+ * number, not a foreign key: deleting a service order must never be refused
+ * because a past service once used it.
+ */
+export const services = sqliteTable(
+  "services",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    branchId: integer("branch_id").notNull(),
+    mixlrKey: text("mixlr_key").notNull(),
+    title: text("title").notNull(),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+    /** Null while the service is on air. */
+    endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+    scheduledStart: integer("scheduled_start", { mode: "timestamp_ms" }),
+    scheduledEnd: integer("scheduled_end", { mode: "timestamp_ms" }),
+    setlistId: integer("setlist_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [unique("services_once").on(t.branchId, t.mixlrKey, t.startedAt)],
+);
+
+/**
+ * How many were listening to a service at one moment. `at` is epoch
+ * milliseconds as a plain number, because everything done with it is
+ * arithmetic. One reading per service per five-minute slot: the unique index
+ * `listener_readings_slot` in schemaSql.ts is on an expression, which drizzle's
+ * builder cannot express, and is what lets two pollers run at once safely.
+ */
+export const listenerReadings = sqliteTable("listener_readings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  serviceId: integer("service_id").notNull().references(() => services.id),
+  at: integer("at").notNull(),
+  listeners: integer("listeners").notNull(),
 });
