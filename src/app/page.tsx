@@ -674,6 +674,7 @@ export default function Desk() {
       },
     });
     list.push({ id: "log", title: "Log", group: "Go to", keywords: ["open the log", "history", "sunday", "sent", "copied"], run: () => router.push("/log") });
+    list.push({ id: "attendance", title: "Attendance", group: "Go to", keywords: ["listeners", "mixlr", "online", "numbers", "count", "average", "peak", "report"], run: () => router.push("/attendance") });
     list.push({ id: "sources", title: "Verse sources", group: "Go to", keywords: ["check verse sources", "diagnostics", "health"], run: () => router.push("/diag") });
     list.push({ id: "import", title: "Import a songbook", group: "Go to", keywords: ["videopsalm", "upload"], run: () => router.push("/songs/import") });
     for (const t of TRANSLATIONS) {
@@ -770,6 +771,9 @@ export default function Desk() {
             <Link href="/log" className="btn btn-quiet btn-icon" aria-label="Log" title="Log — everything copied, by day">
               <Icon name="clock" className="h-[18px] w-[18px]" />
             </Link>
+            <Link href="/attendance" className="btn btn-quiet btn-icon hidden min-[440px]:inline-flex" aria-label="Attendance" title="Attendance — listeners at each service">
+              <Icon name="people" className="h-[18px] w-[18px]" />
+            </Link>
             <Link href="/diag" className="btn btn-quiet btn-icon hidden min-[400px]:inline-flex" aria-label="Verse sources" title="Verse sources — which are working">
               <Icon name="pulse" className="h-[18px] w-[18px]" />
             </Link>
@@ -861,6 +865,7 @@ export default function Desk() {
                 { href: "/setlists", icon: "list", label: "Service orders" },
                 { href: "/messages", icon: "message", label: "Engagement library" },
                 { href: "/log", icon: "clock", label: "Log" },
+                { href: "/attendance", icon: "people", label: "Attendance" },
                 { href: "/diag", icon: "pulse", label: "Verse sources" },
               ] as const
             ).map((l) => (

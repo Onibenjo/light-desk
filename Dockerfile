@@ -52,8 +52,10 @@
 # is meant for the host crontab:
 #
 #   0 22 * * 0 /path/to/lightdesk/scripts/backup-cron.sh >> /var/log/lightdesk-backup.log 2>&1
-# Of the four tables only sent_log is truly irreplaceable: songs re-import from
-# the VideoPsalm files and verse_cache rebuilds itself.
+# Of the tables only sent_log and the attendance record (services,
+# listener_readings) are truly irreplaceable: songs re-import from the
+# VideoPsalm files and verse_cache rebuilds itself, but a listener count that
+# was not written down at the time cannot be read again afterwards.
 
 # ---- build stage ----
 FROM node:24-bookworm-slim AS builder

@@ -252,3 +252,47 @@ describe("branches", () => {
     expect(b.admin_pin_hash).toBeNull();
   });
 });
+
+describe("the attendance tables", () => {
+  const names = async (table: string) => (await client.execute(`PRAGMA table_info(${table})`)).rows.map((r) => columnName(r.name));
+  const reading = (serviceId: number, at: number, listeners = 1) => client.execute({ sql: "INSERT INTO listener_readings (service_id, at, listeners) VALUES (?,?,?)", args: [serviceId, at, listeners] });
+
+  it("are created with every column", async () => {
+    await applySchema(client);
+    expect(await names("services")).toEqual(["id", "branch_id", "mixlr_key", "title", "started_at", "ended_at", "scheduled_start", "scheduled_end", "setlist_id", "created_at"]);
+    expect(await names("listener_readings")).toEqual(["id", "service_id", "at", "listeners"]);
+  });
+
+  it("give a branch made before attendance a channel column, empty", async () => {
+    await client.executeMultiple(`CREATE TABLE branches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+      church_pin_hash TEXT UNIQUE, admin_pin_hash TEXT UNIQUE,
+      pin_version INTEGER NOT NULL DEFAULT 0, tokens TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL
+    );
+    INSERT INTO branches (id, name, created_at) VALUES (1, 'CLC Ilorin', 1);`);
+    await applySchema(client);
+    expect((await client.execute("SELECT name, mixlr_channel FROM branches")).rows.map((r) => ({ ...r }))).toEqual([{ name: "CLC Ilorin", mixlr_channel: null }]);
+  });
+
+  it("allow one reading per service per five minutes on the clock", async () => {
+    await applySchema(client);
+    await client.execute("INSERT INTO services (branch_id, mixlr_key, title, started_at, created_at) VALUES (1, 'event:1', 'Sunday', 1, 1), (1, 'event:2', 'Midweek', 2, 2)");
+    const six = Date.parse("2026-11-11T18:00:00.000Z");
+    await reading(1, six + 250);
+    await expect(reading(1, six + 9_000)).rejects.toThrow(/UNIQUE/i);
+    // Just before the mark is the same slot as just after it.
+    await expect(reading(1, six - 500)).rejects.toThrow(/UNIQUE/i);
+    // The next slot, and the same slot of another service, are both fine.
+    await reading(1, six + 5 * 60_000);
+    await reading(2, six + 250);
+    expect((await client.execute("SELECT count(*) AS n FROM listener_readings")).rows[0].n).toBe(3);
+  });
+
+  it("refuse the same service twice, but allow one event again at another time", async () => {
+    await applySchema(client);
+    const service = (startedAt: number) => client.execute({ sql: "INSERT INTO services (branch_id, mixlr_key, title, started_at, created_at) VALUES (1, 'event:1', 'Sunday', ?, 1)", args: [startedAt] });
+    await service(1000);
+    await expect(service(1000)).rejects.toThrow(/UNIQUE/i);
+    await service(2000);
+  });
+});
