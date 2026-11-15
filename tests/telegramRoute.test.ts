@@ -137,7 +137,7 @@ describe("/api/attendance/:id/telegram", () => {
     expect(await res.json()).toEqual({ ok: true, chat: "Media team" });
     const sent = telegram.find((c) => c.method === "sendMessage");
     expect(sent?.body.chat_id).toBe("-100");
-    expect(String(sent?.body.text)).toContain("*Midweek*");
+    expect(String(sent?.body.text)).toContain("<pre>Midweek\n");
 
     expect((await sendRoute.POST(new Request("http://x", { method: "POST" }), ctx(9999))).status).toBe(404);
   });

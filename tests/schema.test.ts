@@ -259,7 +259,7 @@ describe("the attendance tables", () => {
 
   it("are created with every column", async () => {
     await applySchema(client);
-    expect(await names("services")).toEqual(["id", "branch_id", "mixlr_key", "title", "started_at", "ended_at", "scheduled_start", "scheduled_end", "setlist_id", "created_at", "telegram_chat_id", "telegram_message_id", "telegram_text", "telegram_claimed_at"]);
+    expect(await names("services")).toEqual(["id", "branch_id", "mixlr_key", "title", "started_at", "ended_at", "scheduled_start", "scheduled_end", "setlist_id", "created_at", "telegram_chat_id", "telegram_message_id", "telegram_text", "telegram_claimed_at", "telegram_update_mark"]);
     expect(await names("listener_readings")).toEqual(["id", "service_id", "at", "listeners"]);
   });
 

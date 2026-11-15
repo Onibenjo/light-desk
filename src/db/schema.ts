@@ -162,11 +162,14 @@ export const services = sqliteTable(
      * it can be edited when the service comes back on air and ends again), and
      * the text it last said. `telegramClaimedAt` is set by the poller that is
      * posting it, so a second poller does not post it again.
+     * `telegramUpdateMark` is the half-hour mark (epoch ms) of the last
+     * "so far" update posted while the service was live.
      */
     telegramChatId: text("telegram_chat_id"),
     telegramMessageId: integer("telegram_message_id"),
     telegramText: text("telegram_text"),
     telegramClaimedAt: integer("telegram_claimed_at"),
+    telegramUpdateMark: integer("telegram_update_mark"),
   },
   (t) => [unique("services_once").on(t.branchId, t.mixlrKey, t.startedAt)],
 );

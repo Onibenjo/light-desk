@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "../Icon";
 import Problem from "../Problem";
-import { failureFrom, OFFLINE, type Failure } from "@/lib/apiError";
+import { failureFrom, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { formatClock } from "@/lib/attendance";
 import { isTelegramStatus, type TelegramStatus } from "@/lib/attendanceView";
 
@@ -89,7 +90,7 @@ export default function TelegramCard({ status: initial, admin, branch }: Props) 
       <section className="card rise space-y-2 p-4">
         <p className="eyebrow">Telegram</p>
         <p className="max-w-prose text-sm text-[var(--muted)]">
-          Lightdesk can post each service&apos;s report to a Telegram group when the service ends. The server needs a bot first: make one with @BotFather and set its token as <code className="font-mono">TELEGRAM_BOT_TOKEN</code>.
+          Lightdesk can post each service&apos;s attendance to a Telegram group every half hour, and the full report when the service ends. The server needs a bot first: make one with @BotFather and set its token as <code className="font-mono">TELEGRAM_BOT_TOKEN</code>.
         </p>
       </section>
     );
@@ -105,7 +106,7 @@ export default function TelegramCard({ status: initial, admin, branch }: Props) 
       {status.chat !== null ? (
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <p className="min-w-0 text-[15px] wrap-anywhere">
-            Each service&apos;s report is posted to <strong>{status.chat}</strong> when the service ends.
+            Reports go to <strong>{status.chat}</strong>: the figures so far every half hour while a service is live, and the full report when it ends.
           </p>
           {admin && !waiting && (
             <span className="flex gap-2">
@@ -128,7 +129,11 @@ export default function TelegramCard({ status: initial, admin, branch }: Props) 
             </button>
           </div>
         ) : (
-          <p className="max-w-prose text-[15px] leading-relaxed text-ink-300">Reports aren&apos;t posted to Telegram for {branch} yet. Someone with the admin PIN can connect a group here.</p>
+          <p className="max-w-prose text-[15px] leading-relaxed text-ink-300">Reports aren&apos;t posted to Telegram for {branch} yet.{" "}
+            <Link href={unlockHref(pathname)} className="link">
+              Enter the admin PIN
+            </Link>{" "}
+            to connect a group.</p>
         )
       ) : null}
 

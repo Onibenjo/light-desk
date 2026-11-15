@@ -7,7 +7,7 @@ import Icon from "../Icon";
 import PageShell from "../PageShell";
 import TelegramCard from "./TelegramCard";
 import Problem from "../Problem";
-import { failureFrom, getJson, OFFLINE, type Failure } from "@/lib/apiError";
+import { failureFrom, getJson, OFFLINE, unlockHref, type Failure } from "@/lib/apiError";
 import { formatClock, formatDay, listenersLabel, STALE_MS } from "@/lib/attendance";
 import { isAttendanceList, type AttendanceList, type ServiceSummary } from "@/lib/attendanceView";
 import { channelUrl } from "@/lib/mixlr";
@@ -139,7 +139,11 @@ export default function AttendancePage() {
             )}
             {data.channel === null && !data.admin && (
               <p className="max-w-prose text-[15px] leading-relaxed text-ink-300">
-                No Mixlr channel is set for {data.branch} yet, so nothing is being recorded. Someone with the admin PIN can set it here.
+                No Mixlr channel is set for {data.branch} yet, so nothing is being recorded.{" "}
+                <Link href={unlockHref(pathname)} className="link">
+                  Enter the admin PIN
+                </Link>{" "}
+                to set it.
               </p>
             )}
             {showField && (
