@@ -52,7 +52,7 @@ export const SCHEMA_SQL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER NOT NULL, mixlr_key TEXT NOT NULL,
     title TEXT NOT NULL, started_at INTEGER NOT NULL, ended_at INTEGER,
     scheduled_start INTEGER, scheduled_end INTEGER, setlist_id INTEGER, created_at INTEGER NOT NULL,
-    telegram_chat_id TEXT, telegram_message_id INTEGER, telegram_text TEXT, telegram_claimed_at INTEGER,
+    telegram_chat_id TEXT, telegram_message_id INTEGER, telegram_text TEXT, telegram_claimed_at INTEGER, telegram_update_mark INTEGER,
     CONSTRAINT services_once UNIQUE (branch_id, mixlr_key, started_at)
   );
   CREATE INDEX IF NOT EXISTS services_branch_started ON services (branch_id, started_at);
@@ -85,6 +85,7 @@ const ADDED_COLUMNS = [
   { table: "services", column: "telegram_message_id", type: "INTEGER" },
   { table: "services", column: "telegram_text", type: "TEXT" },
   { table: "services", column: "telegram_claimed_at", type: "INTEGER" },
+  { table: "services", column: "telegram_update_mark", type: "INTEGER" },
 ] as const;
 
 /**

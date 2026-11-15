@@ -124,6 +124,37 @@ export async function reportsPosted(branchId: number, since: number): Promise<{ 
  * posted once. A claim older than CLAIM_TTL_MS was left by a poller that died
  * mid-post and can be taken over.
  */
+/** The branch's services on air now, started since `since`, whose final report is not posted yet. */
+export async function servicesLive(branchId: number, since: number): Promise<number[]> {
+  const rows = await db
+    .select({ id: services.id })
+    .from(services)
+    .where(and(eq(services.branchId, branchId), isNull(services.endedAt), gte(services.startedAt, new Date(since)), isNull(services.telegramMessageId)))
+    .orderBy(asc(services.startedAt));
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Takes the half-hour update at `markAt` for posting: true for the one poller
+ * that moved the service's mark forward to it, false when it was already posted.
+ */
+export async function claimUpdate(serviceId: number, markAt: number): Promise<boolean> {
+  const claimed = await db
+    .update(services)
+    .set({ telegramUpdateMark: markAt })
+    .where(and(eq(services.id, serviceId), or(isNull(services.telegramUpdateMark), lt(services.telegramUpdateMark, markAt))))
+    .returning({ id: services.id });
+  return claimed.length > 0;
+}
+
+/** Lets go of an update that couldn't be posted, so the next round tries it again. */
+export async function releaseUpdate(serviceId: number, markAt: number): Promise<void> {
+  await db
+    .update(services)
+    .set({ telegramUpdateMark: null })
+    .where(and(eq(services.id, serviceId), eq(services.telegramUpdateMark, markAt)));
+}
+
 export async function claimReport(serviceId: number, now: number): Promise<boolean> {
   const claimed = await db
     .update(services)
