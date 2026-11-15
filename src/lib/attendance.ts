@@ -173,6 +173,7 @@ function halfHourLine(m: Mark & { listeners: number }, timeZone?: string): strin
  * latest half hour:
  *
  *   Midweek Service
+ *   Wed 11 Nov 2026 · CLC Ilorin
  *   Mixlr Stats
  *   8:00 AM - 8:30 AM = 31
  *
@@ -180,14 +181,15 @@ function halfHourLine(m: Mark & { listeners: number }, timeZone?: string): strin
  * hour. A half hour with no reading is left out, as it is left out of the
  * average: a dash would be read as zero.
  */
-export function attendanceReport({ title, marks, summary, timeZone, live = false }: ReportInput): string {
+export function attendanceReport({ title, branch, startedAt, marks, summary, timeZone, live = false }: ReportInput): string {
+  const day = `${formatDay(startedAt, timeZone)} · ${branch}`;
   const marked = marks.filter((m): m is Mark & { listeners: number } => m.listeners !== null);
   if (live) {
     const latest = marked[marked.length - 1];
-    return [title, "Mixlr Stats", latest ? halfHourLine(latest, timeZone) : "No readings yet."].join("\n");
+    return [title, day, "Mixlr Stats", latest ? halfHourLine(latest, timeZone) : "No readings yet."].join("\n");
   }
-  if (summary.average === null) return [title, "", "No readings were taken."].join("\n");
-  const lines = [title, ""];
+  if (summary.average === null) return [title, day, "", "No readings were taken."].join("\n");
+  const lines = [title, day, ""];
   if (marked.length > 0) {
     let highest = marked[0];
     for (const m of marked) if (m.listeners > highest.listeners) highest = m;

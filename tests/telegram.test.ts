@@ -202,7 +202,7 @@ describe("posting reports", () => {
     expect(second).toMatchObject({ updates: [], posted: [], edited: [] });
     expect(calls).toHaveLength(1);
     expect(calls[0].chatId).toBe("-100");
-    expect(calls[0].html).toContain("<pre>Midweek Service\n");
+    expect(calls[0].html).toContain("<pre>Midweek Service\nWed 11 Nov 2026 · CLC Ilorin\n");
     expect(calls[0].html).toContain("HIGHEST STATS\n5:30 PM = 41");
   });
 
@@ -216,7 +216,7 @@ describe("posting reports", () => {
       await delivery.deliverReports(clock(m), bot);
     }
     expect(calls.map((c) => c.kind)).toEqual(["send", "send"]);
-    expect(calls[0].html).toContain("Mixlr Stats\n5:30 PM - 6:00 PM = 42");
+    expect(calls[0].html).toContain("Wed 11 Nov 2026 · CLC Ilorin\nMixlr Stats\n5:30 PM - 6:00 PM = 42");
     expect(calls[0].html).toContain(delivery.SO_FAR);
     expect(calls[1].html).toContain("6:00 PM - 6:30 PM = 48");
     expect(calls[1].html).not.toContain("= 42");

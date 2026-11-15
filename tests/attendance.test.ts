@@ -132,14 +132,14 @@ describe("attendanceReport", () => {
     const readings = every5("16:25", "18:35", (m) => 30 + Math.floor(m / 10));
     const marks = halfHourMarks(readings, at("16:24"), at("16:30"));
     const report = attendanceReport({ title: "Midweek Service", branch: "CLC Ilorin", startedAt: at("16:24"), marks, summary: summarise(readings, marks) });
-    expect(report).toBe(["Midweek Service", "", "MIXLR ALL STATS", "33, 36, 39, 42", "", "AVERAGE STATS", "38", "", "HIGHEST STATS", "6:00 PM - 6:30 PM = 42"].join("\n"));
+    expect(report).toBe(["Midweek Service", "Wed 11 Nov 2026 · CLC Ilorin", "", "MIXLR ALL STATS", "33, 36, 39, 42", "", "AVERAGE STATS", "38", "", "HIGHEST STATS", "6:00 PM - 6:30 PM = 42"].join("\n"));
   });
 
   it("is the latest half hour while live", () => {
     const readings = every5("16:25", "17:35", (m) => 30 + Math.floor(m / 10));
     const marks = halfHourMarks(readings, at("16:24"), at("16:30"), at("17:35"));
     const report = attendanceReport({ title: "Midweek Service", branch: "CLC Ilorin", startedAt: at("16:24"), marks, summary: summarise(readings, marks), live: true });
-    expect(report).toBe(["Midweek Service", "Mixlr Stats", "5:00 PM - 5:30 PM = 36"].join("\n"));
+    expect(report).toBe(["Midweek Service", "Wed 11 Nov 2026 · CLC Ilorin", "Mixlr Stats", "5:00 PM - 5:30 PM = 36"].join("\n"));
   });
 
   it("leaves out a half hour with no reading", () => {
@@ -153,7 +153,7 @@ describe("attendanceReport", () => {
   it("uses every reading for a service too short for a half hour", () => {
     const readings = every5("17:30", "17:50", () => 8);
     const report = attendanceReport({ title: "Vigil", branch: "CLC Ilorin", startedAt: at("17:30"), marks: [], summary: summarise(readings, []) });
-    expect(report).toBe(["Vigil", "", "MIXLR ALL STATS", "(no full half hour)", "", "AVERAGE STATS", "8", "", "HIGHEST STATS", "5:30 PM = 8"].join("\n"));
+    expect(report).toBe(["Vigil", "Wed 11 Nov 2026 · CLC Ilorin", "", "MIXLR ALL STATS", "(no full half hour)", "", "AVERAGE STATS", "8", "", "HIGHEST STATS", "5:30 PM = 8"].join("\n"));
   });
 
   it("says so when there were no readings at all", () => {
