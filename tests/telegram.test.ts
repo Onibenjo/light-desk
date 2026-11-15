@@ -200,12 +200,46 @@ describe("posting reports", () => {
     const [first] = await delivery.deliverReports(at("16:40"), bot);
     const [second] = await delivery.deliverReports(at("16:45"), bot);
     expect(first.posted).toHaveLength(1);
-    expect(second).toMatchObject({ posted: [], edited: [] });
+    expect(second).toMatchObject({ updates: [], posted: [], edited: [] });
     expect(calls).toHaveLength(1);
     expect(calls[0].chatId).toBe("-100");
     expect(calls[0].html).toContain("*Midweek Service*");
     expect(calls[0].html).toContain("Wed 11 Nov 2026 · CLC Ilorin");
     expect(calls[0].html).toContain("Peak: 41 (5:30pm)");
+  });
+
+  it("posts the report so far at each half hour while the service is live, then the full one", async () => {
+    await connect(at("12:00"));
+    const { bot, calls } = fakeBot();
+    const clock = (m: number) => at(`${String(16 + Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+    // Live from 16:25 to 17:35, read every five minutes; the marks are 17:00 and 17:30.
+    for (let m = 25; m <= 95; m += 5) {
+      await attendance.recordSnapshot(1, live(30 + m / 5), clock(m));
+      await delivery.deliverReports(clock(m), bot);
+    }
+    expect(calls.map((c) => c.kind)).toEqual(["send", "send"]);
+    expect(calls[0].html).toContain("6:00pm — 42");
+    expect(calls[0].html).toContain(delivery.SO_FAR);
+    expect(calls[1].html).toContain("6:30pm — 48");
+    expect(calls[1].html).not.toContain("7:00pm");
+
+    await attendance.recordSnapshot(1, OFF, clock(100));
+    await delivery.deliverReports(clock(100), bot);
+    await delivery.deliverReports(clock(105), bot);
+    expect(calls).toHaveLength(3);
+    expect(calls[2].html).toContain("Tap the report to copy it");
+  });
+
+  it("tries a half-hour update again next round when it couldn't be posted", async () => {
+    await connect(at("12:00"));
+    const { bot, calls, state } = fakeBot();
+    for (const t of ["16:25", "16:30", "16:35", "16:40", "16:45", "16:50", "16:55", "17:00"]) await attendance.recordSnapshot(1, live(40), at(t));
+    state.fail = "Forbidden: bot was kicked from the group chat";
+    const [failed] = await delivery.deliverReports(at("17:00"), bot);
+    expect(failed.error).toMatch(/kicked/);
+    state.fail = null;
+    await Promise.all([delivery.deliverReports(at("17:01"), bot), delivery.deliverReports(at("17:01"), bot)]);
+    expect(calls).toHaveLength(1);
   });
 
   it("posts nothing for a service still on air, or one with no readings", async () => {
@@ -372,7 +406,7 @@ describe("connecting a chat", () => {
     expect(asked.some((a) => a.method === "getUpdates" && a.body.offset === 8)).toBe(true);
     const told = asked.find((a) => a.method === "sendMessage");
     expect(told?.body.chat_id).toBe("-100");
-    expect(String(told?.body.text)).toContain("CLC Ilorin's Mixlr attendance report will be posted here");
+    expect(String(told?.body.text)).toContain("CLC Ilorin's Mixlr attendance will be posted here");
   });
 
   it("doesn't ask the bot when no branch is waiting for a code", async () => {
