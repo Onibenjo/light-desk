@@ -153,21 +153,49 @@ export interface ReportInput {
   summary: Summary;
   /** Write the times in this zone rather than the reader's: the server has no reader. */
   timeZone?: string;
+  /** The half-hour update sent while the service is on air, rather than the full report. */
+  live?: boolean;
+}
+
+/** "8:00 AM", the way the team writes times in its reports. */
+function reportClock(ms: number, timeZone?: string): string {
+  const { hours: h, minutes } = wall(ms, timeZone);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(minutes).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** "8:00 AM - 8:30 AM = 31": the half hour that ends at the mark, and its reading. */
+function halfHourLine(m: Mark & { listeners: number }, timeZone?: string): string {
+  return `${reportClock(m.at - HALF_HOUR, timeZone)} - ${reportClock(m.at, timeZone)} = ${m.listeners}`;
 }
 
 /**
- * The attendance report as the team sends it on WhatsApp: the service, the
- * day, one line per half hour, then the average and the peak. `*…*` is
- * WhatsApp's bold. A half hour with no reading is left out of the lines, as it
- * is left out of the average — a dash would be read as zero.
+ * The attendance report as the team sends it on WhatsApp. Live, it is the
+ * latest half hour:
+ *
+ *   Midweek Service
+ *   Mixlr Stats
+ *   8:00 AM - 8:30 AM = 31
+ *
+ * and at the end, every half hour's figure, the average and the highest half
+ * hour. A half hour with no reading is left out, as it is left out of the
+ * average: a dash would be read as zero.
  */
-export function attendanceReport({ title, branch, startedAt, marks, summary, timeZone }: ReportInput): string {
-  const lines = [`*${title}*`, `${formatDay(startedAt, timeZone)} · ${branch}`, "Mixlr listeners", ""];
+export function attendanceReport({ title, marks, summary, timeZone, live = false }: ReportInput): string {
   const marked = marks.filter((m): m is Mark & { listeners: number } => m.listeners !== null);
-  for (const m of marked) lines.push(`${formatClock(m.at, timeZone)} — ${m.listeners}`);
-  if (marked.length > 0) lines.push("");
-  if (summary.average !== null) lines.push(`Average: ${summary.average}${summary.basis === "all" ? " (every reading)" : ""}`);
-  if (summary.peak) lines.push(`Peak: ${summary.peak.listeners} (${formatClock(summary.peak.at, timeZone)})`);
-  if (summary.average === null) lines.push("No readings were taken.");
+  if (live) {
+    const latest = marked[marked.length - 1];
+    return [title, "Mixlr Stats", latest ? halfHourLine(latest, timeZone) : "No readings yet."].join("\n");
+  }
+  if (summary.average === null) return [title, "", "No readings were taken."].join("\n");
+  const lines = [title, ""];
+  if (marked.length > 0) {
+    let highest = marked[0];
+    for (const m of marked) if (m.listeners > highest.listeners) highest = m;
+    lines.push("MIXLR ALL STATS", marked.map((m) => m.listeners).join(", "), "", "AVERAGE STATS", String(summary.average), "", "HIGHEST STATS", halfHourLine(highest, timeZone));
+  } else {
+    // Too short for a half hour: the average is of every reading, and the highest is the peak reading.
+    lines.push("MIXLR ALL STATS", "(no full half hour)", "", "AVERAGE STATS", String(summary.average));
+    if (summary.peak) lines.push("", "HIGHEST STATS", `${reportClock(summary.peak.at, timeZone)} = ${summary.peak.listeners}`);
+  }
   return lines.join("\n");
 }

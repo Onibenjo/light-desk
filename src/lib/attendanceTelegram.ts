@@ -28,7 +28,7 @@ const realBot: Bot = { send: sendHtml, edit: editHtml };
 export function messageFor(entry: ServiceWithReadings, branchName: string, now: number, liveNote: string = BACK_ON_AIR): string {
   const { service } = entry;
   const { marks, summary } = figures(entry, now);
-  const report = attendanceReport({ title: service.title, branch: branchName, startedAt: service.startedAt, marks, summary, timeZone: reportTimeZone() });
+  const report = attendanceReport({ title: service.title, branch: branchName, startedAt: service.startedAt, marks, summary, timeZone: reportTimeZone(), live: service.endedAt === null && liveNote === SO_FAR });
   return reportMessage(branchName, report, service.endedAt === null ? liveNote : undefined);
 }
 
