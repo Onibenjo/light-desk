@@ -48,10 +48,12 @@ those numbers itself and keeps them.
 - **Who can see it.** Any device unlocked with the branch's church PIN reads
   the record. Setting the channel and deleting a service (a sound check that
   went out) need the admin PIN.
-- **The report.** "Copy report" puts the WhatsApp text on the clipboard:
-  title in bold, the day and branch, one line per half hour, the average and
-  the peak with its time. Times are written the way the team writes them
-  (6:00pm), in the reader's time zone.
+- **The report.** "Copy report" puts the WhatsApp text on the clipboard in
+  the team's format (changed 2026-11-15): the title, the day and branch, then
+  MIXLR ALL STATS (each half hour's figure), AVERAGE STATS and HIGHEST STATS
+  (the highest half hour, as "8:30 AM - 9:00 AM = 41"). A half hour's range
+  ends at its mark. A service too short for a half hour averages every reading
+  and gives the peak reading's time.
 - **Kept.** `services` and `listener_readings` are in the backup tables; like
   the log, they cannot be rebuilt after the fact.
 
@@ -66,6 +68,13 @@ those numbers itself and keeps them.
   not posted; the service page has "Send to Telegram" for those. Report times
   are in `ATTENDANCE_TIMEZONE`, default Africa/Lagos, since the server has no
   reader's zone. A failed post shows on /attendance and is retried each round.
+- **Half-hour updates (added 2026-11-15).** While a service is live, the
+  latest half hour ("Title / day · branch / Mixlr Stats / 8:00 AM - 8:30 AM =
+  31") is posted as a new message once a reading at or after the mark is in.
+  `services.telegram_update_mark` records the last mark posted, so each goes
+  out once and a failed post is retried; after downtime only the latest mark
+  is posted. Services that ended before the chat was connected get no
+  automatic posts.
 - **Naming a service order after Mixlr (added 2026-11-12).** The service
   order forms offer "Use Mixlr title": the event on air now, else the next
   scheduled event starting within a week (Mixlr keeps long-past events in
