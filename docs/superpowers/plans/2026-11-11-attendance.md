@@ -5,7 +5,7 @@ deploy, testing, risks) is kept as a shared doc so the team can comment on it.
 The design decisions are in `docs/superpowers/specs/2026-11-11-attendance-design.md`.
 This file is the short list for whoever picks up the branch.
 
-## Done on `attendance`
+## Done
 
 1. Mixlr reader — `src/lib/mixlr.ts`
 2. Half-hour marks, average, peak, report — `src/lib/attendance.ts`
@@ -16,15 +16,25 @@ This file is the short list for whoever picks up the branch.
 7. Pages — `/attendance`, `/attendance/[id]`
 8. Desk links — ⌘K, header icon, sidebar
 9. Docs and checks — README, PRODUCT, Dockerfile, `docs/ui-copy.md`, spec
+10. Merged as PR #18 and deployed; `clc-ilorin` set in production
+11. Telegram reports — `src/lib/telegram.ts`, `src/lib/attendanceTelegram.ts`,
+    `src/db/telegram.ts`, Telegram card on `/attendance`, Send to Telegram on a
+    service (PR #19)
+12. "Use Mixlr title" for service order names, up to 120 characters (PR #19)
+13. Half-hour updates to Telegram while a service is live (PR #22)
+14. Report in the team's WhatsApp format: MIXLR ALL STATS, AVERAGE STATS,
+    HIGHEST STATS, with the day and branch under the title (PR #22)
+15. Admin PIN links on Attendance's admin-only messages (PR #22)
+
+Confirmed working in production on 15 Nov 2026: half-hour updates and the
+final report post to the CLC Ilorin group.
 
 ## Left
 
-10. Commit (no Claude or Anthropic trailers, per AGENTS.md).
-11. Push the branch and open a pull request into `main`.
-12. Deploy; check the server can reach `apicdn.mixlr.com`; set
-    `clc-ilorin.mixlr.com` at `/attendance` with the admin PIN.
-13. Compare one live service with the team's manual count.
-14. Match Copy report to the team's real WhatsApp message; retire the manual count.
+- Write up one service compared with the team's manual count, then retire the
+  manual count.
+- Give staging its own bot, or disconnect it from the group, so reports aren't
+  posted twice.
 
 ## Checks
 
