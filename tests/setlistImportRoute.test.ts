@@ -101,6 +101,14 @@ describe("POST /api/setlists/import", () => {
     expect(all[0].items).toEqual([{ kind: "song", id: ids.crown, title: "Victor's Crown" }]);
   });
 
+  it("leaves an existing order alone when the pasted one has no songs to save", async () => {
+    const existing = await setlists.createSetlist(1, "Sun 29 Nov · First Service");
+    await setlists.replaceSetlistItems(1, existing.id, [{ kind: "song", id: ids.crown, title: "Victor's Crown" }]);
+    const res = await post(importRoute, { orders: [{ name: "Sun 29 Nov · First Service", songIds: [] }] });
+    expect(res.status).toBe(200);
+    expect((await setlists.loadSetlists(1))[0].items).toHaveLength(1);
+  });
+
   it("rejects an unknown song id with 400", async () => {
     expect((await post(importRoute, { orders: [{ name: "X", songIds: [9999] }] })).status).toBe(400);
     expect(await setlists.loadSetlists(1)).toEqual([]);

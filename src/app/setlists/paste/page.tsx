@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { failureFrom, OFFLINE, type Failure } from "@/lib/apiError";
@@ -42,6 +42,14 @@ export default function PasteSetlistPage() {
   const [failure, setFailure] = useState<{ failure: Failure; lead: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<Saved[] | null>(null);
+  // Every order the branch has, so renaming a card onto one still warns that it will be replaced.
+  const [existing, setExisting] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    fetch("/api/setlists")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { setlists?: { name: string }[] } | null) => d?.setlists && setExisting(new Set(d.setlists.map((x) => x.name))))
+      .catch(() => {});
+  }, [saved]);
   const [adding, setAdding] = useState<{ s: number; c: number; i: number; lyrics: string } | null>(null);
 
   const update = (s: number, c: number, i: number, patch: Partial<Song>) =>
@@ -116,7 +124,7 @@ export default function PasteSetlistPage() {
               aria-label="Service order name"
               className="w-full rounded-none border-0 border-b border-dashed border-ink-600 bg-transparent px-1 py-1 font-ui text-xl font-semibold focus:border-solid focus:border-accent focus:outline-none"
             />
-            {svc.exists && <p className="text-sm text-amber-400">This will replace the existing order</p>}
+            {(svc.exists || existing.has(svc.name.trim())) && <p className="text-sm text-amber-400">This will replace the existing order</p>}
           </div>
           {svc.sections.map((sec, c) => (
             <div key={c} className="px-4 py-2">

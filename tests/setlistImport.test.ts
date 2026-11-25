@@ -35,4 +35,7 @@ describe("parseImport", () => {
     expect(typeof parseImport({ orders: Array.from({ length: 21 }, () => ({ name: "X", songIds: [] })) })).toBe("string");
     expect(typeof parseImport(null)).toBe("string");
   });
+  it("rejects two orders with the same name, which would save over each other", () => {
+    expect(parseImport({ orders: [{ name: "A", songIds: [1] }, { name: " A ", songIds: [2] }] })).toBe("Two service orders have the same name; rename one");
+  });
 });

@@ -51,6 +51,7 @@ export function parseImport(body: unknown): ImportRequest | string {
     const name = typeof o?.name === "string" ? o.name.replace(/\s+/g, " ").trim() : "";
     if (!name || name.length > MAX_NAME) return "Each order needs a name";
     if (!Array.isArray(o.songIds) || o.songIds.length > MAX_SONGS || !o.songIds.every((id: unknown) => Number.isInteger(id) && (id as number) > 0)) return "Invalid songs";
+    if (out.some((x) => x.name === name)) return "Two service orders have the same name; rename one";
     out.push({ name, songIds: o.songIds });
   }
   return { orders: out };

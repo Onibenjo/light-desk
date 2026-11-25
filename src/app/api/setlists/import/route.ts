@@ -27,6 +27,8 @@ export async function POST(req: Request) {
 
   const saved: SetlistRecord[] = [];
   for (const order of parsed.orders) {
+    // Nothing matched: saving would empty an order someone may have built by hand.
+    if (order.songIds.length === 0) continue;
     const items: SongItem[] = order.songIds.map((id) => ({ kind: "song", id, title: titles.get(id)! }));
     const target = (await findSetlistByName(s.branchId, order.name)) ?? (await createSetlist(s.branchId, order.name));
     const record = await replaceSetlistItems(s.branchId, target.id, items);
