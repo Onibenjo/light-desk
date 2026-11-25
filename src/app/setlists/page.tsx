@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { eventNameHint, useEventName } from "../useEventName";
 import { comingSundayName, moveItem, planMessageEdit, withParts } from "@/lib/setlist";
@@ -183,7 +184,15 @@ export default function SetlistsPage() {
   const setlists = state.kind === "loaded" ? state.setlists : [];
 
   return (
-    <PageShell title="Service orders" purpose="The active service order sits at the top of the desk's Songs and Engagement tabs. Add to it there, with the + beside a song or a message.">
+    <PageShell
+      title="Service orders"
+      purpose="The active service order sits at the top of the desk's Songs and Engagement tabs. Add to it there, with the + beside a song or a message."
+      actions={
+        <Link href="/setlists/paste" className="btn btn-sm">
+          Paste setlist
+        </Link>
+      }
+    >
       <p id={armed.regionId} role="status" className="sr-only">
         {armed.announcement}
       </p>

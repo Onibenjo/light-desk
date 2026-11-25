@@ -48,7 +48,7 @@ afterEach(() => {
 
 const post = async (route: { POST: (r: Request) => Promise<Response> }, body: unknown) => {
   const res = await route.POST(new Request("http://desk/api", { method: "POST", body: JSON.stringify(body) }));
-  return { status: res.status, body: (await res.json()) as Record<string, any> };
+  return { status: res.status, body: (await res.json()) as { error?: string; readWithoutAi?: boolean; services: { name: string; exists: boolean; sections: { songs: { match: unknown }[] }[] }[] } };
 };
 
 describe("POST /api/setlists/parse", () => {
