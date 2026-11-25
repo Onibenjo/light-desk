@@ -71,10 +71,14 @@ The code does not follow this sheet. Identifiers, files, routes and API paths st
 | Unlock button on /unlock | Unlock this device |
 | Two-press delete, armed | Confirm delete |
 | Clipboard refused | Couldn't copy — try again |
-| Page titles (h1) | Log · Verse sources · Engagement library · Service orders · Import a songbook · Attendance |
+| Page titles (h1) | Log · Verse sources · Engagement library · Service orders · Paste setlist · Import a songbook · Attendance |
 | Back from one service | ← Attendance |
 | Copying the attendance report | Copy report; then "Copied the attendance report — paste in WhatsApp" |
 | Opening the command palette from the header | Search, with the chord beside it (⌘K on a Mac, Ctrl+K elsewhere) |
+| Pasted setlist read by the fallback parser | Read without AI; check the grouping. |
+| Pasted setlist with no songs | Couldn't find any songs |
+| Pasted order that will overwrite one | This will replace the existing order |
+| Songs left out of a saved order | Not in song bank yet |
 | Examples under the verse box before a lookup | Try (they fill the box; they never look up or copy) |
 
 ## States
