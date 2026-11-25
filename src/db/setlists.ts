@@ -47,6 +47,18 @@ export async function findSetlist(branchId: number, id: number): Promise<Setlist
   return row ? toRecord(row) : null;
 }
 
+/** The branch's setlist with exactly this name: what a pasted setlist saves over. */
+export async function findSetlistByName(branchId: number, name: string): Promise<SetlistRecord | null> {
+  const [row] = await db.select().from(setlists).where(and(eq(setlists.branchId, branchId), eq(setlists.name, name))).orderBy(desc(setlists.updatedAt)).limit(1);
+  return row ? toRecord(row) : null;
+}
+
+/** Swap all the items at once. A pasted setlist replaces the order outright, so there is no version to check. */
+export async function replaceSetlistItems(branchId: number, id: number, items: SetlistItem[]): Promise<SetlistRecord | null> {
+  const [row] = await db.update(setlists).set({ items: JSON.stringify(items), updatedAt: new Date() }).where(owned(branchId, id)).returning();
+  return row ? toRecord(row) : null;
+}
+
 /** Created empty and inactive; activating is a separate, deliberate decision. */
 export async function createSetlist(branchId: number, name: string): Promise<SetlistRecord> {
   const now = new Date();
