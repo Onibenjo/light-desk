@@ -2,7 +2,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { formatSection, formatTitle } from "@/lib/videopsalm";
+import { formatForVideoPsalm, formatSection, formatTitle } from "@/lib/videopsalm";
 import { moveCursor, digitToIndex, resumeCursor, togglePin } from "@/lib/songKeys";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { hasFinePointer } from "@/lib/pointer";
@@ -397,6 +397,15 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
     }
   }
 
+  /** Every line with a blank line between, for pasting into VideoPsalm. Not logged: nothing went to the chat. */
+  async function copyForVideoPsalm() {
+    if (!song) return;
+    const text = formatForVideoPsalm(song.sections);
+    if (!text) return;
+    if (await copyText(text, `${song.title} · for VideoPsalm`)) showToast(`Copied the lyrics of "${song.title}" — paste in VideoPsalm`);
+    else showToast("Couldn't copy — try again", "err");
+  }
+
   const place = song && setlist ? placeInSetlist(setlistRows, songKey(song)) : null;
 
   const canOpenNext = !!place?.next && canOpenRow(place.next);
@@ -683,6 +692,9 @@ export default function SongsTab({ copyText, showToast, logSend, setlistApi, lib
             </button>
             <button onClick={() => setEditing(true)} className="btn btn-sm">
               Edit
+            </button>
+            <button onClick={() => void copyForVideoPsalm()} title="Every line with a blank line between, ready to paste into VideoPsalm" className="btn btn-sm">
+              Copy for VideoPsalm
             </button>
           </div>
           {pinned !== null && (
