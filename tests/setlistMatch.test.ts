@@ -9,6 +9,7 @@ const songs: SearchableSong[] = [
   { id: 3, title: "Way Maker", sections: ["Way maker miracle worker"] },
   { id: 4, title: "Great Is Your Mercy", sections: ["Great is your mercy towards me"] },
   { id: 5, title: "Great Is Your Faithfulness", sections: ["Great is your faithfulness oh God"] },
+  { id: 6, title: "I Speak Jesus", sections: ["I just want to speak the name of Jesus"] },
   { title: "No Id Song", sections: ["Unmatched words here"] },
 ];
 const index = buildIndex(songs);
@@ -34,6 +35,11 @@ describe("matchSong", () => {
       expect(m.candidates.map((c) => c.id).sort()).toEqual([4, 5]);
       expect(m.candidates.length).toBeLessThanOrEqual(3);
     }
+  });
+
+  it("doesn't call a short name found in a lyric line a match", () => {
+    // Seen with the real setlist: "(Jesus O)" hit "…the name of Jesus" and showed green.
+    expect(matchSong(index, song("I have come to give you worship", ["Jesus O"])).status).toBe("pick");
   });
 
   it("is missing when nothing is found", () => {
