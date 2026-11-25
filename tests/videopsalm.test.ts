@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
-import { repairVideoPsalm, parseVideoPsalmSongbook, cleanSlideText, formatSection, formatTitle, regroupSlides, type Slide } from "../src/lib/videopsalm";
+import { repairVideoPsalm, parseVideoPsalmSongbook, cleanSlideText, formatForVideoPsalm, formatSection, formatTitle, regroupSlides, type Slide } from "../src/lib/videopsalm";
 import { splitOnBlankLines } from "../src/lib/songSections";
 
 describe("VideoPsalm repair", () => {
@@ -189,5 +189,17 @@ describe("formatTitle", () => {
 
   it("copies nothing for a song with no title", () => {
     expect(formatTitle("   ")).toBe("");
+  });
+});
+
+describe("formatForVideoPsalm", () => {
+  it("puts a blank line between every lyric line, across sections, with no title or emoji", () => {
+    expect(formatForVideoPsalm(["You are always fighting for us\nHeaven's angels all around", "  My delight is found in knowing  \n\nThat You wear the Victor's crown"])).toBe(
+      "You are always fighting for us\n\nHeaven's angels all around\n\nMy delight is found in knowing\n\nThat You wear the Victor's crown",
+    );
+  });
+
+  it("is empty for a song with no lines", () => {
+    expect(formatForVideoPsalm(["", "  \n "])).toBe("");
   });
 });
